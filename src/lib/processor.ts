@@ -1,0 +1,115 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { config } from "./config";
+import { prisma } from "./db";
+import { extractAudio, getDurationSec, splitIntoChunks } from "./ffmpeg";
+import { getStorage, type LocalFile } from "./storage";
+import { getProvider, isLiveProvider, type Segment } from "./transcription";
+import { offsetSegments } from "./transcription/util";
+import { romanizeTelugu } from "./transliterate";
+
+// Queue-agnostic transcription pipeline. Called directly by the inline queue or by the
+// standalone BullMQ worker. Pulls the video from storage to a local temp file, extracts
+// + chunks audio, transcribes, stitches segments, persists, and cleans up temp files.
+
+function languageHint(): string | undefined {
+  const raw = process.env.ASR_LANGUAGE ?? "te";
+  return raw === "auto" || raw === "unknown" ? undefined : raw;
+}
+
+async function update(jobId: string, data: Record<string, unknown>): Promise<void> {
+  await prisma.job.update({ where: { id: jobId }, data });
+}
+
+export async function processJob(jobId: string): Promise<void> {
+  const job = await prisma.job.findUnique({ where: { id: jobId } });
+  if (!job || !job.videoKey) return;
+
+  const provider = getProvider();
+  const language = languageHint();
+  const storage = getStorage();
+
+  let localVideo: LocalFile | null = null;
+  let workDir: string | null = null;
+
+  try {
+    await update(jobId, {
+      status: "extracting",
+      progress: 5,
+      provider: provider.name,
+      error: null,
+    });
+
+    let segments: Segment[] = [];
+    let detected = language ?? "te";
+
+    if (!isLiveProvider(provider)) {
+      await update(jobId, { status: "transcribing", progress: 50 });
+      const r = await provider.transcribe("", { language });
+      segments = r.segments;
+      detected = r.language;
+    } else {
+      localVideo = await storage.toLocalFile(job.videoKey);
+      workDir = await mkdtemp(join(tmpdir(), "captions-audio-"));
+      const audioPath = join(workDir, "audio.wav");
+
+      await extractAudio(localVideo.path, audioPath);
+      const duration = await getDurationSec(audioPath);
+      if (duration > config.limits.maxVideoSeconds) {
+        throw new Error(
+          `Video is too long (${Math.round(duration / 60)} min). Max ${config.limits.maxVideoMinutes} min.`,
+        );
+      }
+      await update(jobId, {
+        status: "transcribing",
+        progress: 20,
+        durationSec: duration,
+      });
+
+      const chunkSec = provider.maxChunkSeconds ?? 0;
+      if (chunkSec && duration > chunkSec) {
+        const chunkDir = join(workDir, "chunks");
+        const chunks = await splitIntoChunks(audioPath, chunkSec, chunkDir);
+        for (let i = 0; i < chunks.length; i++) {
+          const c = chunks[i];
+          const r = await provider.transcribe(c.path, {
+            language,
+            durationSec: chunkSec,
+          });
+          segments.push(...offsetSegments(r.segments, c.offsetSec));
+          if (r.language && r.language !== "unknown") detected = r.language;
+          await update(jobId, {
+            progress: 20 + Math.round(((i + 1) / chunks.length) * 70),
+          });
+        }
+      } else {
+        const r = await provider.transcribe(audioPath, {
+          language,
+          durationSec: duration,
+        });
+        segments = r.segments;
+        if (r.language && r.language !== "unknown") detected = r.language;
+        await update(jobId, { progress: 90 });
+      }
+    }
+
+    // Romanize Telugu → Latin letters when configured (default). No-op for already-Latin text.
+    if (config.outputMode === "translit") {
+      segments = segments.map((s) => ({ ...s, text: romanizeTelugu(s.text) }));
+    }
+
+    await prisma.transcript.upsert({
+      where: { jobId },
+      create: { jobId, language: detected, segments: JSON.stringify(segments) },
+      update: { language: detected, segments: JSON.stringify(segments) },
+    });
+    await update(jobId, { status: "done", progress: 100, language: detected });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown processing error";
+    await update(jobId, { status: "failed", error: message.slice(0, 1000) });
+  } finally {
+    if (workDir) await rm(workDir, { recursive: true, force: true }).catch(() => {});
+    if (localVideo) await localVideo.cleanup().catch(() => {});
+  }
+}

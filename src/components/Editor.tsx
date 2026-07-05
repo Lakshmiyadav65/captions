@@ -1,0 +1,242 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Segment } from "@/lib/transcription/types";
+import {
+  DEFAULT_STYLE,
+  EXPORT_FORMATS,
+  renderSubtitles,
+  type SubtitleFormat,
+  type SubtitleStyle,
+} from "@/lib/subtitles";
+import { PreviewStage } from "./PreviewStage";
+import { StylePanel } from "./StylePanel";
+import { SubtitleList } from "./SubtitleList";
+
+interface Progress {
+  status: string;
+  progress: number;
+  provider?: string;
+  language?: string | null;
+  error?: string | null;
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  queued: "Queued…",
+  extracting: "Extracting audio…",
+  transcribing: "Transcribing Telugu…",
+  done: "Ready",
+  failed: "Failed",
+};
+
+function download(name: string, text: string, mime: string) {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function Editor({
+  jobId,
+  videoUrl,
+  originalName,
+  initialStatus,
+}: {
+  jobId: string;
+  videoUrl: string;
+  originalName: string | null;
+  initialStatus: string;
+}) {
+  const [progress, setProgress] = useState<Progress>({
+    status: initialStatus,
+    progress: initialStatus === "done" ? 100 : 0,
+  });
+  const [segments, setSegments] = useState<Segment[] | null>(null);
+  const [style, setStyle] = useState<SubtitleStyle>({ ...DEFAULT_STYLE });
+  const [currentTime, setCurrentTime] = useState(0);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const baseName = (originalName ?? "telugu-captions").replace(/\.[^.]+$/, "");
+
+  const loadTranscript = useCallback(async () => {
+    const res = await fetch(`/api/transcript/${jobId}`);
+    if (res.ok) {
+      const data = (await res.json()) as { segments: Segment[] };
+      setSegments(data.segments);
+    }
+  }, [jobId]);
+
+  // Follow job progress until it finishes, then load the transcript.
+  useEffect(() => {
+    if (progress.status === "done") {
+      void loadTranscript();
+      return;
+    }
+    if (progress.status === "failed") return;
+
+    const es = new EventSource(`/api/jobs/${jobId}/stream`);
+    es.onmessage = (e) => {
+      const data = JSON.parse(e.data) as Progress;
+      setProgress(data);
+      if (data.status === "done") {
+        es.close();
+        void loadTranscript();
+      } else if (data.status === "failed") {
+        es.close();
+      }
+    };
+    es.onerror = () => es.close();
+    return () => es.close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId]);
+
+  const patchStyle = (patch: Partial<SubtitleStyle>) =>
+    setStyle((s) => ({ ...s, ...patch }));
+
+  const saveEdits = async () => {
+    if (!segments) return;
+    setSaveState("saving");
+    await fetch(`/api/transcript/${jobId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ segments }),
+    });
+    setSaveState("saved");
+    setTimeout(() => setSaveState("idle"), 1500);
+  };
+
+  const doExport = (fmt: SubtitleFormat, mime: string) => {
+    if (!segments) return;
+    download(`${baseName}.${fmt}`, renderSubtitles(fmt, segments, style), mime);
+  };
+
+  const isProcessing =
+    progress.status !== "done" && progress.status !== "failed";
+  const isMock = progress.provider === "mock";
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-6">
+      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <a href="/" className="text-sm text-sky-400 hover:text-sky-300">
+            ← New video
+          </a>
+          <h1 className="mt-1 text-xl font-semibold text-white">
+            {originalName ?? "Telugu captions"}
+          </h1>
+        </div>
+        {progress.status === "done" && (
+          <div className="flex items-center gap-2">
+            {EXPORT_FORMATS.map((f) => (
+              <button
+                key={f.ext}
+                type="button"
+                onClick={() => doExport(f.ext, f.mime)}
+                className="rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-sky-500"
+              >
+                ↓ {f.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </header>
+
+      {isProcessing && (
+        <div className="mb-6 rounded-xl border border-white/10 bg-neutral-900 p-6">
+          <div className="mb-2 flex items-center justify-between text-sm">
+            <span className="font-medium text-neutral-200">
+              {STATUS_LABEL[progress.status] ?? progress.status}
+            </span>
+            <span className="tabular-nums text-neutral-400">
+              {progress.progress}%
+            </span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-800">
+            <div
+              className="h-full rounded-full bg-sky-500 transition-all duration-500"
+              style={{ width: `${progress.progress}%` }}
+            />
+          </div>
+          <p className="mt-3 text-xs text-neutral-500">
+            {progress.provider && progress.provider !== "mock"
+              ? `Transcribing with ${progress.provider}.`
+              : "Using the built-in sample transcript (no API key set)."}
+          </p>
+        </div>
+      )}
+
+      {progress.status === "failed" && (
+        <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-200">
+          <p className="font-medium">Processing failed</p>
+          <p className="mt-1 text-red-300/80">{progress.error}</p>
+        </div>
+      )}
+
+      {progress.status === "done" && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
+          {/* Left: preview + transcript */}
+          <div className="space-y-4">
+            {isMock && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-200">
+                Showing a <strong>sample</strong> Telugu transcript. Add a Sarvam or
+                OpenAI API key (see README) to transcribe your real audio.
+              </div>
+            )}
+            <PreviewStage
+              videoRef={videoRef}
+              videoUrl={videoUrl}
+              segments={segments ?? []}
+              style={style}
+              onTime={setCurrentTime}
+            />
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-neutral-500">
+                Detected language:{" "}
+                <span className="text-neutral-300">
+                  {progress.language ?? "te"}
+                </span>
+              </p>
+              <button
+                type="button"
+                onClick={saveEdits}
+                disabled={saveState === "saving"}
+                className="rounded-lg border border-white/10 bg-neutral-800 px-3 py-1.5 text-xs text-neutral-200 hover:bg-neutral-700 disabled:opacity-50"
+              >
+                {saveState === "saving"
+                  ? "Saving…"
+                  : saveState === "saved"
+                    ? "Saved ✓"
+                    : "Save edits"}
+              </button>
+            </div>
+            {segments && (
+              <SubtitleList
+                segments={segments}
+                onChange={setSegments}
+                currentTime={currentTime}
+                onSeek={(t) => {
+                  if (videoRef.current) videoRef.current.currentTime = t;
+                }}
+              />
+            )}
+          </div>
+
+          {/* Right: style controls */}
+          <aside className="lg:sticky lg:top-6 lg:h-fit">
+            <div className="rounded-xl border border-white/10 bg-neutral-900 p-4">
+              <StylePanel
+                style={style}
+                onChange={patchStyle}
+                onApplyPreset={(s) => setStyle({ ...s })}
+              />
+            </div>
+          </aside>
+        </div>
+      )}
+    </div>
+  );
+}

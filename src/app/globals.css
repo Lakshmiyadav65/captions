@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+/* Telugu subtitle fonts are declared in fonts.css (bundled in a later step). */
+@import "./fonts.css";
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Thin, unobtrusive scrollbars for the editor panels. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(64 64 64) transparent;
+}

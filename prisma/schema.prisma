@@ -1,0 +1,102 @@
+// Prisma schema for the Telugu captioning app.
+// Phase 1 uses SQLite (zero-config, local). Phase 2 swaps `provider` to "postgresql".
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// One uploaded video and its processing lifecycle.
+model Job {
+  id           String   @id @default(cuid())
+  status       String   @default("queued") // queued | extracting | transcribing | done | failed
+  progress     Int      @default(0) //  0..100
+  provider     String   @default("mock") // which ASR provider ran (mock | sarvam | openai)
+  language     String? //  detected language code, e.g. "te"
+  error        String? //  failure reason, if status = failed
+  originalName String? //  the user's original filename
+  videoKey     String? //  storage key for the uploaded video (e.g. uploads/<id>/source.mp4)
+  durationSec  Float? //   media duration in seconds
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  transcript Transcript?
+
+  @@index([userId])
+}
+
+/// The generated subtitle segments for a job (stored as JSON).
+model Transcript {
+  id        String   @id @default(cuid())
+  jobId     String   @unique
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  language  String?
+  segments  String //   JSON-serialized Segment[] (start, end, text, words[])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// User-saved subtitle style presets (built-in presets also live in code).
+model StylePreset {
+  id        String   @id @default(cuid())
+  name      String
+  style     String //   JSON-serialized SubtitleStyle
+  createdAt DateTime @default(now())
+}
+
+// --- Auth.js (NextAuth) models ---
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+
+  accounts Account[]
+  sessions Session[]
+  jobs     Job[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
