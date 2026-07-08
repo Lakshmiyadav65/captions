@@ -47,6 +47,17 @@ const schema = z.object({
   MAX_VIDEO_MINUTES: z.coerce.number().default(30),
   QUOTA_MONTHLY_MINUTES: z.coerce.number().default(120),
   QUOTA_MAX_ACTIVE_JOBS: z.coerce.number().default(3),
+
+  // Caption Style Analyzer (vision). ANTHROPIC_API_KEY is read directly from process.env
+  // in the provider (like SARVAM_API_KEY), never here / never handed to the browser.
+  VISION_PROVIDER: z.string().default("auto"), // auto | anthropic | mock
+  VISION_MODEL: z.string().default("claude-sonnet-5"),
+  GENERATE_MODEL: z.string().default("claude-haiku-4-5"),
+  OCR_ENABLED: boolish("false"), // a second paid vision call — off by default
+  MAX_IMAGE_MB: z.coerce.number().default(10),
+  QUOTA_MONTHLY_ANALYSES: z.coerce.number().default(50),
+  QUOTA_MONTHLY_GENERATIONS: z.coerce.number().default(100),
+  STYLE_MATCH_THRESHOLD: z.coerce.number().default(0.9),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -68,6 +79,8 @@ export const config = {
   googleAuth: Boolean(env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET),
   githubAuth: Boolean(env.AUTH_GITHUB_ID && env.AUTH_GITHUB_SECRET),
   devLogin: env.AUTH_DEV_LOGIN,
+  visionModel: env.VISION_MODEL,
+  generateModel: env.GENERATE_MODEL,
   limits: {
     maxUploadBytes: env.MAX_UPLOAD_MB * 1024 * 1024,
     maxUploadMB: env.MAX_UPLOAD_MB,
@@ -75,6 +88,12 @@ export const config = {
     maxVideoMinutes: env.MAX_VIDEO_MINUTES,
     monthlyMinutes: env.QUOTA_MONTHLY_MINUTES,
     maxActiveJobs: env.QUOTA_MAX_ACTIVE_JOBS,
+    maxImageBytes: env.MAX_IMAGE_MB * 1024 * 1024,
+    maxImageMB: env.MAX_IMAGE_MB,
+    monthlyAnalyses: env.QUOTA_MONTHLY_ANALYSES,
+    monthlyGenerations: env.QUOTA_MONTHLY_GENERATIONS,
+    styleMatchThreshold: env.STYLE_MATCH_THRESHOLD,
+    ocrEnabled: env.OCR_ENABLED,
   },
 } as const;
 
@@ -87,6 +106,8 @@ export function publicConfig() {
     devLogin: config.devLogin,
     maxUploadMB: config.limits.maxUploadMB,
     maxVideoMinutes: config.limits.maxVideoMinutes,
+    maxImageMB: config.limits.maxImageMB,
+    monthlyAnalyses: config.limits.monthlyAnalyses,
   };
 }
 

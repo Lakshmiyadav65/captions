@@ -41,6 +41,32 @@ export async function assertWithinQuota(userId: string): Promise<QuotaResult> {
   return { ok: true };
 }
 
+export async function assertWithinAnalysisQuota(userId: string): Promise<QuotaResult> {
+  const used = await prisma.styleAnalysis.count({
+    where: { userId, createdAt: { gte: startOfMonth() } },
+  });
+  if (used >= config.limits.monthlyAnalyses) {
+    return {
+      ok: false,
+      reason: `You've reached your monthly limit of ${config.limits.monthlyAnalyses} style analyses.`,
+    };
+  }
+  return { ok: true };
+}
+
+export async function assertWithinGenerationQuota(userId: string): Promise<QuotaResult> {
+  const used = await prisma.generationLog.count({
+    where: { userId, createdAt: { gte: startOfMonth() } },
+  });
+  if (used >= config.limits.monthlyGenerations) {
+    return {
+      ok: false,
+      reason: `You've reached your monthly limit of ${config.limits.monthlyGenerations} caption generations.`,
+    };
+  }
+  return { ok: true };
+}
+
 export async function usageSummary(userId: string) {
   const agg = await prisma.job.aggregate({
     _sum: { durationSec: true },
