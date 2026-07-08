@@ -1,12 +1,16 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { fontStack } from "@/lib/fonts";
 import type { SubtitleStyle } from "@/lib/subtitles/style";
+import { tokenizeSegment } from "@/lib/subtitles/karaoke";
+import type { Segment } from "@/lib/transcription/types";
 
 // Renders one active subtitle line over the video. All sizes are derived from the
 // container HEIGHT so the preview scales with the player and matches the ASS export
-// (which is authored against a 1080p canvas).
+// (which is authored against a 1080p canvas). When `style.karaoke` is on, the line is
+// split into per-word spans and the first `filled` words take the highlight color —
+// the same progressive fill the ASS \k tags produce in the burned MP4.
 
 function hexToRgba(hex: string, a: number): string {
   const h = hex.replace("#", "").padEnd(6, "0");
@@ -17,15 +21,18 @@ function hexToRgba(hex: string, a: number): string {
 }
 
 export function SubtitleOverlay({
-  text,
+  segment,
   style,
   height,
+  filled = 0,
 }: {
-  text: string;
+  segment: Segment | null;
   style: SubtitleStyle;
   height: number;
+  /** Number of leading words already spoken (only used when style.karaoke). */
+  filled?: number;
 }) {
-  if (!text || height <= 0) return null;
+  if (!segment || !segment.text || height <= 0) return null;
 
   const px = (pct: number) => (pct / 100) * height;
   const scale = height / 1080;
@@ -59,6 +66,20 @@ export function SubtitleOverlay({
       : "none",
   };
 
+  // Karaoke: render each word as its own span so spoken words can take the highlight color.
+  let content: ReactNode = segment.text;
+  if (style.karaoke) {
+    const tokens = tokenizeSegment(segment);
+    if (tokens.length) {
+      content = tokens.map((tk, i) => (
+        <span key={i} style={{ color: i < filled ? style.highlightColor : style.color }}>
+          {tk.text}
+          {i < tokens.length - 1 ? " " : ""}
+        </span>
+      ));
+    }
+  }
+
   return (
     <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
       <div
@@ -72,7 +93,7 @@ export function SubtitleOverlay({
           textAlign: style.align,
         }}
       >
-        <span style={spanStyle}>{text}</span>
+        <span style={spanStyle}>{content}</span>
       </div>
     </div>
   );

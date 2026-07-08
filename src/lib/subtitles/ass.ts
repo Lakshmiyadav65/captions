@@ -1,5 +1,6 @@
 import type { Segment } from "@/lib/transcription/types";
 import type { SubtitleStyle } from "./style";
+import { tokenizeSegment } from "./karaoke";
 
 // ASS (Advanced SubStation Alpha) carries full styling, so an exported .ass reproduces
 // the font, size, colors, outline, box and position seen in the live preview. We render
@@ -54,7 +55,11 @@ export function toASS(segments: Segment[], style: SubtitleStyle): string {
     : style.outlineWidth;
   const shadow = style.shadow ? 2 : 0;
 
-  const primary = assColor(style.color, 0);
+  const base = assColor(style.color, 0);
+  // For karaoke, PrimaryColour is the "sung"/filled color and SecondaryColour the
+  // not-yet-spoken color; \k swaps Secondary -> Primary as each word is reached.
+  const primary = style.karaoke ? assColor(style.highlightColor, 0) : base;
+  const secondary = style.karaoke ? base : base;
   const outlineCol = hasBox
     ? assColor(style.backgroundColor, boxAlpha)
     : assColor(style.outlineColor, 0);
@@ -78,7 +83,7 @@ PlayResY: ${PLAY_H}
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,${style.fontFamily},${fontSize},${primary},${primary},${outlineCol},${backCol},${bold},0,0,0,100,100,${spacing},0,${borderStyle},${outline},${shadow},${align},${marginLR},${marginLR},${mv},1
+Style: Default,${style.fontFamily},${fontSize},${primary},${secondary},${outlineCol},${backCol},${bold},0,0,0,100,100,${spacing},0,${borderStyle},${outline},${shadow},${align},${marginLR},${marginLR},${mv},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -86,13 +91,33 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
   const events = segments
     .map((s) => {
-      const text = (style.uppercase ? s.text.toUpperCase() : s.text).replace(
-        /\r?\n/g,
-        "\\N",
-      );
+      const text = style.karaoke
+        ? karaokeText(s, style)
+        : (style.uppercase ? s.text.toUpperCase() : s.text).replace(/\r?\n/g, "\\N");
       return `Dialogue: 0,${assTime(s.start)},${assTime(s.end)},Default,,0,0,0,,${text}`;
     })
     .join("\n");
 
   return header + events + "\n";
+}
+
+/** Build a Dialogue line with `{\k…}` karaoke tags so each word fills in sync with speech. */
+function karaokeText(seg: Segment, style: SubtitleStyle): string {
+  const tokens = tokenizeSegment(seg);
+  if (!tokens.length) {
+    return (style.uppercase ? seg.text.toUpperCase() : seg.text).replace(/\r?\n/g, "\\N");
+  }
+  // \k values are centiseconds; each word's duration runs until the next word starts so
+  // inter-word gaps stay in sync. A lead-in \k covers any silence before the first word.
+  const cs = (sec: number) => Math.max(0, Math.round(sec * 100));
+  let out = "";
+  const lead = cs(tokens[0].start - seg.start);
+  if (lead > 0) out += `{\\k${lead}}`;
+  tokens.forEach((tk, i) => {
+    const nextStart = i < tokens.length - 1 ? tokens[i + 1].start : tk.end;
+    const word = style.uppercase ? tk.text.toUpperCase() : tk.text;
+    out += `{\\k${cs(nextStart - tk.start)}}${word}`;
+    if (i < tokens.length - 1) out += " ";
+  });
+  return out;
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { Segment } from "@/lib/transcription/types";
 import type { SubtitleStyle } from "@/lib/subtitles/style";
+import { tokenizeSegment, filledCount } from "@/lib/subtitles/karaoke";
 import { SubtitleOverlay } from "./SubtitleOverlay";
 
 // Video player with the live subtitle overlay on top. Tracks the real playhead with
@@ -24,7 +25,10 @@ export function PreviewStage({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
-  const [text, setText] = useState("");
+  const [active, setActive] = useState<{ seg: Segment | null; filled: number }>({
+    seg: null,
+    filled: 0,
+  });
   const lastReport = useRef(0);
 
   useEffect(() => {
@@ -43,10 +47,14 @@ export function PreviewStage({
       const v = videoRef.current;
       if (v) {
         const t = v.currentTime;
-        const active = segments.find((s) => t >= s.start && t < s.end);
-        // setState bails out when the string is unchanged, so this only re-renders
-        // the overlay at segment boundaries.
-        setText(active ? active.text : "");
+        const seg = segments.find((s) => t >= s.start && t < s.end) ?? null;
+        const filled =
+          seg && style.karaoke ? filledCount(tokenizeSegment(seg), t) : 0;
+        // Only re-render when the active line or the filled-word count actually changes,
+        // so karaoke updates once per word (not every animation frame).
+        setActive((prev) =>
+          prev.seg === seg && prev.filled === filled ? prev : { seg, filled },
+        );
         if (onTime && Math.abs(t - lastReport.current) > 0.1) {
           lastReport.current = t;
           onTime(t);
@@ -56,7 +64,7 @@ export function PreviewStage({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [segments, videoRef, onTime]);
+  }, [segments, videoRef, onTime, style.karaoke]);
 
   return (
     <div
@@ -71,7 +79,12 @@ export function PreviewStage({
         playsInline
         className="h-full w-full bg-black object-contain"
       />
-      <SubtitleOverlay text={text} style={style} height={height} />
+      <SubtitleOverlay
+        segment={active.seg}
+        style={style}
+        height={height}
+        filled={active.filled}
+      />
     </div>
   );
 }

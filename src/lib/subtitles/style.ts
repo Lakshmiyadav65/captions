@@ -30,6 +30,10 @@ export interface SubtitleStyle {
   maxWidthPct: number;
   letterSpacingEm: number;
   uppercase: boolean;
+  /** Word-by-word "karaoke" highlight: spoken words switch to `highlightColor` and stay filled. */
+  karaoke: boolean;
+  /** Fill color for words that have been spoken (used when `karaoke` is on). */
+  highlightColor: string;
 }
 
 /** A sane default so the overlay always has something to render. */
@@ -51,4 +55,6 @@ export const DEFAULT_STYLE: SubtitleStyle = {
   maxWidthPct: 90,
   letterSpacingEm: 0,
   uppercase: false,
+  karaoke: false,
+  highlightColor: "#FFE100",
 };

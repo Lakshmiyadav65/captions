@@ -68,6 +68,8 @@ Upload (streamed to disk)
   → stored in SQLite via Prisma
 Editor
   → HTML5 video + live subtitle overlay (rAF-synced)
+  → optional word-by-word karaoke highlight (progressive fill, preview = export)
+  → custom spelling dictionary fixes recurring ASR mistakes (auto-applied to new videos)
   → style panel drives one SubtitleStyle
   → SRT / VTT / ASS generated client-side from segments + style
   → "Export MP4" burns captions into the video server-side   (src/lib/ffmpeg.ts)
@@ -130,9 +132,11 @@ duration) are enforced server-side via `MAX_UPLOAD_MB`, `MAX_VIDEO_MINUTES`, `QU
 
 - **Phase 2 (done):** Postgres, S3/R2 storage, BullMQ + Redis queue + worker, Auth.js accounts,
   quotas + caps, Dockerfile + docker-compose + deploy docs.
-- **Phase 3 (in progress):** ✅ burned-in MP4 export (ffmpeg + ASS). Next: waveform/timeline
-  editor, word-by-word karaoke highlighting, custom spelling dictionary, more ASR providers
-  (Google Chirp, ElevenLabs), local faster-whisper toggle, custom font upload.
+- **Phase 3 (in progress):** ✅ burned-in MP4 export (ffmpeg + ASS); ✅ word-by-word
+  **karaoke** highlighting (progressive fill, live + burned); ✅ custom **spelling dictionary**
+  (persistent per-user corrections, auto-applied to new videos). Next: waveform/timeline
+  editor, more ASR providers (Google Chirp, ElevenLabs), local faster-whisper toggle,
+  custom font upload.
 
 ## Tech
 

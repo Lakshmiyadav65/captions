@@ -194,6 +194,34 @@ export function StylePanel({
         </div>
       </section>
 
+      {/* Karaoke */}
+      <section className="space-y-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          Word-by-word (karaoke)
+        </h3>
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-neutral-400">
+            Highlight each word as spoken
+          </span>
+          <Segmented
+            value={style.karaoke ? "on" : "off"}
+            onChange={(v) => onChange({ karaoke: v === "on" })}
+            options={[
+              { label: "On", value: "on" },
+              { label: "Off", value: "off" },
+            ]}
+          />
+        </div>
+        {style.karaoke && (
+          <Field label="Highlight color">
+            <ColorInput
+              value={style.highlightColor}
+              onChange={(v) => onChange({ highlightColor: v })}
+            />
+          </Field>
+        )}
+      </section>
+
       {/* Background box */}
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">

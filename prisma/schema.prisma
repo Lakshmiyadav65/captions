@@ -51,6 +51,19 @@ model StylePreset {
   createdAt DateTime @default(now())
 }
 
+/// A user's custom spelling correction: replace whole-word `from` with `to` in transcripts.
+model SpellingRule {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  from      String //  the (mis)spelling the ASR tends to produce
+  to        String //  the correction to substitute
+  createdAt DateTime @default(now())
+
+  @@unique([userId, from])
+  @@index([userId])
+}
+
 // --- Auth.js (NextAuth) models ---
 
 model User {
@@ -61,9 +74,10 @@ model User {
   image         String?
   createdAt     DateTime  @default(now())
 
-  accounts Account[]
-  sessions Session[]
-  jobs     Job[]
+  accounts      Account[]
+  sessions      Session[]
+  jobs          Job[]
+  spellingRules SpellingRule[]
 }
 
 model Account {

@@ -9,9 +9,11 @@ import {
   type SubtitleFormat,
   type SubtitleStyle,
 } from "@/lib/subtitles";
+import { applySpelling, type SpellRule } from "@/lib/spelling";
 import { PreviewStage } from "./PreviewStage";
 import { StylePanel } from "./StylePanel";
 import { SubtitleList } from "./SubtitleList";
+import { DictionaryPanel } from "./DictionaryPanel";
 
 interface Progress {
   status: string;
@@ -139,6 +141,20 @@ export function Editor({
       setExportError(err instanceof Error ? err.message : "Export failed");
       setExportState("error");
     }
+  };
+
+  // Run the saved spelling dictionary over the on-screen transcript. Edits stay local
+  // until the user hits "Save edits" (same as manual text fixes).
+  const applyDictionary = (rules: SpellRule[]) => {
+    setSegments((prev) =>
+      prev
+        ? prev.map((s) => ({
+            ...s,
+            text: applySpelling(s.text, rules),
+            words: s.words?.map((w) => ({ ...w, text: applySpelling(w.text, rules) })),
+          }))
+        : prev,
+    );
   };
 
   const isProcessing =
@@ -271,8 +287,8 @@ export function Editor({
             )}
           </div>
 
-          {/* Right: style controls */}
-          <aside className="lg:sticky lg:top-6 lg:h-fit">
+          {/* Right: style controls + dictionary */}
+          <aside className="space-y-4 lg:sticky lg:top-6 lg:h-fit">
             <div className="rounded-xl border border-white/10 bg-neutral-900 p-4">
               <StylePanel
                 style={style}
@@ -280,6 +296,7 @@ export function Editor({
                 onApplyPreset={(s) => setStyle({ ...s })}
               />
             </div>
+            <DictionaryPanel onApply={applyDictionary} />
           </aside>
         </div>
       )}

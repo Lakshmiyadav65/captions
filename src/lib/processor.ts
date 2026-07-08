@@ -8,6 +8,8 @@ import { getStorage, type LocalFile } from "./storage";
 import { getProvider, isLiveProvider, type Segment } from "./transcription";
 import { offsetSegments } from "./transcription/util";
 import { romanizeTelugu } from "./transliterate";
+import { applySpelling } from "./spelling";
+import { getUserSpellingRules } from "./spelling-server";
 
 // Queue-agnostic transcription pipeline. Called directly by the inline queue or by the
 // standalone BullMQ worker. Pulls the video from storage to a local temp file, extracts
@@ -94,9 +96,24 @@ export async function processJob(jobId: string): Promise<void> {
       }
     }
 
-    // Romanize Telugu → Latin letters when configured (default). No-op for already-Latin text.
+    // Romanize Telugu → Latin letters when configured (default). No-op for already-Latin
+    // text. Words are romanized too so karaoke tokens stay aligned with the display text.
     if (config.outputMode === "translit") {
-      segments = segments.map((s) => ({ ...s, text: romanizeTelugu(s.text) }));
+      segments = segments.map((s) => ({
+        ...s,
+        text: romanizeTelugu(s.text),
+        words: s.words?.map((w) => ({ ...w, text: romanizeTelugu(w.text) })),
+      }));
+    }
+
+    // Apply the user's saved spelling corrections so new transcripts come out pre-fixed.
+    const rules = await getUserSpellingRules(job.userId);
+    if (rules.length) {
+      segments = segments.map((s) => ({
+        ...s,
+        text: applySpelling(s.text, rules),
+        words: s.words?.map((w) => ({ ...w, text: applySpelling(w.text, rules) })),
+      }));
     }
 
     await prisma.transcript.upsert({

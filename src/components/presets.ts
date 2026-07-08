@@ -86,4 +86,21 @@ export const PRESETS: StylePreset[] = [
       shadow: true,
     },
   },
+  {
+    id: "karaoke",
+    name: "Karaoke",
+    style: {
+      ...DEFAULT_STYLE,
+      fontFamily: "NTR",
+      fontWeight: 700,
+      fontSizePct: 6.5,
+      color: "#FFFFFF",
+      outlineColor: "#000000",
+      outlineWidth: 4,
+      shadow: true,
+      positionYPct: 82,
+      karaoke: true,
+      highlightColor: "#FFE100",
+    },
+  },
 ];
