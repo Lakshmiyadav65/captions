@@ -52,6 +52,13 @@ local storage; switch to S3/R2 for multi-host.
 | `MAX_VIDEO_MINUTES` | `30` | reject longer videos |
 | `QUOTA_MONTHLY_MINUTES` | `120` | per-user monthly cap |
 | `QUOTA_MAX_ACTIVE_JOBS` | `3` | per-user concurrency |
+| `FONTS_DIR` | `./assets/fonts` | TTFs libass burns into MP4 exports; override if relocated |
+
+> **MP4 export & fonts:** "Export MP4" burns captions server-side with the bundled ffmpeg.
+> libass needs real TTF/OTF files (the browser `@fontsource` fonts are woff2-only), so the
+> repo ships them in `assets/fonts/`. The Docker image already copies them; on other hosts
+> ensure that directory is deployed (or point `FONTS_DIR` at it). Burning re-encodes the
+> video — CPU-bound — so keep it on the web/container host, not a serverless function.
 
 ## Storage: S3 / Cloudflare R2
 

@@ -1,7 +1,8 @@
 # Telugu Captions
 
 Upload a Telugu video → auto-generate **timed Telugu subtitles** → style them live
-(font, **size**, colour, outline, background, position) → export **SRT / VTT / ASS**.
+(font, **size**, colour, outline, background, position) → export a **publish-ready MP4
+with the captions burned in**, or download **SRT / VTT / ASS**.
 
 By default subtitles are **romanized** — the spoken Telugu written in English letters, e.g.
 "నమస్కారం" → **"Namaskaram"** (`OUTPUT_MODE=translit`). Set `OUTPUT_MODE=transcribe` to get
@@ -69,6 +70,10 @@ Editor
   → HTML5 video + live subtitle overlay (rAF-synced)
   → style panel drives one SubtitleStyle
   → SRT / VTT / ASS generated client-side from segments + style
+  → "Export MP4" burns captions into the video server-side   (src/lib/ffmpeg.ts)
+      · builds ASS from the live segments + style
+      · ffmpeg `subtitles` (libass) renders them into H.264/AAC + faststart
+      · bundled Telugu TTFs in assets/fonts let libass match the chosen font
 ```
 
 Swapping transcription vendors is a one-file change: implement `TranscriptionProvider`
@@ -83,7 +88,9 @@ Scribe / local faster-whisper all fit this interface.
 |------|------|
 | `src/app/` | Pages (`/`, `/jobs/[id]`) + API routes (`upload`, `jobs`, `transcript`) |
 | `src/lib/transcription/` | Provider interface + Sarvam / OpenAI / mock adapters |
-| `src/lib/ffmpeg.ts` | Audio extraction & chunking (bundled ffmpeg) |
+| `src/lib/ffmpeg.ts` | Audio extraction, chunking & **burned-in MP4** rendering (bundled ffmpeg) |
+| `src/app/api/export/[id]/` | Server-side "Export MP4" — burns ASS captions into the video |
+| `assets/fonts/` | Bundled Telugu TTFs libass uses when burning (browser fonts are woff2-only) |
 | `src/lib/jobs.ts` | In-process job worker + status transitions |
 | `src/lib/subtitles/` | SRT / VTT / ASS exporters + the `SubtitleStyle` model |
 | `src/lib/fonts.ts` | Curated self-hosted Telugu fonts |
@@ -123,8 +130,9 @@ duration) are enforced server-side via `MAX_UPLOAD_MB`, `MAX_VIDEO_MINUTES`, `QU
 
 - **Phase 2 (done):** Postgres, S3/R2 storage, BullMQ + Redis queue + worker, Auth.js accounts,
   quotas + caps, Dockerfile + docker-compose + deploy docs.
-- **Phase 3:** waveform/timeline editor, more ASR providers (Google Chirp, ElevenLabs), local
-  faster-whisper toggle, custom font upload, and burned-in MP4 export (ffmpeg + ASS).
+- **Phase 3 (in progress):** ✅ burned-in MP4 export (ffmpeg + ASS). Next: waveform/timeline
+  editor, word-by-word karaoke highlighting, custom spelling dictionary, more ASR providers
+  (Google Chirp, ElevenLabs), local faster-whisper toggle, custom font upload.
 
 ## Tech
 

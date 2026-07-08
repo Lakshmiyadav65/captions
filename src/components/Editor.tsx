@@ -58,6 +58,8 @@ export function Editor({
   const [style, setStyle] = useState<SubtitleStyle>({ ...DEFAULT_STYLE });
   const [currentTime, setCurrentTime] = useState(0);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [exportState, setExportState] = useState<"idle" | "exporting" | "error">("idle");
+  const [exportError, setExportError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const baseName = (originalName ?? "telugu-captions").replace(/\.[^.]+$/, "");
@@ -114,6 +116,31 @@ export function Editor({
     download(`${baseName}.${fmt}`, renderSubtitles(fmt, segments, style), mime);
   };
 
+  // Burn the captions + current style permanently into the video (server-side ffmpeg),
+  // then download the finished MP4 — the publish-ready output creators actually want.
+  const exportMp4 = async () => {
+    if (!segments || exportState === "exporting") return;
+    setExportState("exporting");
+    setExportError(null);
+    try {
+      const res = await fetch(`/api/export/${jobId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ style, segments }),
+      });
+      const data = (await res.json()) as { url?: string; filename?: string; error?: string };
+      if (!res.ok || !data.url) throw new Error(data.error ?? "Export failed");
+      const a = document.createElement("a");
+      a.href = data.url;
+      a.download = data.filename ?? `${baseName}-captioned.mp4`;
+      a.click();
+      setExportState("idle");
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Export failed");
+      setExportState("error");
+    }
+  };
+
   const isProcessing =
     progress.status !== "done" && progress.status !== "failed";
   const isMock = progress.provider === "mock";
@@ -130,17 +157,36 @@ export function Editor({
           </h1>
         </div>
         {progress.status === "done" && (
-          <div className="flex items-center gap-2">
-            {EXPORT_FORMATS.map((f) => (
+          <div className="flex flex-col items-end gap-1.5">
+            <div className="flex items-center gap-2">
               <button
-                key={f.ext}
                 type="button"
-                onClick={() => doExport(f.ext, f.mime)}
-                className="rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-sky-500"
+                onClick={exportMp4}
+                disabled={exportState === "exporting"}
+                className="rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                ↓ {f.label}
+                {exportState === "exporting" ? "⏳ Rendering MP4…" : "⬇ Export MP4"}
               </button>
-            ))}
+              <span className="mx-1 h-6 w-px bg-white/10" aria-hidden />
+              {EXPORT_FORMATS.map((f) => (
+                <button
+                  key={f.ext}
+                  type="button"
+                  onClick={() => doExport(f.ext, f.mime)}
+                  className="rounded-lg bg-neutral-800 px-3 py-2 text-sm font-medium text-neutral-200 transition hover:bg-neutral-700"
+                >
+                  ↓ {f.label}
+                </button>
+              ))}
+            </div>
+            {exportState === "exporting" && (
+              <span className="text-xs text-neutral-500">
+                Burning captions into your video — this can take up to a minute.
+              </span>
+            )}
+            {exportState === "error" && exportError && (
+              <span className="text-xs text-red-400">{exportError}</span>
+            )}
           </div>
         )}
       </header>

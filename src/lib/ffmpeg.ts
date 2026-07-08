@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
-import { mkdir, readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { copyFile, mkdir, readdir, writeFile } from "node:fs/promises";
+import { dirname, basename, join } from "node:path";
 import ffmpegStatic from "ffmpeg-static";
 
 // We spawn the ffmpeg binary that ships with `ffmpeg-static` — no system install needed.
@@ -9,13 +9,29 @@ const FFMPEG: string = (ffmpegStatic as unknown as string) || "ffmpeg";
 interface ExecOpts {
   allowFail?: boolean;
   signal?: AbortSignal;
+  /** Working directory for the ffmpeg process (lets filters use bare relative filenames). */
+  cwd?: string;
+  /** Called with elapsed output seconds as ffmpeg reports `time=` (for progress UI). */
+  onProgress?: (outSec: number) => void;
 }
+
+const TIME_RE = /time=(\d+):(\d+):(\d+(?:\.\d+)?)/g;
 
 function exec(args: string[], opts: ExecOpts = {}): Promise<string> {
   return new Promise((resolve, reject) => {
-    const proc = spawn(FFMPEG, args, { signal: opts.signal });
+    const proc = spawn(FFMPEG, args, { signal: opts.signal, cwd: opts.cwd });
     let stderr = "";
-    proc.stderr.on("data", (d) => (stderr += d.toString()));
+    proc.stderr.on("data", (d) => {
+      const s = d.toString();
+      stderr += s;
+      if (opts.onProgress) {
+        let m: RegExpExecArray | null;
+        TIME_RE.lastIndex = 0;
+        while ((m = TIME_RE.exec(s))) {
+          opts.onProgress(Number(m[1]) * 3600 + Number(m[2]) * 60 + parseFloat(m[3]));
+        }
+      }
+    });
     proc.on("error", reject);
     proc.on("close", (code) => {
       if (code === 0 || opts.allowFail) resolve(stderr);
@@ -78,4 +94,66 @@ export async function splitIntoChunks(
     .filter((f) => f.startsWith("chunk_") && f.endsWith(".wav"))
     .sort();
   return files.map((f, i) => ({ path: join(outDir, f), offsetSec: i * chunkSec }));
+}
+
+export interface BurnOptions {
+  /** Directory of TTF fonts libass loads to match the subtitle font name. */
+  fontsDir: string;
+  signal?: AbortSignal;
+  /** Progress callback: fraction 0..1 (needs totalSec to be meaningful). */
+  onProgress?: (fraction: number) => void;
+  totalSec?: number;
+}
+
+/**
+ * Burn an ASS subtitle file into a video, producing a publish-ready MP4 with the captions
+ * rendered permanently into the pixels (H.264 + AAC, faststart for web/mobile playback).
+ *
+ * We run ffmpeg with cwd = the work dir and reference everything by RELATIVE names:
+ * `subs.ass` and a `fonts/` subdir. This deliberately avoids passing absolute paths into
+ * the filtergraph — on Windows the drive-letter colon gets mangled by filter escaping and
+ * libass can't find the font dir. The bundled TTFs are copied into `fonts/` (isolated from
+ * the .ass so libass doesn't try to load it as a font); libass matches the ASS `Fontname`
+ * against those files, so the font chosen in the editor is the font burned in.
+ */
+export async function burnSubtitles(
+  videoPath: string,
+  assContent: string,
+  outPath: string,
+  opts: BurnOptions,
+): Promise<void> {
+  const workDir = dirname(outPath);
+  await writeFile(join(workDir, "subs.ass"), assContent, "utf8");
+
+  const fontDest = join(workDir, "fonts");
+  await mkdir(fontDest, { recursive: true });
+  for (const f of await readdir(opts.fontsDir)) {
+    if (/\.(ttf|otf|ttc)$/i.test(f)) {
+      await copyFile(join(opts.fontsDir, f), join(fontDest, f));
+    }
+  }
+
+  await exec(
+    [
+      "-y",
+      "-i", videoPath,
+      "-vf", "subtitles=subs.ass:fontsdir=fonts",
+      "-c:v", "libx264",
+      "-preset", "veryfast",
+      "-crf", "20",
+      "-pix_fmt", "yuv420p",
+      "-c:a", "aac",
+      "-b:a", "192k",
+      "-movflags", "+faststart",
+      basename(outPath),
+    ],
+    {
+      cwd: workDir,
+      signal: opts.signal,
+      onProgress:
+        opts.onProgress && opts.totalSec
+          ? (sec) => opts.onProgress!(Math.min(1, sec / opts.totalSec!))
+          : undefined,
+    },
+  );
 }
