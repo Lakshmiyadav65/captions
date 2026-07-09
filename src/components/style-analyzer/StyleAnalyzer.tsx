@@ -6,6 +6,7 @@ import type { AnalyzeResponse } from "@/lib/vision/types";
 import { ScreenshotDropzone } from "./ScreenshotDropzone";
 import { ProfilePanel } from "./ProfilePanel";
 import { StaticPreview } from "./StaticPreview";
+import { GenerateCaption } from "./GenerateCaption";
 import { SAMPLES, DEFAULT_SAMPLE } from "./samples";
 
 // Client spine for /style-analyzer: upload -> analyze -> preview the extracted style on an
@@ -135,32 +136,32 @@ export function StyleAnalyzer({ initial }: { initial?: AnalyzeResponse }) {
             </figure>
           </div>
 
-          <div className="space-y-2 rounded-xl border border-white/10 bg-neutral-900 p-4">
-            <label className="block text-xs font-medium text-neutral-400">
-              Preview caption
-            </label>
-            <input
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 outline-none focus:border-sky-500"
-              placeholder="Type a Telugu caption to preview…"
-            />
-            <div className="flex flex-wrap gap-1.5">
-              {SAMPLES.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setCaption(s)}
-                  className="rounded-md border border-white/10 bg-neutral-800 px-2 py-1 text-xs text-neutral-300 hover:bg-neutral-700"
-                >
-                  {s}
-                </button>
-              ))}
+          <div className="space-y-3 rounded-xl border border-white/10 bg-neutral-900 p-4">
+            <GenerateCaption vibe={profile.vibe} onGenerated={setCaption} />
+
+            <div className="space-y-2 border-t border-white/10 pt-3">
+              <label className="block text-xs font-medium text-neutral-400">
+                Preview caption
+              </label>
+              <input
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                className="w-full rounded-lg border border-white/10 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 outline-none focus:border-sky-500"
+                placeholder="Type a Telugu caption to preview…"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {SAMPLES.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setCaption(s)}
+                    className="rounded-md border border-white/10 bg-neutral-800 px-2 py-1 text-xs text-neutral-300 hover:bg-neutral-700"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
-            <p className="text-xs text-neutral-600">
-              AI caption generation from a prompt is coming next — for now, type or pick a line
-              to see it in this style.
-            </p>
           </div>
         </div>
 

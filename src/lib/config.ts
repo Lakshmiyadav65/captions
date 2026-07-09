@@ -52,6 +52,7 @@ const schema = z.object({
   // in the provider (like SARVAM_API_KEY), never here / never handed to the browser.
   VISION_PROVIDER: z.string().default("auto"), // auto | anthropic | mock
   VISION_MODEL: z.string().default("claude-sonnet-5"),
+  CAPTION_PROVIDER: z.string().default("auto"), // auto | claude | mock
   GENERATE_MODEL: z.string().default("claude-haiku-4-5"),
   OCR_ENABLED: boolish("false"), // a second paid vision call — off by default
   MAX_IMAGE_MB: z.coerce.number().default(10),
