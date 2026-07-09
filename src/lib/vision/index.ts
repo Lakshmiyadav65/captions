@@ -1,3 +1,4 @@
+import { AnthropicVisionProvider } from "./anthropic";
 import { MockVisionProvider } from "./mock";
 import type { VisionProvider } from "./types";
 
@@ -5,17 +6,15 @@ export * from "./types";
 export { profileToSubtitleStyle, clampConfidence } from "./convert";
 export { profileSimilarity, bestMatch } from "./similarity";
 
-// One shared selection of the vision backend by VISION_PROVIDER (auto|anthropic|mock).
-// The live Anthropic provider is wired in a later step; until then the keyless mock keeps
-// the entire flow working with no ANTHROPIC_API_KEY (mirrors the transcription registry).
+// One shared selection of the vision backend by VISION_PROVIDER (auto|anthropic|mock). Falls
+// back to the keyless mock when no ANTHROPIC_API_KEY is present (mirrors the ASR registry).
 
 export function getVisionProvider(): VisionProvider {
   const choice = (process.env.VISION_PROVIDER || "auto").toLowerCase();
-  if (choice === "anthropic") {
-    console.warn(
-      "VISION_PROVIDER=anthropic but the live vision provider is not wired yet — using mock.",
-    );
-  }
+  if (choice === "mock") return new MockVisionProvider();
+  if (choice === "anthropic") return new AnthropicVisionProvider();
+  // auto
+  if (process.env.ANTHROPIC_API_KEY) return new AnthropicVisionProvider();
   return new MockVisionProvider();
 }
 

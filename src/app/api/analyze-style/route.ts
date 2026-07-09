@@ -78,8 +78,18 @@ export async function POST(req: NextRequest) {
 
     const localImage = await storage.toLocalFile(imageKey);
     let profile: StyleProfile;
+    let ocrText: string | null = null;
     try {
-      profile = await getVisionProvider().analyzeStyle({ imagePath: localImage.path, mediaType });
+      const provider = getVisionProvider();
+      profile = await provider.analyzeStyle({ imagePath: localImage.path, mediaType });
+      // OCR is a separate, off-by-default second call (config.limits.ocrEnabled). Its text is
+      // for the user's reference only and never feeds style extraction or caption generation.
+      if (config.limits.ocrEnabled && provider.ocr) {
+        ocrText = await provider
+          .ocr({ imagePath: localImage.path, mediaType })
+          .then((r) => r.text || null)
+          .catch(() => null);
+      }
     } finally {
       await localImage.cleanup().catch(() => {});
     }
@@ -104,6 +114,7 @@ export async function POST(req: NextRequest) {
         provider: profile.provider,
         profile: JSON.stringify(profile),
         subtitleStyle: JSON.stringify(subtitleStyle),
+        ocrText,
         confidence: profile.confidence,
       },
     });
@@ -114,7 +125,7 @@ export async function POST(req: NextRequest) {
       imageUrl: await storage.getUrl(imageKey),
       profile,
       subtitleStyle,
-      ocrText: null, // OCR is a separate, off-by-default call (config.limits.ocrEnabled)
+      ocrText,
       match,
     };
     return NextResponse.json(body);
