@@ -98,6 +98,16 @@ export function Editor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 
+  // Apply a style handed over from the Style Analyzer / My Styles ("Use in editor").
+  useEffect(() => {
+    const pending = sessionStorage.getItem("pendingStyle");
+    if (!pending) return;
+    try {
+      setStyle({ ...DEFAULT_STYLE, ...(JSON.parse(pending) as Partial<SubtitleStyle>) });
+    } catch {}
+    sessionStorage.removeItem("pendingStyle");
+  }, []);
+
   const patchStyle = (patch: Partial<SubtitleStyle>) =>
     setStyle((s) => ({ ...s, ...patch }));
 

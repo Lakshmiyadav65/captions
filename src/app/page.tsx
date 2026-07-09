@@ -4,7 +4,13 @@ import { UserMenu } from "@/components/UserMenu";
 export default function Home() {
   return (
     <>
-      <header className="absolute right-0 top-0 z-10 p-4">
+      <header className="absolute right-0 top-0 z-10 flex items-center gap-4 p-4 text-sm">
+        <a href="/style-analyzer" className="text-neutral-400 hover:text-neutral-200">
+          Style Analyzer
+        </a>
+        <a href="/styles" className="text-neutral-400 hover:text-neutral-200">
+          My Styles
+        </a>
         <UserMenu />
       </header>
       <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center px-4 py-16">
@@ -30,6 +36,21 @@ export default function Home() {
         <Feature title="2 · Transcribe" body="Speech is detected and converted to timed Telugu subtitles." />
         <Feature title="3 · Style & export" body="Adjust fonts and sizes live, then download subtitle files." />
       </div>
+
+      <a
+        href="/style-analyzer"
+        className="mt-6 flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-neutral-900/60 p-4 transition hover:border-sky-500/50 hover:bg-neutral-900"
+      >
+        <div>
+          <div className="flex items-center gap-2 font-medium text-neutral-100">
+            🎨 Caption Style Analyzer
+          </div>
+          <p className="mt-1 text-neutral-500">
+            Upload a screenshot of any Reel caption and reuse its exact style on your captions.
+          </p>
+        </div>
+        <span className="shrink-0 text-sky-400">→</span>
+      </a>
 
       <p className="mt-10 text-center text-xs text-neutral-600">
         Works out of the box with a sample transcript. Add a Sarvam or OpenAI API key
