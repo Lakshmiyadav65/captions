@@ -6,9 +6,11 @@ import type { SubtitleStyle } from "@/lib/subtitles/style";
 import { tokenizeSegment, filledCount } from "@/lib/subtitles/karaoke";
 import { SubtitleOverlay } from "./SubtitleOverlay";
 
-// Video player with the live subtitle overlay on top. Tracks the real playhead with
-// requestAnimationFrame (smoother than the coarse `timeupdate` event) and measures its
-// own height so the overlay can size subtitles proportionally.
+// Video player with the live subtitle overlay on top. The stage is sized to the video's REAL
+// aspect ratio (portrait/square/landscape) and fit within the available width and a max
+// height, so the overlay maps 1:1 to the actual video pixels — captions can't spill past the
+// frame the way they did when the stage was locked to 16:9 and the video was letterboxed.
+// Tracks the real playhead with requestAnimationFrame for smooth karaoke highlighting.
 
 export function PreviewStage({
   videoRef,
@@ -23,23 +25,45 @@ export function PreviewStage({
   style: SubtitleStyle;
   onTime?: (t: number) => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState(0);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [aspect, setAspect] = useState(16 / 9);
+  const [box, setBox] = useState({ w: 0, h: 0 });
   const [active, setActive] = useState<{ seg: Segment | null; filled: number }>({
     seg: null,
     filled: 0,
   });
   const lastReport = useRef(0);
 
+  // Fit a box of the video's aspect ratio inside the available width and a sensible max height.
   useEffect(() => {
-    const el = containerRef.current;
+    const el = wrapRef.current;
     if (!el) return;
-    const measure = () => setHeight(el.clientHeight);
-    const ro = new ResizeObserver(measure);
+    const compute = () => {
+      const availW = el.clientWidth;
+      if (!availW) return;
+      const maxH = Math.min(window.innerHeight * 0.72, 760);
+      let w = availW;
+      let h = availW / aspect;
+      if (h > maxH) {
+        h = maxH;
+        w = maxH * aspect;
+      }
+      setBox({ w: Math.round(w), h: Math.round(h) });
+    };
+    const ro = new ResizeObserver(compute);
     ro.observe(el);
-    measure();
-    return () => ro.disconnect();
-  }, []);
+    compute();
+    window.addEventListener("resize", compute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", compute);
+    };
+  }, [aspect]);
+
+  const onLoadedMetadata = () => {
+    const v = videoRef.current;
+    if (v?.videoWidth && v?.videoHeight) setAspect(v.videoWidth / v.videoHeight);
+  };
 
   useEffect(() => {
     let raf = 0;
@@ -50,8 +74,7 @@ export function PreviewStage({
         const seg = segments.find((s) => t >= s.start && t < s.end) ?? null;
         const filled =
           seg && style.karaoke ? filledCount(tokenizeSegment(seg), t) : 0;
-        // Only re-render when the active line or the filled-word count actually changes,
-        // so karaoke updates once per word (not every animation frame).
+        // Only re-render when the active line or the filled-word count actually changes.
         setActive((prev) =>
           prev.seg === seg && prev.filled === filled ? prev : { seg, filled },
         );
@@ -67,24 +90,30 @@ export function PreviewStage({
   }, [segments, videoRef, onTime, style.karaoke]);
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full overflow-hidden rounded-xl bg-black shadow-lg ring-1 ring-white/10"
-      style={{ aspectRatio: "16 / 9" }}
-    >
-      <video
-        ref={videoRef}
-        src={videoUrl}
-        controls
-        playsInline
-        className="h-full w-full bg-black object-contain"
-      />
-      <SubtitleOverlay
-        segment={active.seg}
-        style={style}
-        height={height}
-        filled={active.filled}
-      />
+    <div ref={wrapRef} className="flex w-full justify-center">
+      <div
+        className="relative overflow-hidden rounded-xl bg-black shadow-lg ring-1 ring-white/10"
+        style={
+          box.w
+            ? { width: box.w, height: box.h }
+            : { width: "100%", aspectRatio: "16 / 9" }
+        }
+      >
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          onLoadedMetadata={onLoadedMetadata}
+          controls
+          playsInline
+          className="h-full w-full bg-black object-contain"
+        />
+        <SubtitleOverlay
+          segment={active.seg}
+          style={style}
+          height={box.h}
+          filled={active.filled}
+        />
+      </div>
     </div>
   );
 }

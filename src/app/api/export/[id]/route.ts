@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-helpers";
 import { getStorage, type LocalFile } from "@/lib/storage";
-import { burnSubtitles } from "@/lib/ffmpeg";
+import { burnSubtitles, getVideoSize } from "@/lib/ffmpeg";
 import { toASS, DEFAULT_STYLE, type SubtitleStyle } from "@/lib/subtitles";
 import { fontsDir } from "@/lib/subtitles/fonts-dir";
 import type { Segment } from "@/lib/transcription/types";
@@ -55,7 +55,6 @@ export async function POST(
     ? body.segments
     : (JSON.parse(job.transcript.segments) as Segment[]);
   const style: SubtitleStyle = { ...DEFAULT_STYLE, ...(body.style ?? {}) };
-  const ass = toASS(segments, style);
 
   const storage = getStorage();
   let localVideo: LocalFile | null = null;
@@ -63,6 +62,10 @@ export async function POST(
 
   try {
     localVideo = await storage.toLocalFile(job.videoKey);
+    // Author the ASS canvas at the real video resolution so libass doesn't stretch text
+    // on portrait/square footage (margins are % of width, font % of height).
+    const size = await getVideoSize(localVideo.path);
+    const ass = toASS(segments, style, size ?? undefined);
     workDir = await mkdtemp(join(tmpdir(), "captions-burn-"));
     const outPath = join(workDir, "captioned.mp4");
 

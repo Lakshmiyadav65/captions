@@ -63,6 +63,18 @@ export async function getDurationSec(mediaPath: string): Promise<number> {
   return Number(m[1]) * 3600 + Number(m[2]) * 60 + parseFloat(m[3]);
 }
 
+const SIZE_RE = /Video:[^\n]*?\b(\d{2,5})x(\d{2,5})\b/;
+
+/** Video pixel dimensions parsed from ffmpeg's header. null if there's no video stream. */
+export async function getVideoSize(
+  mediaPath: string,
+): Promise<{ width: number; height: number } | null> {
+  const stderr = await exec(["-i", mediaPath], { allowFail: true });
+  const m = SIZE_RE.exec(stderr);
+  if (!m) return null;
+  return { width: Number(m[1]), height: Number(m[2]) };
+}
+
 export interface AudioChunk {
   path: string;
   offsetSec: number;
