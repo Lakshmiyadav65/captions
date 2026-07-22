@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { config } from "./config";
 import { prisma } from "./db";
-import { extractAudio, getDurationSec, splitIntoChunks } from "./ffmpeg";
+import { extractAudio, getDurationSec } from "./ffmpeg";
+import { chunkAudioByEnergy } from "./audio-chunk";
 import { getStorage, type LocalFile } from "./storage";
 import { getProvider, isLiveProvider, type Segment } from "./transcription";
 import { offsetSegments } from "./transcription/util";
@@ -69,15 +70,25 @@ export async function processJob(jobId: string): Promise<void> {
         durationSec: duration,
       });
 
-      const chunkSec = provider.maxChunkSeconds ?? 0;
-      if (chunkSec && duration > chunkSec) {
+      const maxChunkSec = provider.maxChunkSeconds ?? 0;
+      // Target the configured chunk length, but never exceed the provider's per-request cap.
+      const targetChunkSec = maxChunkSec
+        ? Math.min(config.chunkSeconds, maxChunkSec)
+        : 0;
+      // Chunk when the audio is meaningfully longer than one target chunk (else transcribe in
+      // one shot). Energy-aware cuts land in relative pauses to avoid slicing mid-word.
+      if (targetChunkSec && duration > targetChunkSec * 1.5) {
         const chunkDir = join(workDir, "chunks");
-        const chunks = await splitIntoChunks(audioPath, chunkSec, chunkDir);
+        const chunks = await chunkAudioByEnergy(audioPath, chunkDir, {
+          targetSec: targetChunkSec,
+          maxSec: maxChunkSec,
+          searchSec: 1.5,
+        });
         for (let i = 0; i < chunks.length; i++) {
           const c = chunks[i];
           const r = await provider.transcribe(c.path, {
             language,
-            durationSec: chunkSec,
+            durationSec: c.durationSec,
           });
           segments.push(...offsetSegments(r.segments, c.offsetSec));
           if (r.language && r.language !== "unknown") detected = r.language;

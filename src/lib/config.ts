@@ -16,6 +16,9 @@ const schema = z.object({
   // Transcription (Phase 1)
   ASR_PROVIDER: z.string().default("auto"),
   ASR_LANGUAGE: z.string().default("te"),
+  // Target chunk length (seconds) for long audio. Smaller = tighter subtitle timing but more
+  // API calls / boundary cuts. Clamped to the provider's per-request cap at runtime.
+  ASR_CHUNK_SECONDS: z.coerce.number().default(12),
   // Subtitle output: transcribe = Telugu script; translit = romanized (Telugu in Latin letters)
   OUTPUT_MODE: z.enum(["transcribe", "translit"]).default("translit"),
 
@@ -72,6 +75,7 @@ export const env = parsed.data;
 
 export const config = {
   outputMode: env.OUTPUT_MODE,
+  chunkSeconds: env.ASR_CHUNK_SECONDS,
   storageDriver: env.STORAGE_DRIVER,
   usesS3: env.STORAGE_DRIVER === "s3",
   queueDriver: env.QUEUE_DRIVER,

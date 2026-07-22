@@ -66,6 +66,8 @@ export async function getDurationSec(mediaPath: string): Promise<number> {
 export interface AudioChunk {
   path: string;
   offsetSec: number;
+  /** Actual length of this chunk in seconds (chunks may be variable-length). */
+  durationSec?: number;
 }
 
 /**
