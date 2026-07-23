@@ -9,7 +9,7 @@ import { getStorage, type LocalFile } from "./storage";
 import { getProvider, isLiveProvider, type Segment } from "./transcription";
 import { offsetSegments, splitSegmentsToMaxWords } from "./transcription/util";
 import { romanizeTelugu } from "./transliterate";
-import { applySpelling } from "./spelling";
+import { applySpelling, BUILTIN_SPELLING } from "./spelling";
 import { getUserSpellingRules } from "./spelling-server";
 
 // Queue-agnostic transcription pipeline. Called directly by the inline queue or by the
@@ -121,8 +121,9 @@ export async function processJob(jobId: string): Promise<void> {
       }));
     }
 
-    // Apply the user's saved spelling corrections so new transcripts come out pre-fixed.
-    const rules = await getUserSpellingRules(job.userId);
+    // Apply built-in corrections + the user's saved spelling rules so recurring ASR mistakes
+    // come out pre-fixed. Built-ins run first; user rules can override them.
+    const rules = [...BUILTIN_SPELLING, ...(await getUserSpellingRules(job.userId))];
     if (rules.length) {
       segments = segments.map((s) => ({
         ...s,
