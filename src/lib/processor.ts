@@ -7,7 +7,7 @@ import { extractAudio, getDurationSec, getVideoSize } from "./ffmpeg";
 import { chunkAudioByEnergy } from "./audio-chunk";
 import { getStorage, type LocalFile } from "./storage";
 import { getProvider, isLiveProvider, type Segment } from "./transcription";
-import { offsetSegments } from "./transcription/util";
+import { offsetSegments, splitSegmentsToMaxWords } from "./transcription/util";
 import { romanizeTelugu } from "./transliterate";
 import { applySpelling } from "./spelling";
 import { getUserSpellingRules } from "./spelling-server";
@@ -129,6 +129,11 @@ export async function processJob(jobId: string): Promise<void> {
         text: applySpelling(s.text, rules),
         words: s.words?.map((w) => ({ ...w, text: applySpelling(w.text, rules) })),
       }));
+    }
+
+    // Break long lines into short, clean caption frames (a few words on screen at a time).
+    if (config.maxWordsPerLine > 0) {
+      segments = splitSegmentsToMaxWords(segments, config.maxWordsPerLine);
     }
 
     await prisma.transcript.upsert({
