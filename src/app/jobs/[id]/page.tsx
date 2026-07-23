@@ -30,6 +30,8 @@ export default async function JobPage({
       videoUrl={videoUrl}
       originalName={job.originalName}
       initialStatus={job.status}
+      width={job.width}
+      height={job.height}
     />
   );
 }

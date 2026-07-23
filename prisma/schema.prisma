@@ -21,6 +21,8 @@ model Job {
   originalName String? //  the user's original filename
   videoKey     String? //  storage key for the uploaded video (e.g. uploads/<id>/source.mp4)
   durationSec  Float? //   media duration in seconds
+  width        Int? //     video pixel width  (detected from the upload; drives the preview/export aspect ratio)
+  height       Int? //     video pixel height
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

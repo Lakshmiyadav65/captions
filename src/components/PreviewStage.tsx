@@ -18,15 +18,20 @@ export function PreviewStage({
   segments,
   style,
   onTime,
+  initialAspect,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   videoUrl: string;
   segments: Segment[];
   style: SubtitleStyle;
   onTime?: (t: number) => void;
+  /** Video aspect ratio known up front (detected server-side) to avoid a 16:9 flash. */
+  initialAspect?: number;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
-  const [aspect, setAspect] = useState(16 / 9);
+  const [aspect, setAspect] = useState(
+    initialAspect && initialAspect > 0 ? initialAspect : 16 / 9,
+  );
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [active, setActive] = useState<{ seg: Segment | null; filled: number }>({
     seg: null,

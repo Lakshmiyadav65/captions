@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { config } from "./config";
 import { prisma } from "./db";
-import { extractAudio, getDurationSec } from "./ffmpeg";
+import { extractAudio, getDurationSec, getVideoSize } from "./ffmpeg";
 import { chunkAudioByEnergy } from "./audio-chunk";
 import { getStorage, type LocalFile } from "./storage";
 import { getProvider, isLiveProvider, type Segment } from "./transcription";
@@ -64,10 +64,14 @@ export async function processJob(jobId: string): Promise<void> {
           `Video is too long (${Math.round(duration / 60)} min). Max ${config.limits.maxVideoMinutes} min.`,
         );
       }
+      // Record the video's real pixel size so the editor + burned export use its true
+      // aspect ratio (portrait/square/landscape), not a hardcoded 16:9.
+      const size = await getVideoSize(localVideo.path);
       await update(jobId, {
         status: "transcribing",
         progress: 20,
         durationSec: duration,
+        ...(size ? { width: size.width, height: size.height } : {}),
       });
 
       const maxChunkSec = provider.maxChunkSeconds ?? 0;

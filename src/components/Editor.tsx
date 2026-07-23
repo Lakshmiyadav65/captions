@@ -46,11 +46,16 @@ export function Editor({
   videoUrl,
   originalName,
   initialStatus,
+  width,
+  height,
 }: {
   jobId: string;
   videoUrl: string;
   originalName: string | null;
   initialStatus: string;
+  /** Real video pixel dimensions (detected at upload) so the preview opens at the right ratio. */
+  width?: number | null;
+  height?: number | null;
 }) {
   const [progress, setProgress] = useState<Progress>({
     status: initialStatus,
@@ -264,6 +269,7 @@ export function Editor({
               segments={segments ?? []}
               style={style}
               onTime={setCurrentTime}
+              initialAspect={width && height ? width / height : undefined}
             />
             <div className="flex items-center justify-between">
               <p className="text-xs text-neutral-500">
