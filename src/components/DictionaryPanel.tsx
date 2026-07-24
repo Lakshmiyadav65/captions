@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type MutableRefObject } from "react";
 import type { SpellRule } from "@/lib/spelling";
 
-// Manage the user's custom spelling dictionary (persistent word corrections) and apply it
-// to the current transcript on demand. New transcripts are corrected automatically by the
-// processor; this panel fixes the one already on screen and lets the user grow the list.
+// Listener / spelling dictionary: persistent word corrections. When you fix a word in
+// the transcript and hit Save edits, the Editor learns that mistake→correction and
+// stores it here. Future videos (and the rest of this one) get the corrected form
+// automatically — like teaching the transcriber your preferred vocabulary.
 
 interface Rule extends SpellRule {
   id: string;
@@ -13,9 +14,12 @@ interface Rule extends SpellRule {
 
 export function DictionaryPanel({
   onApply,
+  reloadRef,
 }: {
   /** Run the given rules over the current transcript (client-side). */
   onApply: (rules: SpellRule[]) => void;
+  /** Parent can call this after learning new rules on Save. */
+  reloadRef?: MutableRefObject<(() => void) | null>;
 }) {
   const [rules, setRules] = useState<Rule[]>([]);
   const [from, setFrom] = useState("");
@@ -35,6 +39,16 @@ export function DictionaryPanel({
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!reloadRef) return;
+    reloadRef.current = () => {
+      void load();
+    };
+    return () => {
+      reloadRef.current = null;
+    };
+  }, [reloadRef, load]);
 
   const add = async () => {
     const f = from.trim();
@@ -64,7 +78,7 @@ export function DictionaryPanel({
     <div className="rounded-xl border border-white/10 bg-neutral-900 p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-          Spelling dictionary
+          Listener
         </h3>
         {rules.length > 0 && (
           <button
@@ -78,8 +92,10 @@ export function DictionaryPanel({
       </div>
 
       <p className="mb-3 text-[11px] leading-relaxed text-neutral-500">
-        Fix words the transcriber gets wrong (names, places, brands). Saved corrections are
-        applied automatically to future videos.
+        Teach the app your preferred words. Fix a caption and hit{" "}
+        <span className="text-neutral-400">Save edits</span> — it remembers the
+        correction and uses it next time the same mistake appears. You can also add
+        rules manually below.
       </p>
 
       <div className="mb-3 flex items-center gap-2">
@@ -108,7 +124,9 @@ export function DictionaryPanel({
       </div>
 
       {loaded && rules.length === 0 && (
-        <p className="text-xs text-neutral-600">No corrections yet.</p>
+        <p className="text-xs text-neutral-600">
+          No learned corrections yet. Edit a wrong word in the transcript and Save.
+        </p>
       )}
       <ul className="space-y-1">
         {rules.map((r) => (

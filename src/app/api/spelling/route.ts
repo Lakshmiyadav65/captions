@@ -27,8 +27,38 @@ export async function POST(req: Request) {
   if (userId === null) {
     return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   }
-  const body = (await req.json().catch(() => ({}))) as { from?: string; to?: string };
-  const from = body.from?.trim();
+  const body = (await req.json().catch(() => ({}))) as {
+    from?: string;
+    to?: string;
+    /** Batch upsert from the listener (learn-from-edit). */
+    rules?: Array<{ from?: string; to?: string }>;
+  };
+
+  // Batch path: Save edits / listener learns many word fixes at once.
+  if (Array.isArray(body.rules)) {
+    const cleaned = body.rules
+      .map((r) => ({
+        from: (r.from?.trim() ?? "").toLowerCase(),
+        to: r.to?.trim() ?? "",
+      }))
+      .filter((r) => r.from && r.to && r.from !== r.to.toLowerCase());
+    // Dedupe by from; last wins.
+    const byFrom = new Map<string, { from: string; to: string }>();
+    for (const r of cleaned) byFrom.set(r.from, r);
+    const saved = [];
+    for (const { from, to } of byFrom.values()) {
+      const rule = await prisma.spellingRule.upsert({
+        where: { userId_from: { userId, from } },
+        update: { to },
+        create: { userId, from, to },
+        select: { id: true, from: true, to: true },
+      });
+      saved.push(rule);
+    }
+    return NextResponse.json({ rules: saved });
+  }
+
+  const from = body.from?.trim().toLowerCase();
   const to = body.to?.trim();
   if (!from || !to) {
     return NextResponse.json({ error: "Both 'from' and 'to' are required." }, { status: 400 });

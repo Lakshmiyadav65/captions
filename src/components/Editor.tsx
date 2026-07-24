@@ -9,7 +9,12 @@ import {
   type SubtitleFormat,
   type SubtitleStyle,
 } from "@/lib/subtitles";
-import { applySpelling, type SpellRule } from "@/lib/spelling";
+import {
+  applySpelling,
+  diffWordCorrections,
+  mergeSpellRules,
+  type SpellRule,
+} from "@/lib/spelling";
 import { PreviewStage } from "./PreviewStage";
 import { StylePanel } from "./StylePanel";
 import { SubtitleList } from "./SubtitleList";
@@ -67,7 +72,12 @@ export function Editor({
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [exportState, setExportState] = useState<"idle" | "exporting" | "error">("idle");
   const [exportError, setExportError] = useState<string | null>(null);
+  /** Word fixes learned on the last save (listener feedback). */
+  const [learned, setLearned] = useState<SpellRule[] | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  /** ASR baseline for the current transcript — used to detect what the user fixed. */
+  const baselineRef = useRef<Segment[] | null>(null);
+  const dictionaryReloadRef = useRef<(() => void) | null>(null);
 
   const baseName = (originalName ?? "telugu-captions").replace(/\.[^.]+$/, "");
 
@@ -76,6 +86,9 @@ export function Editor({
     if (res.ok) {
       const data = (await res.json()) as { segments: Segment[] };
       setSegments(data.segments);
+      // Fresh baseline so Save can learn only the edits made this session.
+      baselineRef.current = data.segments.map((s) => ({ ...s, text: s.text }));
+      setLearned(null);
     }
   }, [jobId]);
 
@@ -119,13 +132,51 @@ export function Editor({
   const saveEdits = async () => {
     if (!segments) return;
     setSaveState("saving");
+    setLearned(null);
+
+    // Listener: compare each line to the ASR baseline and learn word-level fixes
+    // (wrong → what the user typed). Those become the default for this video and
+    // every future one (same as Whisper-style custom vocabulary).
+    const baseline = baselineRef.current;
+    let next = segments;
+    let newRules: SpellRule[] = [];
+    if (baseline && baseline.length === segments.length) {
+      const perLine: SpellRule[][] = [];
+      for (let i = 0; i < segments.length; i++) {
+        perLine.push(diffWordCorrections(baseline[i]?.text ?? "", segments[i].text));
+      }
+      newRules = mergeSpellRules(...perLine);
+      if (newRules.length) {
+        await fetch("/api/spelling", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rules: newRules }),
+        });
+        // Apply learned defaults across the whole transcript so the same mistake
+        // elsewhere in this video is fixed without re-editing every line.
+        next = segments.map((s) => ({
+          ...s,
+          text: applySpelling(s.text, newRules),
+          words: s.words?.map((w) => ({
+            ...w,
+            text: applySpelling(w.text, newRules),
+          })),
+        }));
+        setSegments(next);
+        setLearned(newRules);
+        dictionaryReloadRef.current?.();
+      }
+    }
+
     await fetch(`/api/transcript/${jobId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ segments }),
+      body: JSON.stringify({ segments: next }),
     });
+    // New baseline = what we just saved, so the next save only learns fresh edits.
+    baselineRef.current = next.map((s) => ({ ...s, text: s.text }));
     setSaveState("saved");
-    setTimeout(() => setSaveState("idle"), 1500);
+    setTimeout(() => setSaveState("idle"), 2000);
   };
 
   const doExport = (fmt: SubtitleFormat, mime: string) => {
@@ -271,7 +322,7 @@ export function Editor({
               onTime={setCurrentTime}
               initialAspect={width && height ? width / height : undefined}
             />
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-neutral-500">
                 Detected language:{" "}
                 <span className="text-neutral-300">
@@ -291,6 +342,21 @@ export function Editor({
                     : "Save edits"}
               </button>
             </div>
+            {learned && learned.length > 0 && (
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+                <p className="font-medium text-emerald-200">
+                  Listener learned {learned.length} correction
+                  {learned.length === 1 ? "" : "s"} — will use these next time
+                </p>
+                <p className="mt-1 text-emerald-100/80">
+                  {learned
+                    .slice(0, 6)
+                    .map((r) => `${r.from} → ${r.to}`)
+                    .join(" · ")}
+                  {learned.length > 6 ? ` · +${learned.length - 6} more` : ""}
+                </p>
+              </div>
+            )}
             {segments && (
               <SubtitleList
                 segments={segments}
@@ -312,7 +378,10 @@ export function Editor({
                 onApplyPreset={(s) => setStyle({ ...s })}
               />
             </div>
-            <DictionaryPanel onApply={applyDictionary} />
+            <DictionaryPanel
+              onApply={applyDictionary}
+              reloadRef={dictionaryReloadRef}
+            />
           </aside>
         </div>
       )}
