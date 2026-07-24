@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { SubtitleStyle } from "@/lib/subtitles/style";
+import { DEFAULT_STYLE } from "@/lib/subtitles/style";
 import { tokenizeSegment } from "@/lib/subtitles/karaoke";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import type { Segment } from "@/lib/transcription/types";
@@ -21,6 +22,8 @@ export function StaticPreview({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
+  // Merge defaults so older saved styles missing glow/boxMode/animation still render.
+  const full: SubtitleStyle = { ...DEFAULT_STYLE, ...style };
 
   useEffect(() => {
     const el = ref.current;
@@ -34,7 +37,7 @@ export function StaticPreview({
 
   const segment: Segment = { start: 0, end: 100, text };
   // Show karaoke mid-fill so the highlight colour is visible in a still frame.
-  const filled = style.karaoke
+  const filled = full.karaoke
     ? Math.max(1, Math.ceil(tokenizeSegment(segment).length * 0.6))
     : 0;
 
@@ -47,7 +50,7 @@ export function StaticPreview({
         background: "radial-gradient(120% 120% at 50% 0%, #334155 0%, #0f172a 70%)",
       }}
     >
-      <SubtitleOverlay segment={segment} style={style} height={height} filled={filled} />
+      <SubtitleOverlay segment={segment} style={full} height={height} filled={filled} />
     </div>
   );
 }

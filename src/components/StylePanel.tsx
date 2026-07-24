@@ -1,9 +1,21 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { TELUGU_FONTS, fontStack } from "@/lib/fonts";
-import type { SubtitleStyle, TextAlign } from "@/lib/subtitles/style";
-import { PRESETS } from "./presets";
+import type {
+  BoxMode,
+  CaptionAnimation,
+  SubtitleStyle,
+  TextAlign,
+} from "@/lib/subtitles/style";
+import { effectiveBoxMode } from "@/lib/subtitles/style";
+import {
+  matchingPresetId,
+  PRESET_CATEGORIES,
+  PRESETS,
+  type PresetCategory,
+  type StylePreset,
+} from "./presets";
 
 // The live styling controls. Every change calls onChange with a partial patch; the
 // parent merges it into the single SubtitleStyle that drives both preview and export.
@@ -26,12 +38,14 @@ function Slider({
   step,
   value,
   onChange,
+  disabled,
 }: {
   min: number;
   max: number;
   step: number;
   value: number;
   onChange: (v: number) => void;
+  disabled?: boolean;
 }) {
   return (
     <input
@@ -40,8 +54,9 @@ function Slider({
       max={max}
       step={step}
       value={value}
+      disabled={disabled}
       onChange={(e) => onChange(parseFloat(e.target.value))}
-      className="w-full accent-sky-500"
+      className="w-full accent-sky-500 disabled:opacity-40"
     />
   );
 }
@@ -70,13 +85,13 @@ function Segmented<T extends string | number>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="inline-flex rounded-lg bg-neutral-800 p-0.5">
+    <div className="inline-flex flex-wrap rounded-lg bg-neutral-800 p-0.5">
       {options.map((o) => (
         <button
           key={String(o.value)}
           type="button"
           onClick={() => onChange(o.value)}
-          className={`rounded-md px-3 py-1 text-xs font-medium transition ${
+          className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
             value === o.value
               ? "bg-sky-600 text-white"
               : "text-neutral-400 hover:text-neutral-200"
@@ -89,6 +104,94 @@ function Segmented<T extends string | number>({
   );
 }
 
+function hexToRgba(hex: string, a: number): string {
+  const h = hex.replace("#", "").padEnd(6, "0");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+/** Mini thumbnail that approximates the preset look for the picker grid. */
+function PresetCard({
+  preset,
+  active,
+  onSelect,
+}: {
+  preset: StylePreset;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  const s = preset.style;
+  const box = effectiveBoxMode(s);
+  const showBox = box !== "none" && s.backgroundOpacity > 0;
+  const glow = s.glowStrength > 0
+    ? `0 0 ${s.glowStrength * 2}px ${s.glowColor}, 0 0 ${s.glowStrength * 4}px ${s.glowColor}`
+    : "none";
+  const shadow = s.shadow ? "0 1px 3px rgba(0,0,0,0.85)" : "none";
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`group flex flex-col overflow-hidden rounded-lg border text-left transition ${
+        active
+          ? "border-sky-500 ring-1 ring-sky-500/60"
+          : "border-white/10 hover:border-white/25"
+      }`}
+    >
+      <div
+        className="relative flex h-14 items-center justify-center overflow-hidden px-2"
+        style={{
+          background:
+            "radial-gradient(120% 120% at 50% 0%, #334155 0%, #0f172a 75%)",
+        }}
+      >
+        {box === "bar" && showBox && (
+          <div
+            className="absolute inset-x-0"
+            style={{
+              top: s.positionYPct < 40 ? "18%" : "62%",
+              height: "38%",
+              background: hexToRgba(s.backgroundColor, s.backgroundOpacity),
+            }}
+          />
+        )}
+        <span
+          className="relative z-[1] max-w-full truncate px-1.5 py-0.5 text-[11px] font-semibold leading-tight"
+          style={{
+            fontFamily: fontStack(s.fontFamily),
+            fontWeight: s.fontWeight,
+            color: s.karaoke ? s.highlightColor : s.color,
+            textTransform: s.uppercase ? "uppercase" : "none",
+            letterSpacing: `${s.letterSpacingEm}em`,
+            WebkitTextStroke:
+              s.outlineWidth > 0 && !showBox
+                ? `${Math.min(s.outlineWidth * 0.25, 1.2)}px ${s.outlineColor}`
+                : undefined,
+            paintOrder: "stroke fill",
+            textShadow: [glow !== "none" ? glow : null, shadow !== "none" ? shadow : null]
+              .filter(Boolean)
+              .join(", ") || "none",
+            background:
+              showBox && box !== "bar"
+                ? hexToRgba(s.backgroundColor, s.backgroundOpacity)
+                : "transparent",
+            borderRadius:
+              box === "pill" ? 999 : box === "inline" ? 3 : 0,
+          }}
+        >
+          {preset.sample ?? "Aa"}
+        </span>
+      </div>
+      <div className="border-t border-white/5 bg-neutral-900 px-2 py-1.5">
+        <div className="truncate text-[11px] font-medium text-neutral-200">{preset.name}</div>
+        <div className="truncate text-[10px] capitalize text-neutral-500">{preset.category}</div>
+      </div>
+    </button>
+  );
+}
+
 export function StylePanel({
   style,
   onChange,
@@ -98,6 +201,19 @@ export function StylePanel({
   onChange: (patch: Partial<SubtitleStyle>) => void;
   onApplyPreset: (s: SubtitleStyle) => void;
 }) {
+  const [category, setCategory] = useState<PresetCategory | "all">("all");
+  const activeId = matchingPresetId(style);
+
+  const filtered = useMemo(
+    () =>
+      category === "all"
+        ? PRESETS
+        : PRESETS.filter((p) => p.category === category),
+    [category],
+  );
+
+  const boxMode = effectiveBoxMode(style);
+
   return (
     <div className="space-y-6">
       {/* Presets */}
@@ -105,16 +221,30 @@ export function StylePanel({
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Style presets
         </h3>
-        <div className="flex flex-wrap gap-2">
-          {PRESETS.map((p) => (
+        <div className="flex flex-wrap gap-1">
+          {PRESET_CATEGORIES.map((c) => (
             <button
-              key={p.id}
+              key={c.id}
               type="button"
-              onClick={() => onApplyPreset(p.style)}
-              className="rounded-lg border border-white/10 bg-neutral-800 px-3 py-1.5 text-sm text-neutral-200 transition hover:border-sky-500/50 hover:bg-neutral-700"
+              onClick={() => setCategory(c.id)}
+              className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+                category === c.id
+                  ? "bg-sky-600 text-white"
+                  : "bg-neutral-800 text-neutral-400 hover:text-neutral-200"
+              }`}
             >
-              {p.name}
+              {c.label}
             </button>
+          ))}
+        </div>
+        <div className="grid max-h-64 grid-cols-2 gap-2 overflow-y-auto pr-0.5">
+          {filtered.map((p: StylePreset) => (
+            <PresetCard
+              key={p.id}
+              preset={p}
+              active={activeId === p.id}
+              onSelect={() => onApplyPreset({ ...p.style })}
+            />
           ))}
         </div>
       </section>
@@ -194,6 +324,78 @@ export function StylePanel({
         </div>
       </section>
 
+      {/* Effects */}
+      <section className="space-y-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          Effects
+        </h3>
+        <Field label="Glow strength" value={`${(style.glowStrength ?? 0).toFixed(0)}`}>
+          <Slider
+            min={0}
+            max={8}
+            step={1}
+            value={style.glowStrength ?? 0}
+            onChange={(v) => onChange({ glowStrength: v })}
+          />
+        </Field>
+        {(style.glowStrength ?? 0) > 0 && (
+          <Field label="Glow color">
+            <ColorInput
+              value={style.glowColor ?? style.color}
+              onChange={(v) => onChange({ glowColor: v })}
+            />
+          </Field>
+        )}
+        <Field label="Box style">
+          <Segmented
+            value={boxMode}
+            onChange={(v) => {
+              const mode = v as BoxMode;
+              onChange({
+                boxMode: mode,
+                backgroundOpacity:
+                  mode === "none"
+                    ? 0
+                    : style.backgroundOpacity > 0
+                      ? style.backgroundOpacity
+                      : 0.75,
+              });
+            }}
+            options={[
+              { label: "None", value: "none" },
+              { label: "Inline", value: "inline" },
+              { label: "Pill", value: "pill" },
+              { label: "Bar", value: "bar" },
+            ]}
+          />
+        </Field>
+        <p className="text-[10px] leading-relaxed text-neutral-600">
+          Pill corners are preview-only; burned MP4 uses a rectangular ASS box.
+        </p>
+        {boxMode === "pill" && (
+          <Field label="Pill radius" value={`${(style.boxRadiusPct ?? 1.2).toFixed(1)}%`}>
+            <Slider
+              min={0.5}
+              max={4}
+              step={0.1}
+              value={style.boxRadiusPct ?? 1.2}
+              onChange={(v) => onChange({ boxRadiusPct: v })}
+            />
+          </Field>
+        )}
+        <Field label="Entrance">
+          <Segmented
+            value={(style.animation ?? "none") as CaptionAnimation}
+            onChange={(v) => onChange({ animation: v as CaptionAnimation })}
+            options={[
+              { label: "None", value: "none" },
+              { label: "Fade", value: "fade" },
+              { label: "Pop", value: "pop" },
+            ]}
+          />
+        </Field>
+      </section>
+
       {/* Karaoke */}
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
@@ -222,7 +424,7 @@ export function StylePanel({
         )}
       </section>
 
-      {/* Background box */}
+      {/* Background box color/opacity */}
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Background box
@@ -231,7 +433,14 @@ export function StylePanel({
           <ColorInput value={style.backgroundColor} onChange={(v) => onChange({ backgroundColor: v })} />
         </Field>
         <Field label="Box opacity" value={`${Math.round(style.backgroundOpacity * 100)}%`}>
-          <Slider min={0} max={1} step={0.05} value={style.backgroundOpacity} onChange={(v) => onChange({ backgroundOpacity: v })} />
+          <Slider
+            min={0}
+            max={1}
+            step={0.05}
+            value={style.backgroundOpacity}
+            disabled={boxMode === "none"}
+            onChange={(v) => onChange({ backgroundOpacity: v })}
+          />
         </Field>
       </section>
 
@@ -263,6 +472,17 @@ export function StylePanel({
         <Field label="Letter spacing" value={`${style.letterSpacingEm.toFixed(2)} em`}>
           <Slider min={-0.05} max={0.3} step={0.01} value={style.letterSpacingEm} onChange={(v) => onChange({ letterSpacingEm: v })} />
         </Field>
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-neutral-400">Uppercase</span>
+          <Segmented
+            value={style.uppercase ? "on" : "off"}
+            onChange={(v) => onChange({ uppercase: v === "on" })}
+            options={[
+              { label: "On", value: "on" },
+              { label: "Off", value: "off" },
+            ]}
+          />
+        </div>
       </section>
     </div>
   );

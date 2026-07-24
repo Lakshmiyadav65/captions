@@ -61,5 +61,10 @@ export function profileToSubtitleStyle(p: StyleProfile): SubtitleStyle {
     // Karaoke needs a highlight color to mean anything; a two-tone look alone can't flip it.
     karaoke: e.karaoke && c.highlight != null,
     highlightColor: hex(c.highlight, DEFAULT_STYLE.highlightColor),
+    glowStrength: 0,
+    glowColor: hex(c.text, DEFAULT_STYLE.glowColor),
+    boxMode: hasBox ? "inline" : "none",
+    boxRadiusPct: DEFAULT_STYLE.boxRadiusPct,
+    animation: "none",
   };
 }

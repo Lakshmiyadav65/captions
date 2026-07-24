@@ -4,6 +4,12 @@
 
 export type TextAlign = "left" | "center" | "right";
 
+/** Background treatment behind the caption text. */
+export type BoxMode = "none" | "inline" | "pill" | "bar";
+
+/** Short entrance motion when a new caption line appears. */
+export type CaptionAnimation = "none" | "fade" | "pop";
+
 export interface SubtitleStyle {
   /** CSS font-family value; must match one of the bundled Telugu fonts (see fonts.ts). */
   fontFamily: string;
@@ -34,6 +40,19 @@ export interface SubtitleStyle {
   karaoke: boolean;
   /** Fill color for words that have been spoken (used when `karaoke` is on). */
   highlightColor: string;
+  /** Outer neon/soft glow strength (0 = off). Layered text-shadow in preview; ASS approximates via outline. */
+  glowStrength: number;
+  /** Glow color, hex. */
+  glowColor: string;
+  /**
+   * Background shape: none / per-line box / rounded pill / full-width bar (lower-third).
+   * Legacy styles with backgroundOpacity > 0 and no boxMode are treated as "inline".
+   */
+  boxMode: BoxMode;
+  /** Pill corner radius as % of video height (preview; ASS boxes stay rectangular). */
+  boxRadiusPct: number;
+  /** Entrance animation when a new line appears. */
+  animation: CaptionAnimation;
 }
 
 /** A sane default so the overlay always has something to render. */
@@ -57,4 +76,25 @@ export const DEFAULT_STYLE: SubtitleStyle = {
   uppercase: false,
   karaoke: false,
   highlightColor: "#FFE100",
+  glowStrength: 0,
+  glowColor: "#FFFFFF",
+  boxMode: "none",
+  boxRadiusPct: 1.2,
+  animation: "none",
 };
+
+/**
+ * Resolve effective box mode for rendering. Old saved styles may omit `boxMode` but
+ * still have backgroundOpacity > 0 — treat those as inline boxes.
+ */
+export function effectiveBoxMode(style: SubtitleStyle): BoxMode {
+  const mode = style.boxMode ?? "none";
+  if (mode === "none" && (style.backgroundOpacity ?? 0) > 0) return "inline";
+  return mode;
+}
+
+/** Whether the style should draw a filled background (inline/pill/bar). */
+export function hasBackgroundBox(style: SubtitleStyle): boolean {
+  const mode = effectiveBoxMode(style);
+  return mode !== "none" && (style.backgroundOpacity ?? 0) > 0;
+}
