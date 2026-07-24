@@ -10,6 +10,9 @@ export type BoxMode = "none" | "inline" | "pill" | "bar";
 /** Short entrance motion when a new caption line appears. */
 export type CaptionAnimation = "none" | "fade" | "pop";
 
+/** Special glyph treatments beyond flat fill (preview-rich; ASS approximates). */
+export type TextEffect = "none" | "prism";
+
 export interface SubtitleStyle {
   /** CSS font-family value; must match one of the bundled Telugu fonts (see fonts.ts). */
   fontFamily: string;
@@ -53,26 +56,34 @@ export interface SubtitleStyle {
   boxRadiusPct: number;
   /** Entrance animation when a new line appears. */
   animation: CaptionAnimation;
+  /**
+   * Glyph treatment. `prism` ≈ Captions.ai "Prism Pro": frosted glass fill with an
+   * iridescent shimmer (preview). Burned ASS uses a soft translucent white approx.
+   */
+  textEffect: TextEffect;
 }
 
-/** A sane default so the overlay always has something to render. */
+/**
+ * Default look — matched from Video-24275.mp4: bold white kinetic captions,
+ * mid-frame, soft bloom (no hard outline), pop-in. Same as the "Center Pop" preset.
+ */
 export const DEFAULT_STYLE: SubtitleStyle = {
-  fontFamily: "Noto Sans Telugu",
-  fontSizePct: 5.5,
+  fontFamily: "NTR",
+  fontSizePct: 7.2,
   fontWeight: 700,
   color: "#FFFFFF",
   outlineColor: "#000000",
-  outlineWidth: 3,
+  outlineWidth: 0,
   shadow: true,
   backgroundColor: "#000000",
   backgroundOpacity: 0,
   bgPaddingXPct: 1.2,
   bgPaddingYPct: 0.6,
   align: "center",
-  positionYPct: 86,
-  lineHeight: 1.25,
-  maxWidthPct: 90,
-  letterSpacingEm: 0,
+  positionYPct: 52,
+  lineHeight: 1.05,
+  maxWidthPct: 82,
+  letterSpacingEm: -0.02,
   uppercase: false,
   karaoke: false,
   highlightColor: "#FFE100",
@@ -80,7 +91,8 @@ export const DEFAULT_STYLE: SubtitleStyle = {
   glowColor: "#FFFFFF",
   boxMode: "none",
   boxRadiusPct: 1.2,
-  animation: "none",
+  animation: "pop",
+  textEffect: "none",
 };
 
 /**

@@ -26,11 +26,29 @@ export const PRESET_CATEGORIES: { id: PresetCategory | "all"; label: string }[] 
 export const PRESETS: StylePreset[] = [
   // —— Social ——
   {
+    // Matched from Video-24275.mp4 — same as DEFAULT_STYLE so new jobs open with this look.
+    id: "center-pop",
+    name: "Center Pop",
+    category: "social",
+    sample: "eligibility",
+    style: { ...DEFAULT_STYLE },
+  },
+  {
     id: "clean",
     name: "Clean",
     category: "social",
     sample: "Namaskaram",
-    style: { ...DEFAULT_STYLE },
+    style: {
+      ...DEFAULT_STYLE,
+      fontFamily: "Noto Sans Telugu",
+      fontSizePct: 5.5,
+      outlineWidth: 3,
+      positionYPct: 86,
+      maxWidthPct: 90,
+      letterSpacingEm: 0,
+      lineHeight: 1.25,
+      animation: "none",
+    },
   },
   {
     id: "youtube",
@@ -187,6 +205,32 @@ export const PRESETS: StylePreset[] = [
   },
 
   // —— Cinematic ——
+  {
+    id: "prism-pro",
+    name: "Prism Pro",
+    category: "cinematic",
+    sample: "First-Time",
+    style: {
+      ...DEFAULT_STYLE,
+      fontFamily: "Noto Sans Telugu",
+      fontWeight: 700,
+      fontSizePct: 6.2,
+      color: "#F5F8FF",
+      outlineColor: "#C8D8F0",
+      outlineWidth: 1.5,
+      shadow: true,
+      positionYPct: 28,
+      letterSpacingEm: 0.01,
+      maxWidthPct: 88,
+      lineHeight: 1.15,
+      animation: "fade",
+      textEffect: "prism",
+      glowStrength: 0,
+      boxMode: "none",
+      backgroundOpacity: 0,
+      karaoke: false,
+    },
+  },
   {
     id: "cinematic",
     name: "Cinematic",

@@ -19,6 +19,7 @@ export function PreviewStage({
   style,
   onTime,
   initialAspect,
+  onPositionChange,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   videoUrl: string;
@@ -27,6 +28,8 @@ export function PreviewStage({
   onTime?: (t: number) => void;
   /** Video aspect ratio known up front (detected server-side) to avoid a 16:9 flash. */
   initialAspect?: number;
+  /** Drag caption on the preview to set vertical position (% from top). */
+  onPositionChange?: (positionYPct: number) => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [aspect, setAspect] = useState(
@@ -117,8 +120,14 @@ export function PreviewStage({
           style={style}
           height={box.h}
           filled={active.filled}
+          onPositionChange={onPositionChange}
         />
       </div>
+      {onPositionChange && (
+        <p className="mt-1.5 text-center text-[11px] text-neutral-500">
+          Drag the caption up/down on the video — or use Top / Middle / Bottom in styles
+        </p>
+      )}
     </div>
   );
 }

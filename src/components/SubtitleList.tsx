@@ -3,8 +3,8 @@
 import { fontStack } from "@/lib/fonts";
 import type { Segment } from "@/lib/transcription/types";
 
-// Editable transcript. Telugu ASR is imperfect, so users fix wording and nudge timings
-// here; every edit flows up to the parent, which drives the preview and the exports.
+// Editable transcript. When the user finishes editing a line (blur), onTextCommit
+// fires so the parent can auto-learn word corrections into memory — no Listener panel.
 
 function fmt(t: number): string {
   const m = Math.floor(t / 60);
@@ -17,11 +17,14 @@ export function SubtitleList({
   onChange,
   currentTime,
   onSeek,
+  onTextCommit,
 }: {
   segments: Segment[];
   onChange: (segments: Segment[]) => void;
   currentTime: number;
   onSeek: (t: number) => void;
+  /** Fired when the user leaves a caption line after editing (blur). */
+  onTextCommit?: (index: number, text: string) => void;
 }) {
   const update = (i: number, patch: Partial<Segment>) =>
     onChange(segments.map((s, j) => (j === i ? { ...s, ...patch } : s)));
@@ -79,6 +82,7 @@ export function SubtitleList({
                   step={0.1}
                   value={s.start.toFixed(1)}
                   onChange={(e) => update(i, { start: parseFloat(e.target.value) || 0 })}
+                  onBlur={() => onTextCommit?.(i, segments[i].text)}
                   className="w-16 rounded bg-neutral-800 px-1.5 py-0.5 font-mono text-neutral-200 outline-none focus:ring-1 focus:ring-sky-500"
                   aria-label="Start time (seconds)"
                 />
@@ -87,6 +91,7 @@ export function SubtitleList({
                   step={0.1}
                   value={s.end.toFixed(1)}
                   onChange={(e) => update(i, { end: parseFloat(e.target.value) || 0 })}
+                  onBlur={() => onTextCommit?.(i, segments[i].text)}
                   className="w-16 rounded bg-neutral-800 px-1.5 py-0.5 font-mono text-neutral-200 outline-none focus:ring-1 focus:ring-sky-500"
                   aria-label="End time (seconds)"
                 />
@@ -114,6 +119,7 @@ export function SubtitleList({
                 lang="te"
                 rows={Math.max(1, Math.ceil(s.text.length / 42))}
                 onChange={(e) => update(i, { text: e.target.value })}
+                onBlur={(e) => onTextCommit?.(i, e.target.value)}
                 style={{ fontFamily: fontStack("Noto Sans Telugu") }}
                 className="w-full resize-none rounded bg-transparent text-[15px] leading-snug text-neutral-100 outline-none focus:bg-neutral-800/60"
               />

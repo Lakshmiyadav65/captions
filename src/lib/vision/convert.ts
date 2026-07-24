@@ -66,5 +66,6 @@ export function profileToSubtitleStyle(p: StyleProfile): SubtitleStyle {
     boxMode: hasBox ? "inline" : "none",
     boxRadiusPct: DEFAULT_STYLE.boxRadiusPct,
     animation: "none",
+    textEffect: "none",
   };
 }

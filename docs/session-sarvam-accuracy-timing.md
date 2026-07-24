@@ -100,8 +100,6 @@ Residual ASR mishears (not code bugs): e.g. GitHub→getup, ML→AML — handled
 - Scratch/test artifacts that may exist: `A:\captions-e2e`, `A:\whisper-test`, `A:\whisper-cache` — safe to delete
 - C: disk was critically full at one point; keep free space for pagefile / builds
 
-## Listener (learn-from-edit)
+## Listener (auto-learn on edit)
 
-On **Save edits**, the editor diffs each line against the ASR baseline (`diffWordCorrections`), upserts word rules into `SpellingRule`, applies them across the current transcript, and uses them on every future job (via processor). Right panel renamed **Listener**. Manual add still works.
-
-Accuracy probe of `A:\Captions App Testing` (first 30s): report at `A:\Captions App Testing\_accuracy_report.md`.
+When the user edits a caption line and leaves the field (blur), the editor diffs against the previous text, upserts word rules, applies them across the transcript, and auto-saves. No Listener sidebar panel — learning is invisible except for a brief “Remembered …” toast.

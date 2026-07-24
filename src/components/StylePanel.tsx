@@ -7,6 +7,7 @@ import type {
   CaptionAnimation,
   SubtitleStyle,
   TextAlign,
+  TextEffect,
 } from "@/lib/subtitles/style";
 import { effectiveBoxMode } from "@/lib/subtitles/style";
 import {
@@ -125,6 +126,7 @@ function PresetCard({
   const s = preset.style;
   const box = effectiveBoxMode(s);
   const showBox = box !== "none" && s.backgroundOpacity > 0;
+  const prism = (s.textEffect ?? "none") === "prism";
   const glow = s.glowStrength > 0
     ? `0 0 ${s.glowStrength * 2}px ${s.glowColor}, 0 0 ${s.glowStrength * 4}px ${s.glowColor}`
     : "none";
@@ -143,8 +145,9 @@ function PresetCard({
       <div
         className="relative flex h-14 items-center justify-center overflow-hidden px-2"
         style={{
-          background:
-            "radial-gradient(120% 120% at 50% 0%, #334155 0%, #0f172a 75%)",
+          background: prism
+            ? "linear-gradient(160deg, #64748b 0%, #334155 45%, #1e293b 100%)"
+            : "radial-gradient(120% 120% at 50% 0%, #334155 0%, #0f172a 75%)",
         }}
       >
         {box === "bar" && showBox && (
@@ -159,27 +162,41 @@ function PresetCard({
         )}
         <span
           className="relative z-[1] max-w-full truncate px-1.5 py-0.5 text-[11px] font-semibold leading-tight"
-          style={{
-            fontFamily: fontStack(s.fontFamily),
-            fontWeight: s.fontWeight,
-            color: s.karaoke ? s.highlightColor : s.color,
-            textTransform: s.uppercase ? "uppercase" : "none",
-            letterSpacing: `${s.letterSpacingEm}em`,
-            WebkitTextStroke:
-              s.outlineWidth > 0 && !showBox
-                ? `${Math.min(s.outlineWidth * 0.25, 1.2)}px ${s.outlineColor}`
-                : undefined,
-            paintOrder: "stroke fill",
-            textShadow: [glow !== "none" ? glow : null, shadow !== "none" ? shadow : null]
-              .filter(Boolean)
-              .join(", ") || "none",
-            background:
-              showBox && box !== "bar"
-                ? hexToRgba(s.backgroundColor, s.backgroundOpacity)
-                : "transparent",
-            borderRadius:
-              box === "pill" ? 999 : box === "inline" ? 3 : 0,
-          }}
+          style={
+            prism
+              ? {
+                  fontFamily: fontStack(s.fontFamily),
+                  fontWeight: s.fontWeight,
+                  backgroundImage:
+                    "linear-gradient(115deg,#fff,#d2e6ff,#fff,#ffc8f0,#c8fff0,#fff)",
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  color: "transparent",
+                  WebkitTextFillColor: "transparent",
+                  filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
+                }
+              : {
+                  fontFamily: fontStack(s.fontFamily),
+                  fontWeight: s.fontWeight,
+                  color: s.karaoke ? s.highlightColor : s.color,
+                  textTransform: s.uppercase ? "uppercase" : "none",
+                  letterSpacing: `${s.letterSpacingEm}em`,
+                  WebkitTextStroke:
+                    s.outlineWidth > 0 && !showBox
+                      ? `${Math.min(s.outlineWidth * 0.25, 1.2)}px ${s.outlineColor}`
+                      : undefined,
+                  paintOrder: "stroke fill",
+                  textShadow: [glow !== "none" ? glow : null, shadow !== "none" ? shadow : null]
+                    .filter(Boolean)
+                    .join(", ") || "none",
+                  background:
+                    showBox && box !== "bar"
+                      ? hexToRgba(s.backgroundColor, s.backgroundOpacity)
+                      : "transparent",
+                  borderRadius:
+                    box === "pill" ? 999 : box === "inline" ? 3 : 0,
+                }
+          }
         >
           {preset.sample ?? "Aa"}
         </span>
@@ -247,6 +264,48 @@ export function StylePanel({
             />
           ))}
         </div>
+      </section>
+
+      {/* Caption position — prominent so users can place top / middle / bottom / anywhere */}
+      <section className="space-y-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          Caption position
+        </h3>
+        <Field label="Place on frame">
+          <Segmented
+            value={
+              style.positionYPct <= 28
+                ? "top"
+                : style.positionYPct >= 72
+                  ? "bottom"
+                  : style.positionYPct >= 40 && style.positionYPct <= 60
+                    ? "middle"
+                    : "custom"
+            }
+            onChange={(v) => {
+              if (v === "top") onChange({ positionYPct: 14 });
+              else if (v === "middle") onChange({ positionYPct: 50 });
+              else if (v === "bottom") onChange({ positionYPct: 86 });
+            }}
+            options={[
+              { label: "Top", value: "top" },
+              { label: "Middle", value: "middle" },
+              { label: "Bottom", value: "bottom" },
+            ]}
+          />
+        </Field>
+        <Field label="Fine-tune" value={`${Math.round(style.positionYPct)}% from top`}>
+          <Slider
+            min={5}
+            max={95}
+            step={1}
+            value={style.positionYPct}
+            onChange={(v) => onChange({ positionYPct: v })}
+          />
+        </Field>
+        <p className="text-[10px] leading-relaxed text-neutral-600">
+          Or drag the caption on the video preview to place it anywhere.
+        </p>
       </section>
 
       {/* Font */}
@@ -329,6 +388,20 @@ export function StylePanel({
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Effects
         </h3>
+        <Field label="Text effect">
+          <Segmented
+            value={(style.textEffect ?? "none") as TextEffect}
+            onChange={(v) => onChange({ textEffect: v as TextEffect })}
+            options={[
+              { label: "Flat", value: "none" },
+              { label: "Prism Pro", value: "prism" },
+            ]}
+          />
+        </Field>
+        <p className="text-[10px] leading-relaxed text-neutral-600">
+          Prism Pro: frosted glass + iridescent shimmer (inspired by captions.ai). Richest in
+          preview; burned MP4 uses a soft white glass approx.
+        </p>
         <Field label="Glow strength" value={`${(style.glowStrength ?? 0).toFixed(0)}`}>
           <Slider
             min={0}
@@ -447,7 +520,7 @@ export function StylePanel({
       {/* Layout */}
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-          Position &amp; layout
+          Layout
         </h3>
         <Field label="Alignment">
           <Segmented
@@ -459,9 +532,6 @@ export function StylePanel({
               { label: "Right", value: "right" },
             ]}
           />
-        </Field>
-        <Field label="Vertical position" value={`${Math.round(style.positionYPct)}%`}>
-          <Slider min={5} max={95} step={1} value={style.positionYPct} onChange={(v) => onChange({ positionYPct: v })} />
         </Field>
         <Field label="Max width" value={`${Math.round(style.maxWidthPct)}%`}>
           <Slider min={40} max={100} step={1} value={style.maxWidthPct} onChange={(v) => onChange({ maxWidthPct: v })} />

@@ -12,13 +12,11 @@ import {
 import {
   applySpelling,
   diffWordCorrections,
-  mergeSpellRules,
   type SpellRule,
 } from "@/lib/spelling";
 import { PreviewStage } from "./PreviewStage";
 import { StylePanel } from "./StylePanel";
 import { SubtitleList } from "./SubtitleList";
-import { DictionaryPanel } from "./DictionaryPanel";
 
 interface Progress {
   status: string;
@@ -72,21 +70,50 @@ export function Editor({
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [exportState, setExportState] = useState<"idle" | "exporting" | "error">("idle");
   const [exportError, setExportError] = useState<string | null>(null);
-  /** Word fixes learned on the last save (listener feedback). */
+  /** Word fixes auto-learned when the user edits a caption line. */
   const [learned, setLearned] = useState<SpellRule[] | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  /** ASR baseline for the current transcript — used to detect what the user fixed. */
+  /** Per-line ASR/previous text — used to detect what the user just fixed. */
   const baselineRef = useRef<Segment[] | null>(null);
-  const dictionaryReloadRef = useRef<(() => void) | null>(null);
+  const segmentsRef = useRef<Segment[] | null>(null);
+  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const learnBusy = useRef(false);
 
   const baseName = (originalName ?? "telugu-captions").replace(/\.[^.]+$/, "");
+
+  useEffect(() => {
+    segmentsRef.current = segments;
+  }, [segments]);
+
+  const persistTranscript = useCallback(
+    async (segs: Segment[]) => {
+      setSaveState("saving");
+      await fetch(`/api/transcript/${jobId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ segments: segs }),
+      });
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 1500);
+    },
+    [jobId],
+  );
+
+  const schedulePersist = useCallback(
+    (segs: Segment[]) => {
+      if (persistTimer.current) clearTimeout(persistTimer.current);
+      persistTimer.current = setTimeout(() => {
+        void persistTranscript(segs);
+      }, 400);
+    },
+    [persistTranscript],
+  );
 
   const loadTranscript = useCallback(async () => {
     const res = await fetch(`/api/transcript/${jobId}`);
     if (res.ok) {
       const data = (await res.json()) as { segments: Segment[] };
       setSegments(data.segments);
-      // Fresh baseline so Save can learn only the edits made this session.
       baselineRef.current = data.segments.map((s) => ({ ...s, text: s.text }));
       setLearned(null);
     }
@@ -126,57 +153,66 @@ export function Editor({
     sessionStorage.removeItem("pendingStyle");
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (persistTimer.current) clearTimeout(persistTimer.current);
+    };
+  }, []);
+
   const patchStyle = (patch: Partial<SubtitleStyle>) =>
     setStyle((s) => ({ ...s, ...patch }));
 
+  /**
+   * When the user finishes editing a caption line: learn word fixes into memory,
+   * apply them across this transcript, and auto-save — no Listener panel / Save click.
+   */
+  const onTextCommit = useCallback(
+    async (index: number, text: string) => {
+      const current = segmentsRef.current;
+      const baseline = baselineRef.current;
+      if (!current || !baseline || learnBusy.current) return;
+
+      // Keep timings from the live list; text comes from the blurred field.
+      let next = current.map((s, i) => (i === index ? { ...s, text } : s));
+
+      const before = baseline[index]?.text ?? "";
+      const rules = diffWordCorrections(before, text);
+
+      if (rules.length) {
+        learnBusy.current = true;
+        try {
+          await fetch("/api/spelling", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rules }),
+          });
+          next = next.map((s) => ({
+            ...s,
+            text: applySpelling(s.text, rules),
+            words: s.words?.map((w) => ({
+              ...w,
+              text: applySpelling(w.text, rules),
+            })),
+          }));
+          setLearned(rules);
+          setTimeout(() => setLearned(null), 4000);
+        } finally {
+          learnBusy.current = false;
+        }
+      }
+
+      setSegments(next);
+      baselineRef.current = next.map((s) => ({ ...s, text: s.text }));
+      schedulePersist(next);
+    },
+    [schedulePersist],
+  );
+
+  // Manual save still available for timing tweaks without leaving a text field.
   const saveEdits = async () => {
     if (!segments) return;
-    setSaveState("saving");
-    setLearned(null);
-
-    // Listener: compare each line to the ASR baseline and learn word-level fixes
-    // (wrong → what the user typed). Those become the default for this video and
-    // every future one (same as Whisper-style custom vocabulary).
-    const baseline = baselineRef.current;
-    let next = segments;
-    let newRules: SpellRule[] = [];
-    if (baseline && baseline.length === segments.length) {
-      const perLine: SpellRule[][] = [];
-      for (let i = 0; i < segments.length; i++) {
-        perLine.push(diffWordCorrections(baseline[i]?.text ?? "", segments[i].text));
-      }
-      newRules = mergeSpellRules(...perLine);
-      if (newRules.length) {
-        await fetch("/api/spelling", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rules: newRules }),
-        });
-        // Apply learned defaults across the whole transcript so the same mistake
-        // elsewhere in this video is fixed without re-editing every line.
-        next = segments.map((s) => ({
-          ...s,
-          text: applySpelling(s.text, newRules),
-          words: s.words?.map((w) => ({
-            ...w,
-            text: applySpelling(w.text, newRules),
-          })),
-        }));
-        setSegments(next);
-        setLearned(newRules);
-        dictionaryReloadRef.current?.();
-      }
-    }
-
-    await fetch(`/api/transcript/${jobId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ segments: next }),
-    });
-    // New baseline = what we just saved, so the next save only learns fresh edits.
-    baselineRef.current = next.map((s) => ({ ...s, text: s.text }));
-    setSaveState("saved");
-    setTimeout(() => setSaveState("idle"), 2000);
+    baselineRef.current = segments.map((s) => ({ ...s, text: s.text }));
+    await persistTranscript(segments);
   };
 
   const doExport = (fmt: SubtitleFormat, mime: string) => {
@@ -184,8 +220,6 @@ export function Editor({
     download(`${baseName}.${fmt}`, renderSubtitles(fmt, segments, style), mime);
   };
 
-  // Burn the captions + current style permanently into the video (server-side ffmpeg),
-  // then download the finished MP4 — the publish-ready output creators actually want.
   const exportMp4 = async () => {
     if (!segments || exportState === "exporting") return;
     setExportState("exporting");
@@ -207,20 +241,6 @@ export function Editor({
       setExportError(err instanceof Error ? err.message : "Export failed");
       setExportState("error");
     }
-  };
-
-  // Run the saved spelling dictionary over the on-screen transcript. Edits stay local
-  // until the user hits "Save edits" (same as manual text fixes).
-  const applyDictionary = (rules: SpellRule[]) => {
-    setSegments((prev) =>
-      prev
-        ? prev.map((s) => ({
-            ...s,
-            text: applySpelling(s.text, rules),
-            words: s.words?.map((w) => ({ ...w, text: applySpelling(w.text, rules) })),
-          }))
-        : prev,
-    );
   };
 
   const isProcessing =
@@ -306,7 +326,6 @@ export function Editor({
 
       {progress.status === "done" && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
-          {/* Left: preview + transcript */}
           <div className="space-y-4">
             {isMock && (
               <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-200">
@@ -321,6 +340,7 @@ export function Editor({
               style={style}
               onTime={setCurrentTime}
               initialAspect={width && height ? width / height : undefined}
+              onPositionChange={(positionYPct) => patchStyle({ positionYPct })}
             />
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-neutral-500">
@@ -328,6 +348,12 @@ export function Editor({
                 <span className="text-neutral-300">
                   {progress.language ?? "te"}
                 </span>
+                {saveState === "saving" && (
+                  <span className="ml-2 text-neutral-500">· Saving…</span>
+                )}
+                {saveState === "saved" && (
+                  <span className="ml-2 text-emerald-400/80">· Saved</span>
+                )}
               </p>
               <button
                 type="button"
@@ -335,26 +361,14 @@ export function Editor({
                 disabled={saveState === "saving"}
                 className="rounded-lg border border-white/10 bg-neutral-800 px-3 py-1.5 text-xs text-neutral-200 hover:bg-neutral-700 disabled:opacity-50"
               >
-                {saveState === "saving"
-                  ? "Saving…"
-                  : saveState === "saved"
-                    ? "Saved ✓"
-                    : "Save edits"}
+                Save timings
               </button>
             </div>
             {learned && learned.length > 0 && (
               <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
-                <p className="font-medium text-emerald-200">
-                  Listener learned {learned.length} correction
-                  {learned.length === 1 ? "" : "s"} — will use these next time
-                </p>
-                <p className="mt-1 text-emerald-100/80">
-                  {learned
-                    .slice(0, 6)
-                    .map((r) => `${r.from} → ${r.to}`)
-                    .join(" · ")}
-                  {learned.length > 6 ? ` · +${learned.length - 6} more` : ""}
-                </p>
+                Remembered{" "}
+                {learned.map((r) => `${r.from} → ${r.to}`).join(" · ")} — will use
+                next time
               </div>
             )}
             {segments && (
@@ -365,11 +379,11 @@ export function Editor({
                 onSeek={(t) => {
                   if (videoRef.current) videoRef.current.currentTime = t;
                 }}
+                onTextCommit={onTextCommit}
               />
             )}
           </div>
 
-          {/* Right: style controls + dictionary */}
           <aside className="space-y-4 lg:sticky lg:top-6 lg:h-fit">
             <div className="rounded-xl border border-white/10 bg-neutral-900 p-4">
               <StylePanel
@@ -378,10 +392,6 @@ export function Editor({
                 onApplyPreset={(s) => setStyle({ ...s })}
               />
             </div>
-            <DictionaryPanel
-              onApply={applyDictionary}
-              reloadRef={dictionaryReloadRef}
-            />
           </aside>
         </div>
       )}

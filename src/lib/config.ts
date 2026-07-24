@@ -22,7 +22,7 @@ const schema = z.object({
   // Subtitle output: transcribe = Telugu script; translit = romanized (Telugu in Latin letters)
   OUTPUT_MODE: z.enum(["transcribe", "translit"]).default("translit"),
   // Max words per on-screen caption frame; long lines are split into clean short frames. 0 = off.
-  SUBTITLE_MAX_WORDS: z.coerce.number().default(4),
+  SUBTITLE_MAX_WORDS: z.coerce.number().default(2),
 
   // Storage
   STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
