@@ -9,6 +9,7 @@ import {
   hasBackgroundBox,
   type SubtitleStyle,
 } from "@/lib/subtitles/style";
+import { isEmphasisOn, isEmphasizedWord } from "@/lib/subtitles/emphasis";
 import { tokenizeSegment } from "@/lib/subtitles/karaoke";
 import type { Segment } from "@/lib/transcription/types";
 
@@ -149,7 +150,10 @@ export function SubtitleOverlay({
   };
 
   let content: ReactNode = casedText;
-  if (hasText && style.karaoke && !prism) {
+  const useKaraoke = hasText && style.karaoke && !prism;
+  const useEmphasis = hasText && isEmphasisOn(style) && !prism;
+
+  if (useKaraoke || useEmphasis) {
     const tokens = tokenizeSegment(segment!);
     if (tokens.length) {
       content = tokens.map((tk, i) => {
@@ -159,8 +163,18 @@ export function SubtitleOverlay({
               ? applyTextCase(tk.text, "sentence")
               : tk.text.toLowerCase()
             : applyTextCase(tk.text, caseMode);
+
+        let color = style.color;
+        if (useEmphasis && isEmphasizedWord(tk.text)) {
+          color = style.highlightColor;
+        }
+        // Karaoke fill wins for words already spoken.
+        if (useKaraoke && i < filled) {
+          color = style.highlightColor;
+        }
+
         return (
-          <span key={i} style={{ color: i < filled ? style.highlightColor : style.color }}>
+          <span key={i} style={{ color }}>
             {word}
             {i < tokens.length - 1 ? " " : ""}
           </span>

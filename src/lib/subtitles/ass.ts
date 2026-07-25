@@ -6,6 +6,7 @@ import {
   hasBackgroundBox,
   type SubtitleStyle,
 } from "./style";
+import { isEmphasisOn, isEmphasizedWord } from "./emphasis";
 import { tokenizeSegment } from "./karaoke";
 
 // ASS (Advanced SubStation Alpha) carries full styling, so an exported .ass reproduces
@@ -156,15 +157,42 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
   const events = segments
     .map((s) => {
-      const body =
-        style.karaoke && (style.textEffect ?? "none") !== "prism"
-          ? karaokeText(s, style)
-          : applyTextCase(s.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
+      let body: string;
+      if (style.karaoke && (style.textEffect ?? "none") !== "prism") {
+        body = karaokeText(s, style);
+      } else if (isEmphasisOn(style) && (style.textEffect ?? "none") !== "prism") {
+        body = emphasisText(s, style);
+      } else {
+        body = applyTextCase(s.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
+      }
       return `Dialogue: 0,${assTime(s.start)},${assTime(s.end)},Default,,0,0,0,,${enter}${body}`;
     })
     .join("\n");
 
   return header + events + "\n";
+}
+
+/** Per-word accent colors via ASS `\\c` overrides (Tharun Speaks static emphasis). */
+function emphasisText(seg: Segment, style: SubtitleStyle): string {
+  const caseMode = effectiveTextCase(style);
+  const tokens = tokenizeSegment(seg);
+  if (!tokens.length) {
+    return applyTextCase(seg.text, caseMode).replace(/\r?\n/g, "\\N");
+  }
+  const base = assColor(style.color, 0);
+  const accent = assColor(style.highlightColor, 0);
+  return tokens
+    .map((tk, i) => {
+      const word =
+        caseMode === "sentence"
+          ? i === 0
+            ? applyTextCase(tk.text, "sentence")
+            : tk.text.toLowerCase()
+          : applyTextCase(tk.text, caseMode);
+      const col = isEmphasizedWord(tk.text) ? accent : base;
+      return `{\\c${col}}${word}`;
+    })
+    .join(" ");
 }
 
 /** Build a Dialogue line with `{\k…}` karaoke tags so each word fills in sync with speech. */

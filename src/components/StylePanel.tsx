@@ -5,6 +5,7 @@ import { TELUGU_FONTS, fontStack } from "@/lib/fonts";
 import type {
   BoxMode,
   CaptionAnimation,
+  EmphasisMode,
   SubtitleStyle,
   TextAlign,
   TextCase,
@@ -487,7 +488,7 @@ export function StylePanel({
         </Field>
       </section>
 
-      {/* Karaoke */}
+      {/* Karaoke + keyword emphasis */}
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Word-by-word (karaoke)
@@ -505,8 +506,21 @@ export function StylePanel({
             ]}
           />
         </div>
-        {style.karaoke && (
-          <Field label="Highlight color">
+        <Field label="Keyword emphasis">
+          <Segmented
+            value={(style.emphasisMode ?? "off") as EmphasisMode}
+            onChange={(v) => onChange({ emphasisMode: v as EmphasisMode })}
+            options={[
+              { label: "Off", value: "off" },
+              { label: "Auto", value: "auto" },
+            ]}
+          />
+        </Field>
+        <p className="text-[10px] leading-relaxed text-neutral-600">
+          Auto highlights keywords in the accent color (Tharun Speaks look).
+        </p>
+        {(style.karaoke || (style.emphasisMode ?? "off") === "auto") && (
+          <Field label="Accent / highlight color">
             <ColorInput
               value={style.highlightColor}
               onChange={(v) => onChange({ highlightColor: v })}

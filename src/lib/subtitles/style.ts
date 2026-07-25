@@ -13,6 +13,9 @@ export type CaptionAnimation = "none" | "fade" | "pop";
 /** Special glyph treatments beyond flat fill (preview-rich; ASS approximates). */
 export type TextEffect = "none" | "prism";
 
+/** Static keyword coloring (neon accents) independent of karaoke fill. */
+export type EmphasisMode = "off" | "auto";
+
 /** How caption text is cased for preview + burned export. */
 export type TextCase = "none" | "sentence" | "title" | "lower" | "upper";
 
@@ -72,6 +75,11 @@ export interface SubtitleStyle {
    * iridescent shimmer (preview). Burned ASS uses a soft translucent white approx.
    */
   textEffect: TextEffect;
+  /**
+   * Auto-color keywords with `highlightColor` (Tharun Speaks yellow/white look).
+   * Independent of karaoke progressive fill.
+   */
+  emphasisMode: EmphasisMode;
 }
 
 /** Resolve casing mode, including legacy `uppercase` boolean. */
@@ -133,6 +141,7 @@ export const DEFAULT_STYLE: SubtitleStyle = {
   boxRadiusPct: 1.2,
   animation: "pop",
   textEffect: "none",
+  emphasisMode: "auto",
 };
 
 /**

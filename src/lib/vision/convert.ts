@@ -68,5 +68,6 @@ export function profileToSubtitleStyle(p: StyleProfile): SubtitleStyle {
     boxRadiusPct: DEFAULT_STYLE.boxRadiusPct,
     animation: "none",
     textEffect: "none",
+    emphasisMode: "off",
   };
 }

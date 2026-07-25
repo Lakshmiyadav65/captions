@@ -18,6 +18,7 @@ import { friendlyJobError } from "@/lib/errors";
 import { PreviewStage } from "./PreviewStage";
 import { StylePanel } from "./StylePanel";
 import { SubtitleList } from "./SubtitleList";
+import { DictionaryPanel } from "./DictionaryPanel";
 
 interface Progress {
   status: string;
@@ -73,6 +74,8 @@ export function Editor({
   const [exportError, setExportError] = useState<string | null>(null);
   /** Word fixes auto-learned when the user edits a caption line. */
   const [learned, setLearned] = useState<SpellRule[] | null>(null);
+  /** Bump to refresh DictionaryPanel after auto-learn. */
+  const [dictRefresh, setDictRefresh] = useState(0);
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
   /** Bumped on retry so the SSE effect re-subscribes after a failure. */
@@ -218,6 +221,7 @@ export function Editor({
             })),
           }));
           setLearned(rules);
+          setDictRefresh((n) => n + 1);
           setTimeout(() => setLearned(null), 4000);
         } finally {
           learnBusy.current = false;
@@ -459,6 +463,15 @@ export function Editor({
               style={style}
               onChange={patchStyle}
               onApplyPreset={(s) => setStyle({ ...s })}
+            />
+            <DictionaryPanel
+              segments={segments}
+              refreshToken={dictRefresh}
+              onApplySegments={(next) => {
+                setSegments(next);
+                baselineRef.current = next.map((s) => ({ ...s, text: s.text }));
+                schedulePersist(next);
+              }}
             />
           </aside>
         </div>
