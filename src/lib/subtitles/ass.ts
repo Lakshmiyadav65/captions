@@ -8,7 +8,7 @@ import {
 } from "./style";
 import { isEmphasisOn, isEmphasizedWord } from "./emphasis";
 import { tokenizeSegment } from "./karaoke";
-import { isKinetic, kineticPoses } from "./kinetic";
+import { isKinetic, isScatter, kineticPoses, scatterPoses } from "./kinetic";
 
 // ASS (Advanced SubStation Alpha) carries full styling, so an exported .ass reproduces
 // the font, size, colors, outline, box and position seen in the live preview. The canvas
@@ -63,6 +63,8 @@ function entranceTags(style: SubtitleStyle): string {
       // Brief scale-up from 85% → 100% over ~300ms, then hold.
       return "{\\fscx85\\fscy85\\t(0,300,\\fscx100\\fscy100)}";
     case "kinetic":
+      return "{\\fad(120,80)}";
+    case "scatter":
       return "{\\fad(120,80)}";
     default:
       return "";
@@ -160,6 +162,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
   const events = segments
     .flatMap((s) => {
+      if (isScatter(style) && (style.textEffect ?? "none") !== "prism") {
+        return scatterDialogues(s, style, PLAY_W, PLAY_H);
+      }
       if (isKinetic(style) && (style.textEffect ?? "none") !== "prism") {
         return kineticDialogues(s, style, PLAY_W, PLAY_H);
       }
@@ -212,7 +217,6 @@ function kineticDialogues(
             ? wordTk.text.toLowerCase()
             : applyTextCase(wordTk.text, caseMode);
         const fs = Math.max(8, Math.round(baseFs * pose.scale));
-        // Slight \\fscx nudge approximates the preview xEm shift for non-focus words.
         const xScale = pose.xEm === 0 ? 100 : pose.xEm < 0 ? 98 : 102;
         return `{\\fs${fs}\\fscx${xScale}\\fscy100}${word}`;
       })
@@ -221,6 +225,51 @@ function kineticDialogues(
     lines.push(
       `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,{\\an5\\fad(120,80)}${body}`,
     );
+  });
+
+  return lines;
+}
+
+/**
+ * Premium Style 2 burn: one Dialogue per word with \\pos + \\fs (Klickpin scatter).
+ */
+function scatterDialogues(
+  seg: Segment,
+  style: SubtitleStyle,
+  playW: number,
+  playH: number,
+): string[] {
+  const tokens = tokenizeSegment(seg);
+  if (!tokens.length) {
+    const body = applyTextCase(seg.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
+    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,{\\fad(120,80)}${body}`];
+  }
+
+  const caseMode = effectiveTextCase(style);
+  const baseFs = Math.round((style.fontSizePct / 100) * playH);
+  const anchorY = (style.positionYPct / 100) * playH;
+  const lines: string[] = [];
+
+  tokens.forEach((tk, focus) => {
+    const poses = scatterPoses(tokens.length, focus);
+    const t0 = tk.start;
+    const t1 = focus < tokens.length - 1 ? tokens[focus + 1].start : seg.end;
+    if (t1 <= t0) return;
+
+    tokens.forEach((wordTk, i) => {
+      const pose = poses[i] ?? poses[0];
+      const word =
+        caseMode === "sentence" && i > 0
+          ? wordTk.text.toLowerCase()
+          : applyTextCase(wordTk.text, caseMode);
+      const x = Math.round(playW / 2 + (pose.xPct / 100) * playW);
+      const y = Math.round(anchorY + (pose.yPct / 100) * playH);
+      const fs = Math.max(8, Math.round(baseFs * pose.scale));
+      const tags = `{\\an5\\pos(${x},${y})\\fs${fs}\\fad(100,60)}`;
+      lines.push(
+        `Dialogue: ${i},${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${tags}${word}`,
+      );
+    });
   });
 
   return lines;

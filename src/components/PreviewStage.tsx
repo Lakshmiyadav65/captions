@@ -128,7 +128,7 @@ export function PreviewStage({
         const t = v.currentTime;
         const seg = segments.find((s) => t >= s.start && t < s.end) ?? null;
         const filled =
-          seg && (style.karaoke || style.animation === "kinetic")
+          seg && (style.karaoke || style.animation === "kinetic" || style.animation === "scatter")
             ? filledCount(tokenizeSegment(seg), t)
             : 0;
         // Only re-render when the active line or the filled-word count actually changes.
