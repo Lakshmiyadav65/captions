@@ -67,12 +67,13 @@ export interface SubtitleStyle {
 }
 
 /**
- * Default look — matched from Video-24275.mp4: bold white kinetic captions,
- * mid-frame, soft bloom (no hard outline), pop-in. Same as the "Center Pop" preset.
+ * Default look — extracted from Video-24275.mp4 ("Tharun Speaks"):
+ * bold white kinetic captions mid-frame, neon-yellow emphasis, soft bloom
+ * (no hard outline), pop-in. Same as the "Tharun Speaks" preset.
  */
 export const DEFAULT_STYLE: SubtitleStyle = {
   fontFamily: "NTR",
-  fontSizePct: 3.5,
+  fontSizePct: 4,
   fontWeight: 700,
   color: "#FFFFFF",
   outlineColor: "#000000",
@@ -83,14 +84,14 @@ export const DEFAULT_STYLE: SubtitleStyle = {
   bgPaddingXPct: 1.2,
   bgPaddingYPct: 0.6,
   align: "center",
-  positionYPct: 52,
+  positionYPct: 55,
   lineHeight: 1.05,
   maxWidthPct: 82,
-  letterSpacingEm: -0.02,
+  letterSpacingEm: -0.03,
   uppercase: false,
   karaoke: false,
-  highlightColor: "#FFE100",
-  glowStrength: 0,
+  highlightColor: "#E2FF00",
+  glowStrength: 1,
   glowColor: "#FFFFFF",
   boxMode: "none",
   boxRadiusPct: 1.2,

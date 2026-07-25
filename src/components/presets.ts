@@ -26,11 +26,11 @@ export const PRESET_CATEGORIES: { id: PresetCategory | "all"; label: string }[] 
 export const PRESETS: StylePreset[] = [
   // —— Social ——
   {
-    // Matched from Video-24275.mp4 — same as DEFAULT_STYLE so new jobs open with this look.
-    id: "center-pop",
-    name: "Center Pop",
+    // Extracted from Video-24275.mp4 — same as DEFAULT_STYLE so new jobs open with this look.
+    id: "tharun-speaks",
+    name: "Tharun Speaks",
     category: "social",
-    sample: "eligibility",
+    sample: "GUARANTEES",
     style: { ...DEFAULT_STYLE },
   },
   {
