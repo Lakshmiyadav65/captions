@@ -7,9 +7,10 @@ import type {
   CaptionAnimation,
   SubtitleStyle,
   TextAlign,
+  TextCase,
   TextEffect,
 } from "@/lib/subtitles/style";
-import { effectiveBoxMode } from "@/lib/subtitles/style";
+import { effectiveBoxMode, effectiveTextCase } from "@/lib/subtitles/style";
 import {
   matchingPresetId,
   PRESET_CATEGORIES,
@@ -179,7 +180,12 @@ function PresetCard({
                   fontFamily: fontStack(s.fontFamily),
                   fontWeight: s.fontWeight,
                   color: s.karaoke ? s.highlightColor : s.color,
-                  textTransform: s.uppercase ? "uppercase" : "none",
+                  textTransform:
+                    effectiveTextCase(s) === "upper"
+                      ? "uppercase"
+                      : effectiveTextCase(s) === "lower"
+                        ? "lowercase"
+                        : "none",
                   letterSpacing: `${s.letterSpacingEm}em`,
                   WebkitTextStroke:
                     s.outlineWidth > 0 && !showBox
@@ -554,17 +560,27 @@ export function StylePanel({
         <Field label="Letter spacing" value={`${style.letterSpacingEm.toFixed(2)} em`}>
           <Slider min={-0.05} max={0.3} step={0.01} value={style.letterSpacingEm} onChange={(v) => onChange({ letterSpacingEm: v })} />
         </Field>
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-neutral-400">Uppercase</span>
+        <Field label="Text case">
           <Segmented
-            value={style.uppercase ? "on" : "off"}
-            onChange={(v) => onChange({ uppercase: v === "on" })}
+            value={style.textCase ?? (style.uppercase ? "upper" : "none")}
+            onChange={(v) =>
+              onChange({
+                textCase: v as TextCase,
+                uppercase: v === "upper",
+              })
+            }
             options={[
-              { label: "On", value: "on" },
-              { label: "Off", value: "off" },
+              { label: "As typed", value: "none" },
+              { label: "Sentence", value: "sentence" },
+              { label: "Title", value: "title" },
+              { label: "lower", value: "lower" },
+              { label: "UPPER", value: "upper" },
             ]}
           />
-        </div>
+        </Field>
+        <p className="text-[10px] leading-relaxed text-neutral-600">
+          Sentence = first letter capital, rest lower. Title = Each Word Capitalized.
+        </p>
       </section>
     </div>
   );

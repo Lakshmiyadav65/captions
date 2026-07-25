@@ -1,6 +1,8 @@
 import type { Segment } from "@/lib/transcription/types";
 import {
+  applyTextCase,
   effectiveBoxMode,
+  effectiveTextCase,
   hasBackgroundBox,
   type SubtitleStyle,
 } from "./style";
@@ -157,7 +159,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
       const body =
         style.karaoke && (style.textEffect ?? "none") !== "prism"
           ? karaokeText(s, style)
-          : (style.uppercase ? s.text.toUpperCase() : s.text).replace(/\r?\n/g, "\\N");
+          : applyTextCase(s.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
       return `Dialogue: 0,${assTime(s.start)},${assTime(s.end)},Default,,0,0,0,,${enter}${body}`;
     })
     .join("\n");
@@ -167,9 +169,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 /** Build a Dialogue line with `{\k…}` karaoke tags so each word fills in sync with speech. */
 function karaokeText(seg: Segment, style: SubtitleStyle): string {
+  const caseMode = effectiveTextCase(style);
   const tokens = tokenizeSegment(seg);
   if (!tokens.length) {
-    return (style.uppercase ? seg.text.toUpperCase() : seg.text).replace(/\r?\n/g, "\\N");
+    return applyTextCase(seg.text, caseMode).replace(/\r?\n/g, "\\N");
   }
   const cs = (sec: number) => Math.max(0, Math.round(sec * 100));
   let out = "";
@@ -177,7 +180,12 @@ function karaokeText(seg: Segment, style: SubtitleStyle): string {
   if (lead > 0) out += `{\\k${lead}}`;
   tokens.forEach((tk, i) => {
     const nextStart = i < tokens.length - 1 ? tokens[i + 1].start : tk.end;
-    const word = style.uppercase ? tk.text.toUpperCase() : tk.text;
+    const word =
+      caseMode === "sentence"
+        ? i === 0
+          ? applyTextCase(tk.text, "sentence")
+          : tk.text.toLowerCase()
+        : applyTextCase(tk.text, caseMode);
     out += `{\\k${cs(nextStart - tk.start)}}${word}`;
     if (i < tokens.length - 1) out += " ";
   });

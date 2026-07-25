@@ -3,7 +3,9 @@
 import { useRef, type CSSProperties, type ReactNode } from "react";
 import { fontStack } from "@/lib/fonts";
 import {
+  applyTextCase,
   effectiveBoxMode,
+  effectiveTextCase,
   hasBackgroundBox,
   type SubtitleStyle,
 } from "@/lib/subtitles/style";
@@ -113,6 +115,9 @@ export function SubtitleOverlay({
       ? hexToRgba(style.backgroundColor, style.backgroundOpacity)
       : "transparent";
 
+  const caseMode = effectiveTextCase(style);
+  const casedText = applyTextCase(displayText, caseMode);
+
   const spanStyle: CSSProperties = {
     display: "inline-block",
     maxWidth: "100%",
@@ -122,7 +127,6 @@ export function SubtitleOverlay({
     color: prism ? undefined : style.color,
     lineHeight: style.lineHeight,
     letterSpacing: `${style.letterSpacingEm}em`,
-    textTransform: style.uppercase ? "uppercase" : "none",
     whiteSpace: "pre-wrap",
     wordBreak: "break-word",
     background: prism ? undefined : bg,
@@ -144,16 +148,24 @@ export function SubtitleOverlay({
     touchAction: "none",
   };
 
-  let content: ReactNode = displayText;
+  let content: ReactNode = casedText;
   if (hasText && style.karaoke && !prism) {
     const tokens = tokenizeSegment(segment!);
     if (tokens.length) {
-      content = tokens.map((tk, i) => (
-        <span key={i} style={{ color: i < filled ? style.highlightColor : style.color }}>
-          {tk.text}
-          {i < tokens.length - 1 ? " " : ""}
-        </span>
-      ));
+      content = tokens.map((tk, i) => {
+        const word =
+          caseMode === "sentence"
+            ? i === 0
+              ? applyTextCase(tk.text, "sentence")
+              : tk.text.toLowerCase()
+            : applyTextCase(tk.text, caseMode);
+        return (
+          <span key={i} style={{ color: i < filled ? style.highlightColor : style.color }}>
+            {word}
+            {i < tokens.length - 1 ? " " : ""}
+          </span>
+        );
+      });
     }
   }
 

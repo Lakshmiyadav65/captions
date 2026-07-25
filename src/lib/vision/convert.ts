@@ -58,6 +58,7 @@ export function profileToSubtitleStyle(p: StyleProfile): SubtitleStyle {
     maxWidthPct: clamp(WIDTH_PCT[l.maxWidthBucket], 40, 100),
     letterSpacingEm: translit ? clamp(TRACKING_EM[t.letterSpacing], -0.05, 0.3) : 0,
     uppercase: t.uppercase,
+    textCase: t.uppercase ? "upper" : "none",
     // Karaoke needs a highlight color to mean anything; a two-tone look alone can't flip it.
     karaoke: e.karaoke && c.highlight != null,
     highlightColor: hex(c.highlight, DEFAULT_STYLE.highlightColor),

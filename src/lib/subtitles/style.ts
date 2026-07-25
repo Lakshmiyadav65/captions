@@ -13,6 +13,9 @@ export type CaptionAnimation = "none" | "fade" | "pop";
 /** Special glyph treatments beyond flat fill (preview-rich; ASS approximates). */
 export type TextEffect = "none" | "prism";
 
+/** How caption text is cased for preview + burned export. */
+export type TextCase = "none" | "sentence" | "title" | "lower" | "upper";
+
 export interface SubtitleStyle {
   /** CSS font-family value; must match one of the bundled Telugu fonts (see fonts.ts). */
   fontFamily: string;
@@ -41,7 +44,12 @@ export interface SubtitleStyle {
   /** Max width of the text block as a % of video width (wraps long lines). */
   maxWidthPct: number;
   letterSpacingEm: number;
-  uppercase: boolean;
+  /**
+   * Display casing. Prefer `textCase`; legacy `uppercase: true` still means "upper".
+   */
+  textCase: TextCase;
+  /** @deprecated Prefer `textCase`. Kept so older saved styles / presets still load. */
+  uppercase?: boolean;
   /** Word-by-word "karaoke" highlight: spoken words switch to `highlightColor` and stay filled. */
   karaoke: boolean;
   /** Fill color for words that have been spoken (used when `karaoke` is on). */
@@ -66,6 +74,34 @@ export interface SubtitleStyle {
   textEffect: TextEffect;
 }
 
+/** Resolve casing mode, including legacy `uppercase` boolean. */
+export function effectiveTextCase(style: Pick<SubtitleStyle, "textCase" | "uppercase">): TextCase {
+  if (style.textCase) return style.textCase;
+  return style.uppercase ? "upper" : "none";
+}
+
+/** Apply a casing mode to caption text (preview + ASS share this). */
+export function applyTextCase(text: string, mode: TextCase): string {
+  if (!text) return text;
+  switch (mode) {
+    case "upper":
+      return text.toUpperCase();
+    case "lower":
+      return text.toLowerCase();
+    case "sentence": {
+      // First letter of the string (and of each new line) capital; everything else lower.
+      const lower = text.toLowerCase();
+      return lower.replace(/(^|[.!?]\s+|\n\s*)(\S)/g, (_, lead: string, ch: string) => lead + ch.toUpperCase());
+    }
+    case "title":
+      return text
+        .toLowerCase()
+        .replace(/(^|[^\p{L}\p{N}])(\p{L})/gu, (_, lead: string, ch: string) => lead + ch.toUpperCase());
+    default:
+      return text;
+  }
+}
+
 /**
  * Default look — extracted from Video-24275.mp4 ("Tharun Speaks"):
  * bold white kinetic captions mid-frame, neon-yellow emphasis, soft bloom
@@ -88,7 +124,7 @@ export const DEFAULT_STYLE: SubtitleStyle = {
   lineHeight: 1.05,
   maxWidthPct: 82,
   letterSpacingEm: -0.03,
-  uppercase: false,
+  textCase: "none",
   karaoke: false,
   highlightColor: "#E2FF00",
   glowStrength: 1,
