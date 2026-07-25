@@ -15,6 +15,7 @@ import {
   isKinetic,
   kineticFocusIndex,
   kineticPoses,
+  kineticStageHeightPct,
 } from "@/lib/subtitles/kinetic";
 import type { Segment } from "@/lib/transcription/types";
 
@@ -189,7 +190,8 @@ export function SubtitleOverlay({
             position: "relative",
             display: "block",
             width: "100%",
-            height: px(style.fontSizePct * 3.2),
+            // Stage must be tall enough for video-relative yPct offsets (not % of this box).
+            height: px(kineticStageHeightPct(style.fontSizePct)),
             pointerEvents: "none",
           }}
         >
@@ -203,16 +205,19 @@ export function SubtitleOverlay({
                 className={isFocus ? "cap-kinetic-word cap-kinetic-focus" : "cap-kinetic-word"}
                 style={{
                   position: "absolute",
+                  // xPct is % of video width → % of this full-width stage is correct.
                   left: `calc(50% + ${pose.xPct}%)`,
-                  top: `calc(50% + ${pose.yPct}%)`,
+                  // yPct is % of video height → convert with px(); % of this short box was wrong.
+                  top: `calc(50% + ${px(pose.yPct)}px)`,
                   transform: `translate(-50%, -50%) scale(${pose.scale})`,
                   fontFamily: fontStack(style.fontFamily),
                   fontSize: baseFs,
                   fontWeight: style.fontWeight,
                   color: style.color,
-                  letterSpacing: `${style.letterSpacingEm}em`,
+                  letterSpacing: `${Math.max(style.letterSpacingEm, 0.01)}em`,
                   lineHeight: 1,
                   whiteSpace: "nowrap",
+                  padding: "0 0.12em",
                   textShadow: buildTextShadow(style, scale, false),
                   WebkitTextStrokeWidth: stroke > 0 ? `${stroke}px` : undefined,
                   WebkitTextStrokeColor: stroke > 0 ? style.outlineColor : undefined,
