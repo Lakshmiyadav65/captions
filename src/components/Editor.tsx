@@ -340,24 +340,54 @@ export function Editor({
           <QuotaBadge />
           {progress.status === "done" && (
             <>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={exportMp4}
                   disabled={exportState === "exporting"}
-                  className="rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="group relative inline-flex items-center gap-2.5 overflow-hidden rounded-xl bg-gradient-to-b from-sky-400 to-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_1px_0_rgba(255,255,255,0.25)_inset,0_8px_24px_-6px_rgba(14,165,233,0.55)] ring-1 ring-sky-300/40 transition hover:from-sky-300 hover:to-sky-500 hover:shadow-[0_1px_0_rgba(255,255,255,0.3)_inset,0_10px_28px_-4px_rgba(14,165,233,0.65)] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
                 >
-                  {exportState === "exporting" ? "⏳ Rendering MP4…" : "⬇ Export MP4"}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 transition group-hover:opacity-100"
+                  />
+                  {exportState === "exporting" ? (
+                    <>
+                      <span
+                        aria-hidden
+                        className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
+                      />
+                      <span className="relative">Rendering video…</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        aria-hidden
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="relative h-4 w-4 shrink-0"
+                      >
+                        <path d="M10.75 2.75a.75.75 0 0 0-1.5 0v8.69L6.03 8.22a.75.75 0 0 0-1.06 1.06l4.5 4.5a.75.75 0 0 0 1.06 0l4.5-4.5a.75.75 0 1 0-1.06-1.06l-3.22 3.22V2.75Z" />
+                        <path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z" />
+                      </svg>
+                      <span className="relative flex flex-col items-start leading-tight">
+                        <span>Export video</span>
+                        <span className="text-[10px] font-medium text-sky-100/90">
+                          MP4 with burned captions
+                        </span>
+                      </span>
+                    </>
+                  )}
                 </button>
-                <span className="mx-1 h-6 w-px bg-white/10" aria-hidden />
+                <span className="mx-0.5 hidden h-8 w-px bg-white/10 sm:block" aria-hidden />
                 {EXPORT_FORMATS.map((f) => (
                   <button
                     key={f.ext}
                     type="button"
                     onClick={() => doExport(f.ext, f.mime)}
-                    className="rounded-lg bg-neutral-800 px-3 py-2 text-sm font-medium text-neutral-200 transition hover:bg-neutral-700"
+                    className="rounded-lg border border-white/10 bg-neutral-900/80 px-3 py-2 text-xs font-medium text-neutral-300 transition hover:border-white/20 hover:bg-neutral-800 hover:text-white"
                   >
-                    ↓ {f.label}
+                    {f.label}
                   </button>
                 ))}
               </div>
