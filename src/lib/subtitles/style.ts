@@ -8,7 +8,14 @@ export type TextAlign = "left" | "center" | "right";
 export type BoxMode = "none" | "inline" | "pill" | "bar";
 
 /** Short entrance motion when a new caption line appears. */
-export type CaptionAnimation = "none" | "fade" | "pop" | "kinetic" | "scatter" | "hook";
+export type CaptionAnimation =
+  | "none"
+  | "fade"
+  | "pop"
+  | "kinetic"
+  | "scatter"
+  | "hook"
+  | "flash";
 
 /** Special glyph treatments beyond flat fill (preview-rich; ASS approximates). */
 export type TextEffect = "none" | "prism";

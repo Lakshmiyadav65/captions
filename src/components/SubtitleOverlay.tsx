@@ -12,10 +12,12 @@ import {
 import { isEmphasisOn, isEmphasizedWord } from "@/lib/subtitles/emphasis";
 import { tokenizeSegment } from "@/lib/subtitles/karaoke";
 import {
+  FLASH_SCALE,
   HOOK_FOCUS_SCALE,
   HOOK_SATELLITE_FONT,
   HOOK_SATELLITE_SCALE,
   hookLayout,
+  isFlash,
   isHook,
   isKinetic,
   isScatter,
@@ -81,6 +83,8 @@ function animationClass(style: SubtitleStyle): string {
       return "cap-anim-kinetic";
     case "hook":
       return "cap-anim-kinetic";
+    case "flash":
+      return "cap-anim-pop";
     default:
       return "";
   }
@@ -188,12 +192,62 @@ export function SubtitleOverlay({
   const useKinetic = hasText && isKinetic(style) && !prism;
   const useScatter = hasText && isScatter(style) && !prism;
   const useHook = hasText && isHook(style) && !prism;
+  const useFlash = hasText && isFlash(style) && !prism;
   const useKaraoke =
-    hasText && style.karaoke && !prism && !useKinetic && !useScatter && !useHook;
+    hasText &&
+    style.karaoke &&
+    !prism &&
+    !useKinetic &&
+    !useScatter &&
+    !useHook &&
+    !useFlash;
   const useEmphasis =
-    hasText && isEmphasisOn(style) && !prism && !useKinetic && !useScatter && !useHook;
+    hasText &&
+    isEmphasisOn(style) &&
+    !prism &&
+    !useKinetic &&
+    !useScatter &&
+    !useHook &&
+    !useFlash;
 
-  if (useHook) {
+  if (useFlash) {
+    const tokens = tokenizeSegment(segment!);
+    if (tokens.length) {
+      const focus = kineticFocusIndex(tokens.length, filled);
+      const tk = tokens[focus]!;
+      const word = applyTextCase(
+        tk.text,
+        caseMode === "sentence" && focus > 0 ? "lower" : caseMode,
+      );
+      const accent =
+        isEmphasisOn(style) && isEmphasizedWord(tk.text)
+          ? style.highlightColor
+          : style.color;
+      const baseFs = px(style.fontSizePct);
+      content = (
+        <span
+          key={`${tk.start}-${focus}`}
+          className="cap-flash cap-kinetic-word"
+          style={{
+            display: "inline-block",
+            fontFamily: fontStack(style.fontFamily),
+            fontSize: baseFs * FLASH_SCALE,
+            fontWeight: style.fontWeight,
+            color: accent,
+            letterSpacing: `${style.letterSpacingEm}em`,
+            lineHeight: 1,
+            whiteSpace: "nowrap",
+            textShadow: buildTextShadow(style, scale, false),
+            WebkitTextStrokeWidth: stroke > 0 ? `${stroke}px` : undefined,
+            WebkitTextStrokeColor: stroke > 0 ? style.outlineColor : undefined,
+            paintOrder: "stroke fill",
+          }}
+        >
+          {word}
+        </span>
+      );
+    }
+  } else if (useHook) {
     const tokens = tokenizeSegment(segment!);
     if (tokens.length) {
       const focus = kineticFocusIndex(tokens.length, filled);
@@ -452,7 +506,7 @@ export function SubtitleOverlay({
       ? animationClass(style)
       : "";
   const animKey = hasText
-    ? `${segment!.start}-${style.animation}-${style.textEffect ?? "none"}-${useKinetic || useScatter || useHook ? filled : 0}`
+    ? `${segment!.start}-${style.animation}-${style.textEffect ?? "none"}-${useKinetic || useScatter || useHook || useFlash ? filled : 0}`
     : "ghost";
 
   const barHeight = px(

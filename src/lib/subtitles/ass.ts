@@ -9,9 +9,11 @@ import {
 import { isEmphasisOn, isEmphasizedWord } from "./emphasis";
 import { tokenizeSegment } from "./karaoke";
 import {
+  FLASH_SCALE,
   HOOK_FOCUS_SCALE,
   HOOK_SATELLITE_SCALE,
   hookLayout,
+  isFlash,
   isHook,
   isKinetic,
   isScatter,
@@ -77,6 +79,9 @@ function entranceTags(style: SubtitleStyle): string {
       return "{\\fad(120,80)}";
     case "hook":
       return "{\\fad(120,80)}";
+    case "flash":
+      // Snappy scale pop — matches the fast one-word punch look.
+      return "{\\fscx80\\fscy80\\t(0,160,\\fscx100\\fscy100)}";
     default:
       return "";
   }
@@ -173,6 +178,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
   const events = segments
     .flatMap((s) => {
+      if (isFlash(style) && (style.textEffect ?? "none") !== "prism") {
+        return flashDialogues(s, style, PLAY_H);
+      }
       if (isHook(style) && (style.textEffect ?? "none") !== "prism") {
         return hookDialogues(s, style, PLAY_W, PLAY_H);
       }
@@ -284,6 +292,49 @@ function scatterDialogues(
         `Dialogue: ${i},${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${tags}${word}`,
       );
     });
+  });
+
+  return lines;
+}
+
+/**
+ * Premium Style 4 burn: one Dialogue per spoken word (fast flash punch).
+ */
+function flashDialogues(
+  seg: Segment,
+  style: SubtitleStyle,
+  playH: number,
+): string[] {
+  const tokens = tokenizeSegment(seg);
+  if (!tokens.length) {
+    const body = applyTextCase(seg.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
+    return [
+      `Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,{\\fscx80\\fscy80\\t(0,160,\\fscx100\\fscy100)}${body}`,
+    ];
+  }
+
+  const caseMode = effectiveTextCase(style);
+  const baseFs = Math.round((style.fontSizePct / 100) * playH);
+  const fs = Math.max(10, Math.round(baseFs * FLASH_SCALE));
+  const white = assColor(style.color, 0);
+  const accent = assColor(style.highlightColor, 0);
+  const useEmphasis = isEmphasisOn(style);
+  const lines: string[] = [];
+
+  tokens.forEach((tk, focus) => {
+    const t0 = tk.start;
+    const t1 = focus < tokens.length - 1 ? tokens[focus + 1]!.start : seg.end;
+    if (t1 <= t0) return;
+
+    const word =
+      caseMode === "sentence" && focus > 0
+        ? tk.text.toLowerCase()
+        : applyTextCase(tk.text, caseMode);
+    const col = useEmphasis && isEmphasizedWord(tk.text) ? accent : white;
+    const tags = `{\\an5\\fs${fs}\\c${col}\\fscx80\\fscy80\\t(0,160,\\fscx100\\fscy100)}`;
+    lines.push(
+      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${tags}${word}`,
+    );
   });
 
   return lines;

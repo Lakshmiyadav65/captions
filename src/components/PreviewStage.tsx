@@ -132,7 +132,8 @@ export function PreviewStage({
           (style.karaoke ||
             style.animation === "kinetic" ||
             style.animation === "scatter" ||
-            style.animation === "hook")
+            style.animation === "hook" ||
+            style.animation === "flash")
             ? filledCount(tokenizeSegment(seg), t)
             : 0;
         // Only re-render when the active line or the filled-word count actually changes.
@@ -148,7 +149,7 @@ export function PreviewStage({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [segments, videoRef, onTime, style.karaoke]);
+  }, [segments, videoRef, onTime, style.karaoke, style.animation]);
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
