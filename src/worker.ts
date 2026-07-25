@@ -2,13 +2,18 @@ import { Worker } from "bullmq";
 import { config, env } from "./lib/config";
 import { processJob } from "./lib/processor";
 import { QUEUE_NAME, redisConnection } from "./lib/queue/bull";
+import { log } from "./lib/log";
+import { reportError } from "./lib/sentry";
 
 // Standalone transcription worker for production. Run alongside the web app:
 //   QUEUE_DRIVER=bullmq REDIS_URL=... npm run worker
 // (In Docker this is a second service — see docker-compose.yml.)
 
 if (!config.usesBull || !env.REDIS_URL) {
-  console.error("Worker requires QUEUE_DRIVER=bullmq and REDIS_URL to be set.");
+  log.error("worker.misconfigured", {
+    usesBull: config.usesBull,
+    hasRedis: Boolean(env.REDIS_URL),
+  });
   process.exit(1);
 }
 
@@ -22,9 +27,14 @@ const worker = new Worker(
   { connection: redisConnection(), concurrency },
 );
 
-worker.on("completed", (job) => console.log(`[worker] completed job ${job.id}`));
-worker.on("failed", (job, err) =>
-  console.error(`[worker] failed job ${job?.id}:`, err?.message),
+worker.on("completed", (job) =>
+  log.info("worker.completed", { queueJobId: job.id, jobId: job.data.jobId }),
 );
+worker.on("failed", (job, err) => {
+  void reportError("worker.failed", err, {
+    queueJobId: job?.id,
+    jobId: job?.data?.jobId,
+  });
+});
 
-console.log(`[worker] listening on "${QUEUE_NAME}" (concurrency ${concurrency})`);
+log.info("worker.listening", { queue: QUEUE_NAME, concurrency });

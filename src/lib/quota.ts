@@ -8,6 +8,7 @@ import { prisma } from "./db";
 export interface QuotaResult {
   ok: boolean;
   reason?: string;
+  code?: "quota_active_jobs" | "quota_minutes" | "quota_analyses" | "quota_generations";
 }
 
 function startOfMonth(): Date {
@@ -22,7 +23,8 @@ export async function assertWithinQuota(userId: string): Promise<QuotaResult> {
   if (active >= config.limits.maxActiveJobs) {
     return {
       ok: false,
-      reason: `You already have ${active} video(s) processing. Please wait for them to finish.`,
+      code: "quota_active_jobs",
+      reason: `You already have ${active} video(s) processing. Wait for one to finish, then try again.`,
     };
   }
 
@@ -34,7 +36,8 @@ export async function assertWithinQuota(userId: string): Promise<QuotaResult> {
   if (usedMinutes >= config.limits.monthlyMinutes) {
     return {
       ok: false,
-      reason: `You've reached your monthly limit of ${config.limits.monthlyMinutes} minutes.`,
+      code: "quota_minutes",
+      reason: `You've used your monthly ${config.limits.monthlyMinutes} minutes of transcription. Limit resets next calendar month.`,
     };
   }
 
@@ -48,7 +51,8 @@ export async function assertWithinAnalysisQuota(userId: string): Promise<QuotaRe
   if (used >= config.limits.monthlyAnalyses) {
     return {
       ok: false,
-      reason: `You've reached your monthly limit of ${config.limits.monthlyAnalyses} style analyses.`,
+      code: "quota_analyses",
+      reason: `You've reached this month's limit of ${config.limits.monthlyAnalyses} style analyses. Try again next month.`,
     };
   }
   return { ok: true };
@@ -61,7 +65,8 @@ export async function assertWithinGenerationQuota(userId: string): Promise<Quota
   if (used >= config.limits.monthlyGenerations) {
     return {
       ok: false,
-      reason: `You've reached your monthly limit of ${config.limits.monthlyGenerations} caption generations.`,
+      code: "quota_generations",
+      reason: `You've reached this month's limit of ${config.limits.monthlyGenerations} AI caption generations.`,
     };
   }
   return { ok: true };

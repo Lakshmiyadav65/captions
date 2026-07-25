@@ -33,7 +33,10 @@ export async function POST(req: Request) {
 
   const quota = await assertWithinGenerationQuota(userId);
   if (!quota.ok) {
-    return NextResponse.json({ error: quota.reason }, { status: 429 });
+    return NextResponse.json(
+      { error: quota.reason, code: quota.code },
+      { status: 429 },
+    );
   }
 
   try {

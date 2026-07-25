@@ -23,6 +23,9 @@ const schema = z.object({
   OUTPUT_MODE: z.enum(["transcribe", "translit"]).default("translit"),
   // Max words per on-screen caption frame; long lines are split into clean short frames. 0 = off.
   SUBTITLE_MAX_WORDS: z.coerce.number().default(2),
+  // Optional second pass: OpenAI whisper word timestamps aligned onto primary ASR text.
+  // none = unchanged karaoke (even split). openai = needs OPENAI_API_KEY (~$/min extra).
+  TIMING_PROVIDER: z.enum(["none", "openai"]).default("none"),
 
   // Storage
   STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
@@ -52,6 +55,17 @@ const schema = z.object({
   MAX_VIDEO_MINUTES: z.coerce.number().default(30),
   QUOTA_MONTHLY_MINUTES: z.coerce.number().default(120),
   QUOTA_MAX_ACTIVE_JOBS: z.coerce.number().default(3),
+  // Abuse protection on /api/upload (Redis when REDIS_URL set, else in-memory)
+  RATE_LIMIT_UPLOAD_PER_MINUTE: z.coerce.number().default(5),
+  RATE_LIMIT_UPLOAD_PER_HOUR: z.coerce.number().default(30),
+
+  // Observability (optional)
+  SENTRY_DSN: z.string().optional(),
+  SENTRY_ENVIRONMENT: z.string().optional(),
+  SENTRY_RELEASE: z.string().optional(),
+  // When true, refuse to boot if AUTH_ENABLED with AUTH_DEV_LOGIN / weak AUTH_SECRET /
+  // no OAuth. Set true on real staging/prod hosts (see DEPLOY.md). Off for local compose.
+  STRICT_PROD_AUTH: boolish("false"),
 
   // Caption Style Analyzer (vision). ANTHROPIC_API_KEY is read directly from process.env
   // in the provider (like SARVAM_API_KEY), never here / never handed to the browser.
@@ -75,10 +89,29 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 
+// Production auth hardening (Phase 4). Refuse insecure combinations when strict.
+if (env.STRICT_PROD_AUTH && env.AUTH_ENABLED) {
+  const problems: string[] = [];
+  if (!env.AUTH_SECRET || env.AUTH_SECRET === "please-change-this-secret") {
+    problems.push("AUTH_SECRET must be a strong random value (openssl rand -hex 32)");
+  }
+  if (env.AUTH_DEV_LOGIN) {
+    problems.push("AUTH_DEV_LOGIN must be false in production (email-only login is open)");
+  }
+  if (!env.AUTH_GOOGLE_ID && !env.AUTH_GITHUB_ID) {
+    problems.push("Set AUTH_GOOGLE_ID/SECRET (or GitHub) so users can sign in");
+  }
+  if (problems.length) {
+    console.error("❌ Strict production auth checks failed:\n - " + problems.join("\n - "));
+    throw new Error("Invalid production auth configuration");
+  }
+}
+
 export const config = {
   outputMode: env.OUTPUT_MODE,
   chunkSeconds: env.ASR_CHUNK_SECONDS,
   maxWordsPerLine: env.SUBTITLE_MAX_WORDS,
+  timingProvider: env.TIMING_PROVIDER,
   storageDriver: env.STORAGE_DRIVER,
   usesS3: env.STORAGE_DRIVER === "s3",
   queueDriver: env.QUEUE_DRIVER,
@@ -87,6 +120,7 @@ export const config = {
   googleAuth: Boolean(env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET),
   githubAuth: Boolean(env.AUTH_GITHUB_ID && env.AUTH_GITHUB_SECRET),
   devLogin: env.AUTH_DEV_LOGIN,
+  sentryEnabled: Boolean(env.SENTRY_DSN),
   visionModel: env.VISION_MODEL,
   generateModel: env.GENERATE_MODEL,
   limits: {

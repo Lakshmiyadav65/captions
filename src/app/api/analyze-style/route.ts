@@ -66,7 +66,10 @@ export async function POST(req: NextRequest) {
 
   const quota = await assertWithinAnalysisQuota(userId);
   if (!quota.ok) {
-    return NextResponse.json({ error: quota.reason }, { status: 429 });
+    return NextResponse.json(
+      { error: quota.reason, code: quota.code },
+      { status: 429 },
+    );
   }
 
   const imageKey = `styles/${randomUUID()}/source${EXT[mediaType]}`;

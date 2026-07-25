@@ -39,6 +39,7 @@ local storage; switch to S3/R2 for multi-host.
 | `ASR_PROVIDER` | `auto` | `sarvam` \| `openai` \| `mock` |
 | `ASR_LANGUAGE` | `te` | or `auto` to detect |
 | `SARVAM_API_KEY` / `OPENAI_API_KEY` | — | transcription |
+| `TIMING_PROVIDER` | `none` | `openai` = Whisper word times on top of primary ASR text (needs `OPENAI_API_KEY`; extra $/min) |
 | `STORAGE_DRIVER` | `local` | `s3` for production |
 | `S3_BUCKET` / `S3_REGION` / `S3_ENDPOINT` | — | R2/MinIO need `S3_ENDPOINT` |
 | `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | — | omit to use IAM role |
@@ -52,6 +53,10 @@ local storage; switch to S3/R2 for multi-host.
 | `MAX_VIDEO_MINUTES` | `30` | reject longer videos |
 | `QUOTA_MONTHLY_MINUTES` | `120` | per-user monthly cap |
 | `QUOTA_MAX_ACTIVE_JOBS` | `3` | per-user concurrency |
+| `RATE_LIMIT_UPLOAD_PER_MINUTE` | `5` | burst cap on `/api/upload` |
+| `RATE_LIMIT_UPLOAD_PER_HOUR` | `30` | hourly upload cap |
+| `SENTRY_DSN` | — | optional; reports job/upload failures |
+| `STRICT_PROD_AUTH` | `false` | **set `true` on staging/prod** — blocks weak auth |
 | `FONTS_DIR` | `./assets/fonts` | TTFs libass burns into MP4 exports; override if relocated |
 
 > **MP4 export & fonts:** "Export MP4" burns captions server-side with the bundled ffmpeg.
@@ -78,6 +83,17 @@ Playback uses **presigned URLs** (the browser streams straight from the bucket).
 2. Redirect URI: `https://your-domain/api/auth/callback/google`.
 3. Set `AUTH_ENABLED=true`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_SECRET`, and
    `AUTH_DEV_LOGIN=false`.
+4. On real staging/prod also set `STRICT_PROD_AUTH=true` so the app **refuses to boot**
+   if dev login is still on or `AUTH_SECRET` is missing/placeholder.
+
+---
+
+## Phase 4: observability
+
+- Logs are one JSON object per line (`msg`, `level`, `jobId`, …). Search host logs for
+  `"job.failed"` / `"upload.rate_limited"`.
+- Optional: create a Sentry project and set `SENTRY_DSN` (+ `SENTRY_ENVIRONMENT`).
+- Staging smoke + infra checklist: [`docs/07-phase4-checklist.md`](docs/07-phase4-checklist.md).
 
 ---
 

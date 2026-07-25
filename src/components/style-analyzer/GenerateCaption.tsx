@@ -15,22 +15,30 @@ export function GenerateCaption({
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quotaHit, setQuotaHit] = useState(false);
 
   const generate = async () => {
     if (!prompt.trim() || busy) return;
     setBusy(true);
     setError(null);
+    setQuotaHit(false);
     try {
       const res = await fetch("/api/generate-caption", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, vibe }),
       });
-      const data = (await res.json()) as { text?: string; error?: string };
-      if (!res.ok || !data.text) throw new Error(data.error ?? "Generation failed");
+      const data = (await res.json()) as { text?: string; error?: string; code?: string };
+      if (!res.ok || !data.text) {
+        const err = new Error(data.error ?? "Generation failed") as Error & { quota?: boolean };
+        err.quota = res.status === 429;
+        throw err;
+      }
       onGenerated(data.text);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Generation failed");
+      const err = e as Error & { quota?: boolean };
+      setError(err.message || "Generation failed");
+      setQuotaHit(Boolean(err.quota));
     }
     setBusy(false);
   };
@@ -57,7 +65,12 @@ export function GenerateCaption({
           {busy ? "…" : "✨ Generate"}
         </button>
       </div>
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && (
+        <p className={`text-xs ${quotaHit ? "text-amber-300" : "text-red-400"}`}>
+          {quotaHit ? "Limit reached — " : ""}
+          {error}
+        </p>
+      )}
     </div>
   );
 }

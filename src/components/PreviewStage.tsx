@@ -42,19 +42,23 @@ export function PreviewStage({
   });
   const lastReport = useRef(0);
 
-  // Fit a box of the video's aspect ratio inside the available width and a sensible max height.
+  // Fit the video's aspect ratio inside the stage container (full width × available height).
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
     const compute = () => {
       const availW = el.clientWidth;
       if (!availW) return;
-      const maxH = Math.min(window.innerHeight * 0.72, 760);
+      // Prefer the laid-out container height so the preview can grow tall in the editor.
+      const availH =
+        el.clientHeight > 40
+          ? el.clientHeight
+          : Math.min(window.innerHeight * 0.62, 720);
       let w = availW;
       let h = availW / aspect;
-      if (h > maxH) {
-        h = maxH;
-        w = maxH * aspect;
+      if (h > availH) {
+        h = availH;
+        w = availH * aspect;
       }
       setBox({ w: Math.round(w), h: Math.round(h) });
     };
@@ -98,33 +102,38 @@ export function PreviewStage({
   }, [segments, videoRef, onTime, style.karaoke]);
 
   return (
-    <div ref={wrapRef} className="flex w-full justify-center">
+    <div className="flex h-full min-h-0 w-full flex-col">
       <div
-        className="relative overflow-hidden rounded-xl bg-black shadow-lg ring-1 ring-white/10"
-        style={
-          box.w
-            ? { width: box.w, height: box.h }
-            : { width: "100%", aspectRatio: "16 / 9" }
-        }
+        ref={wrapRef}
+        className="flex min-h-0 w-full flex-1 items-center justify-center"
       >
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          onLoadedMetadata={onLoadedMetadata}
-          controls
-          playsInline
-          className="h-full w-full bg-black object-contain"
-        />
-        <SubtitleOverlay
-          segment={active.seg}
-          style={style}
-          height={box.h}
-          filled={active.filled}
-          onPositionChange={onPositionChange}
-        />
+        <div
+          className="relative overflow-hidden rounded-xl bg-black shadow-lg ring-1 ring-white/10"
+          style={
+            box.w
+              ? { width: box.w, height: box.h }
+              : { width: "100%", aspectRatio: "16 / 9", maxHeight: "100%" }
+          }
+        >
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            onLoadedMetadata={onLoadedMetadata}
+            controls
+            playsInline
+            className="h-full w-full bg-black object-contain"
+          />
+          <SubtitleOverlay
+            segment={active.seg}
+            style={style}
+            height={box.h}
+            filled={active.filled}
+            onPositionChange={onPositionChange}
+          />
+        </div>
       </div>
       {onPositionChange && (
-        <p className="mt-1.5 text-center text-[11px] text-neutral-500">
+        <p className="mt-1.5 shrink-0 text-center text-[11px] text-neutral-500">
           Drag the caption up/down on the video — or use Top / Middle / Bottom in styles
         </p>
       )}

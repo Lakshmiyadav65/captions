@@ -14,6 +14,7 @@ import {
   diffWordCorrections,
   type SpellRule,
 } from "@/lib/spelling";
+import { friendlyJobError } from "@/lib/errors";
 import { PreviewStage } from "./PreviewStage";
 import { StylePanel } from "./StylePanel";
 import { SubtitleList } from "./SubtitleList";
@@ -72,6 +73,10 @@ export function Editor({
   const [exportError, setExportError] = useState<string | null>(null);
   /** Word fixes auto-learned when the user edits a caption line. */
   const [learned, setLearned] = useState<SpellRule[] | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
+  /** Bumped on retry so the SSE effect re-subscribes after a failure. */
+  const [streamEpoch, setStreamEpoch] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   /** Per-line ASR/previous text — used to detect what the user just fixed. */
   const baselineRef = useRef<Segment[] | null>(null);
@@ -140,8 +145,9 @@ export function Editor({
     };
     es.onerror = () => es.close();
     return () => es.close();
+    // streamEpoch re-opens the stream after Retry.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId]);
+  }, [jobId, streamEpoch]);
 
   // Apply a style handed over from the Style Analyzer / My Styles ("Use in editor").
   useEffect(() => {
@@ -162,6 +168,15 @@ export function Editor({
   const patchStyle = (patch: Partial<SubtitleStyle>) =>
     setStyle((s) => ({ ...s, ...patch }));
 
+  /** Structural edits (add/delete line) shift indices — resync baseline so we don't learn junk. */
+  const onSegmentsChange = useCallback((next: Segment[]) => {
+    const prev = segmentsRef.current;
+    setSegments(next);
+    if (!prev || prev.length !== next.length) {
+      baselineRef.current = next.map((s) => ({ ...s, text: s.text }));
+    }
+  }, []);
+
   /**
    * When the user finishes editing a caption line: learn word fixes into memory,
    * apply them across this transcript, and auto-save — no Listener panel / Save click.
@@ -174,6 +189,14 @@ export function Editor({
 
       // Keep timings from the live list; text comes from the blurred field.
       let next = current.map((s, i) => (i === index ? { ...s, text } : s));
+
+      // Insert/delete left arrays out of sync — persist text, skip learning.
+      if (baseline.length !== current.length || !baseline[index]) {
+        setSegments(next);
+        baselineRef.current = next.map((s) => ({ ...s, text: s.text }));
+        schedulePersist(next);
+        return;
+      }
 
       const before = baseline[index]?.text ?? "";
       const rules = diffWordCorrections(before, text);
@@ -207,6 +230,23 @@ export function Editor({
     },
     [schedulePersist],
   );
+
+  const retryJob = async () => {
+    if (retrying) return;
+    setRetrying(true);
+    setRetryError(null);
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/retry`, { method: "POST" });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Retry failed");
+      setProgress({ status: "queued", progress: 0, error: null });
+      setStreamEpoch((n) => n + 1);
+    } catch (e) {
+      setRetryError(e instanceof Error ? e.message : "Retry failed");
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   // Manual save still available for timing tweaks without leaving a text field.
   const saveEdits = async () => {
@@ -248,8 +288,14 @@ export function Editor({
   const isMock = progress.provider === "mock";
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div
+      className={`mx-auto flex max-w-7xl flex-col px-4 ${
+        progress.status === "done"
+          ? "h-dvh overflow-hidden py-4"
+          : "py-6"
+      }`}
+    >
+      <header className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div>
           <a href="/" className="text-sm text-sky-400 hover:text-sky-300">
             ← New video
@@ -320,29 +366,50 @@ export function Editor({
       {progress.status === "failed" && (
         <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-200">
           <p className="font-medium">Processing failed</p>
-          <p className="mt-1 text-red-300/80">{progress.error}</p>
+          <p className="mt-1 text-red-300/80">
+            {friendlyJobError(progress.error)}
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void retryJob()}
+              disabled={retrying}
+              className="rounded-lg bg-red-500/20 px-3.5 py-2 text-sm font-medium text-red-100 ring-1 ring-red-400/40 transition hover:bg-red-500/30 disabled:opacity-60"
+            >
+              {retrying ? "Retrying…" : "Try again"}
+            </button>
+            <a href="/" className="text-sm text-sky-400 hover:text-sky-300">
+              Upload a different video
+            </a>
+          </div>
+          {retryError && (
+            <p className="mt-2 text-xs text-amber-200/90">{retryError}</p>
+          )}
         </div>
       )}
 
       {progress.status === "done" && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
-          <div className="space-y-4">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto overscroll-contain lg:grid-cols-[1fr_360px] lg:gap-6 lg:overflow-hidden">
+          {/* Left: large preview; caption list is a fixed strip that scrolls on its own. */}
+          <div className="flex min-h-0 flex-col gap-3 lg:overflow-hidden">
             {isMock && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-200">
+              <div className="shrink-0 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-200">
                 Showing a <strong>sample</strong> Telugu transcript. Add a Sarvam or
                 OpenAI API key (see README) to transcribe your real audio.
               </div>
             )}
-            <PreviewStage
-              videoRef={videoRef}
-              videoUrl={videoUrl}
-              segments={segments ?? []}
-              style={style}
-              onTime={setCurrentTime}
-              initialAspect={width && height ? width / height : undefined}
-              onPositionChange={(positionYPct) => patchStyle({ positionYPct })}
-            />
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-h-[320px] flex-1 lg:min-h-0">
+              <PreviewStage
+                videoRef={videoRef}
+                videoUrl={videoUrl}
+                segments={segments ?? []}
+                style={style}
+                onTime={setCurrentTime}
+                initialAspect={width && height ? width / height : undefined}
+                onPositionChange={(positionYPct) => patchStyle({ positionYPct })}
+              />
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-neutral-500">
                 Detected language:{" "}
                 <span className="text-neutral-300">
@@ -365,33 +432,34 @@ export function Editor({
               </button>
             </div>
             {learned && learned.length > 0 && (
-              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+              <div className="shrink-0 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
                 Remembered{" "}
                 {learned.map((r) => `${r.from} → ${r.to}`).join(" · ")} — will use
                 next time
               </div>
             )}
             {segments && (
-              <SubtitleList
-                segments={segments}
-                onChange={setSegments}
-                currentTime={currentTime}
-                onSeek={(t) => {
-                  if (videoRef.current) videoRef.current.currentTime = t;
-                }}
-                onTextCommit={onTextCommit}
-              />
+              <div className="h-[min(28vh,260px)] shrink-0 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-neutral-900/40 p-3 max-lg:h-[min(40vh,320px)]">
+                <SubtitleList
+                  segments={segments}
+                  onChange={onSegmentsChange}
+                  currentTime={currentTime}
+                  onSeek={(t) => {
+                    if (videoRef.current) videoRef.current.currentTime = t;
+                  }}
+                  onTextCommit={onTextCommit}
+                />
+              </div>
             )}
           </div>
 
-          <aside className="space-y-4 lg:sticky lg:top-6 lg:h-fit">
-            <div className="rounded-xl border border-white/10 bg-neutral-900 p-4">
-              <StylePanel
-                style={style}
-                onChange={patchStyle}
-                onApplyPreset={(s) => setStyle({ ...s })}
-              />
-            </div>
+          {/* Right: styles / fonts scroll on their own when the cursor is here. */}
+          <aside className="min-h-0 max-h-[70vh] overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-neutral-900 p-4 lg:max-h-none">
+            <StylePanel
+              style={style}
+              onChange={patchStyle}
+              onApplyPreset={(s) => setStyle({ ...s })}
+            />
           </aside>
         </div>
       )}

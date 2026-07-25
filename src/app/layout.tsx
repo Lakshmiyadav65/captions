@@ -15,9 +15,9 @@ import "@fontsource/dhurjati/400.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Telugu Captions — AI subtitle generator",
+  title: "Telugu Captions — Romanized captions → burned MP4",
   description:
-    "Upload a Telugu video, auto-generate timed Telugu subtitles, style them live, and export SRT / VTT / ASS.",
+    "Upload a Telugu video, get timed romanized captions, style them live, and export a publish-ready burned MP4 (or SRT / VTT / ASS).",
 };
 
 export default function RootLayout({

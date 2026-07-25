@@ -37,6 +37,23 @@ export const BUILTIN_SPELLING: SpellRule[] = [
   { from: "kyapshan", to: "caption" },
   { from: "staart", to: "start" },
   { from: "laast", to: "last" },
+  // Soft-launch seed (common Telugu creator / tech code-mix mishears)
+  { from: "getup", to: "GitHub" },
+  { from: "githab", to: "GitHub" },
+  { from: "gitub", to: "GitHub" },
+  { from: "phaabul", to: "Fable" },
+  { from: "feybul", to: "Fable" },
+  { from: "vidiyo", to: "video" },
+  { from: "vidiyoo", to: "video" },
+  { from: "chollege", to: "college" },
+  { from: "yutube", to: "YouTube" },
+  { from: "yuutube", to: "YouTube" },
+  { from: "instaa", to: "Insta" },
+  { from: "reelz", to: "reels" },
+  { from: "shaarts", to: "Shorts" },
+  { from: "praampts", to: "prompts" },
+  { from: "madal", to: "model" },
+  { from: "madels", to: "models" },
 ];
 
 // Separate a token into leading punctuation / core / trailing punctuation. Uses Unicode
@@ -91,7 +108,7 @@ function tokenizeWords(text: string): string[] {
  * is auto-corrected on this transcript and on future videos.
  */
 export function diffWordCorrections(before: string, after: string): SpellRule[] {
-  if (!before || !after || before === after) return [];
+  if (!before?.trim() || !after?.trim() || before === after) return [];
   const a = tokenizeWords(before);
   const b = tokenizeWords(after);
   if (!a.length || !b.length) return [];
@@ -103,6 +120,10 @@ export function diffWordCorrections(before: string, after: string): SpellRule[] 
     // LCS alignment — only emit rules for substitutions (aligned a≠b).
     const n = a.length;
     const m = b.length;
+    // If lengths diverge a lot, treat as rewrite / structural edit — skip learning.
+    if (Math.abs(n - m) > Math.max(2, Math.floor(Math.max(n, m) * 0.5))) {
+      return [];
+    }
     const dp: number[][] = Array.from({ length: n + 1 }, () =>
       Array(m + 1).fill(0),
     );
@@ -162,9 +183,15 @@ export function diffWordCorrections(before: string, after: string): SpellRule[] 
     // Skip tiny noise / pure digits (timing typos, not vocabulary).
     if (from.length < 2 || to.length < 2) continue;
     if (/^\d+$/.test(from) && /^\d+$/.test(to)) continue;
+    // Skip wild rewrites (insert/delete misalignment or full-line paste).
+    const lenRatio = Math.max(from.length, to.length) / Math.min(from.length, to.length);
+    if (lenRatio > 2.5) continue;
     out.set(from.toLowerCase(), to);
   }
-  return [...out.entries()].map(([from, to]) => ({ from, to }));
+  // One blur that invents many rules is almost always a rewrite — don't pollute memory.
+  const rules = [...out.entries()].map(([from, to]) => ({ from, to }));
+  if (rules.length > 5) return [];
+  return rules;
 }
 
 /** Merge correction lists; later entries win for the same `from` (case-insensitive). */

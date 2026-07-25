@@ -254,7 +254,7 @@ export function StylePanel({
             </button>
           ))}
         </div>
-        <div className="grid max-h-64 grid-cols-2 gap-2 overflow-y-auto pr-0.5">
+        <div className="grid grid-cols-2 gap-2">
           {filtered.map((p: StylePreset) => (
             <PresetCard
               key={p.id}

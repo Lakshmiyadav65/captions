@@ -49,10 +49,21 @@ export function ScreenshotDropzone({
         let msg = "Analysis failed. Please try again.";
         let refusal = false;
         try {
-          const b = JSON.parse(xhr.responseText) as { error?: string; refusal?: boolean };
+          const b = JSON.parse(xhr.responseText) as {
+            error?: string;
+            refusal?: boolean;
+            code?: string;
+          };
           msg = b.error ?? msg;
           refusal = Boolean(b.refusal);
-        } catch {}
+          if (xhr.status === 429 && !refusal) {
+            msg = msg.startsWith("You've") || msg.includes("limit")
+              ? msg
+              : `Limit reached — ${msg}`;
+          }
+        } catch {
+          /* keep default */
+        }
         onError(msg, refusal);
       }
     };
