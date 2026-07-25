@@ -40,11 +40,7 @@ export const PRESETS: StylePreset[] = [
     sample: "Tanglish",
     style: {
       ...DEFAULT_STYLE,
-      fontFamily: "Noto Sans Telugu",
-      fontWeight: 700,
-      fontSizePct: 3.6,
-      color: "#A0A0A0",
-      highlightColor: "#000000",
+      fontFamily: "Poppins",
       outlineColor: "#FFFFFF",
       outlineWidth: 0,
       shadow: false,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { TELUGU_FONTS, fontStack } from "@/lib/fonts";
+import { ENGLISH_FONTS, TELUGU_FONTS, fontStack } from "@/lib/fonts";
 import type {
   BoxMode,
   CaptionAnimation,
@@ -322,7 +322,32 @@ export function StylePanel({
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Font
         </h3>
-        <Field label="Typeface">
+        <Field label="English typefaces">
+          <div className="grid grid-cols-2 gap-2">
+            {ENGLISH_FONTS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => onChange({ fontFamily: f.family })}
+                title={f.note}
+                className={`rounded-lg border px-3 py-2 text-left transition ${
+                  style.fontFamily === f.family
+                    ? "border-sky-500 bg-sky-500/10"
+                    : "border-white/10 bg-neutral-800 hover:border-white/25"
+                }`}
+              >
+                <div
+                  className="text-lg leading-tight text-white"
+                  style={{ fontFamily: fontStack(f.family) }}
+                >
+                  Aa Bb
+                </div>
+                <div className="mt-0.5 text-[11px] text-neutral-400">{f.label}</div>
+              </button>
+            ))}
+          </div>
+        </Field>
+        <Field label="Telugu typefaces">
           <div className="grid grid-cols-2 gap-2">
             {TELUGU_FONTS.map((f) => (
               <button

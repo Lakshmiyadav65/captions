@@ -1,5 +1,22 @@
 import "./globals.css";
 
+// Self-hosted English caption fonts (preview). Matching TTFs in assets/fonts burn into MP4.
+import "@fontsource/poppins/400.css";
+import "@fontsource/poppins/600.css";
+import "@fontsource/poppins/700.css";
+import "@fontsource/montserrat/400.css";
+import "@fontsource/montserrat/700.css";
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/700.css";
+import "@fontsource/roboto/400.css";
+import "@fontsource/roboto/700.css";
+import "@fontsource/open-sans/400.css";
+import "@fontsource/open-sans/700.css";
+import "@fontsource/oswald/400.css";
+import "@fontsource/oswald/700.css";
+import "@fontsource/bebas-neue/400.css";
+import "@fontsource/anton/400.css";
+
 // Self-hosted Telugu subtitle fonts (bundled at build time — work offline, no Google CDN).
 import "@fontsource/noto-sans-telugu/400.css";
 import "@fontsource/noto-sans-telugu/500.css";
