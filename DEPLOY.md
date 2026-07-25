@@ -65,6 +65,24 @@ local storage; switch to S3/R2 for multi-host.
 > ensure that directory is deployed (or point `FONTS_DIR` at it). Burning re-encodes the
 > video — CPU-bound — so keep it on the web/container host, not a serverless function.
 
+---
+
+## Deploy on Vercel (Hobby)
+
+The earlier build failure (`maxDuration` 600) is fixed — export is capped at **300s** (Hobby max).
+
+1. **Project → Settings → Environment Variables** (Production), set at least:
+   - `DATABASE_URL` — **Postgres** (Neon / Vercel Postgres / Supabase). SQLite will not work on Vercel.
+   - `AUTH_SECRET` — `openssl rand -hex 32`
+   - ASR keys (`SARVAM_API_KEY` or `OPENAI_API_KEY`) as needed
+   - For durable uploads/exports: `STORAGE_DRIVER=s3` + S3/R2 vars (local disk is ephemeral on serverless)
+2. Connect the GitHub repo; push to `main` redeploys automatically.
+3. After first deploy with Postgres: run `npx prisma db push` against that `DATABASE_URL` once (local machine or Vercel CLI) so tables exist.
+
+`vercel.json` runs `scripts/vercel-build.mjs`, which switches Prisma to Postgres when `DATABASE_URL` is a `postgres://` URL, then `prisma generate` + `next build`.
+
+**Limits:** Hobby serverless functions max out at 300s / limited CPU. Long “Export video” jobs may still time out — for heavy burns prefer Docker (`docker compose`) or a Pro plan / dedicated worker.
+
 ## Storage: S3 / Cloudflare R2
 
 ```
