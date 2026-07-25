@@ -2,5 +2,16 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "node scripts/vercel-build.mjs",
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "functions": {
+    "src/app/api/export/[id]/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/analyze-style/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/generate-caption/route.ts": {
+      "maxDuration": 60
+    }
+  }
 }
