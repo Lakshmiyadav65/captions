@@ -1,2 +1,10 @@
-/* Telugu subtitle @font-face declarations are added by the "Bundle Telugu fonts" step.
-   This file exists now so globals.css can import it without error. */
+/* Caption typefaces that need an explicit family name matching assets/fonts TTFs
+   (used by live preview). Prefer @fontsource imports in layout.tsx when names align. */
+
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/Geist.ttf") format("truetype");
+}

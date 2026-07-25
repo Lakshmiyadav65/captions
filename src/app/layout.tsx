@@ -1,15 +1,22 @@
 import "./globals.css";
 
 // Self-hosted English caption fonts (preview). Matching TTFs in assets/fonts burn into MP4.
+import "@fontsource/instrument-serif/400.css";
+import "@fontsource/arimo/400.css";
+import "@fontsource/arimo/700.css";
+import "@fontsource/roboto/400.css";
+import "@fontsource/roboto/700.css";
+import "@fontsource/outfit/400.css";
+import "@fontsource/outfit/700.css";
+import "@fontsource/montserrat/400.css";
+import "@fontsource/montserrat/700.css";
 import "@fontsource/poppins/400.css";
 import "@fontsource/poppins/600.css";
 import "@fontsource/poppins/700.css";
-import "@fontsource/montserrat/400.css";
-import "@fontsource/montserrat/700.css";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/700.css";
-import "@fontsource/roboto/400.css";
-import "@fontsource/roboto/700.css";
+import "@fontsource/manrope/400.css";
+import "@fontsource/manrope/700.css";
 import "@fontsource/open-sans/400.css";
 import "@fontsource/open-sans/700.css";
 import "@fontsource/oswald/400.css";

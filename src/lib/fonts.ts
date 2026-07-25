@@ -2,6 +2,9 @@
 // The `family` value is used BOTH for the live CSS preview and as the font name written
 // into exported ASS subtitles — keep them identical to the @font-face / TTF internal name.
 // Matching TTFs in assets/fonts are required for burned-MP4 export (libass cannot read woff).
+//
+// Helvetica and Avenir are proprietary — we ship open lookalikes (Arimo / Outfit) with
+// notes so the popular styles stay available without license issues.
 
 export type FontCategory = "sans" | "serif" | "display" | "handwriting";
 export type FontScript = "latin" | "telugu";
@@ -19,10 +22,17 @@ export interface CaptionFont {
 export type TeluguFont = CaptionFont;
 
 export const ENGLISH_FONTS: CaptionFont[] = [
+  // Popular / requested
+  { id: "geist", label: "Geist", family: "Geist", category: "sans", script: "latin", note: "Modern product sans (Vercel)" },
+  { id: "instrument-serif", label: "Instrument Serif", family: "Instrument Serif", category: "serif", script: "latin", note: "Editorial serif for titles" },
+  { id: "arimo", label: "Arimo", family: "Arimo", category: "sans", script: "latin", note: "Clean sans — Helvetica-class" },
+  { id: "roboto", label: "Roboto", family: "Roboto", category: "sans", script: "latin", note: "Clean sans — YouTube staple" },
+  { id: "outfit", label: "Outfit", family: "Outfit", category: "sans", script: "latin", note: "Geometric — Avenir-style" },
+  { id: "montserrat", label: "Montserrat", family: "Montserrat", category: "sans", script: "latin", note: "Bold geometric social / Reels" },
+  // More English options
   { id: "poppins", label: "Poppins", family: "Poppins", category: "sans", script: "latin", note: "Modern geometric — great for Tanglish" },
-  { id: "montserrat", label: "Montserrat", family: "Montserrat", category: "sans", script: "latin", note: "Clean social / Reels look" },
-  { id: "inter", label: "Inter", family: "Inter", category: "sans", script: "latin", note: "Neutral UI sans" },
-  { id: "roboto", label: "Roboto", family: "Roboto", category: "sans", script: "latin", note: "Familiar YouTube-style sans" },
+  { id: "inter", label: "Inter", family: "Inter", category: "sans", script: "latin", note: "Neutral UI sans — Helvetica-class" },
+  { id: "manrope", label: "Manrope", family: "Manrope", category: "sans", script: "latin", note: "Soft geometric sans" },
   { id: "open-sans", label: "Open Sans", family: "Open Sans", category: "sans", script: "latin", note: "Friendly readable sans" },
   { id: "oswald", label: "Oswald", family: "Oswald", category: "display", script: "latin", note: "Condensed impact" },
   { id: "bebas-neue", label: "Bebas Neue", family: "Bebas Neue", category: "display", script: "latin", note: "Tall all-caps display" },
@@ -47,5 +57,5 @@ export const DEFAULT_FONT_FAMILY = "Noto Sans Telugu";
 
 /** CSS font-family stack; always falls back to a Telugu-capable font for mixed script. */
 export function fontStack(family: string): string {
-  return `'${family}', 'Noto Sans Telugu', 'Poppins', sans-serif`;
+  return `'${family}', 'Noto Sans Telugu', 'Geist', 'Poppins', sans-serif`;
 }
