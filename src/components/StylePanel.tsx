@@ -78,6 +78,52 @@ function ColorInput({ value, onChange }: { value: string; onChange: (v: string) 
   );
 }
 
+/** Quick neon / social accent picks for Hook keywords and karaoke fill. */
+const KEYWORD_SWATCHES: { label: string; hex: string }[] = [
+  { label: "Magenta", hex: "#FF4EC8" },
+  { label: "Lime", hex: "#C8FF00" },
+  { label: "Orange", hex: "#FF8A00" },
+  { label: "Cyan", hex: "#00E5FF" },
+  { label: "Yellow", hex: "#FFE100" },
+  { label: "White", hex: "#FFFFFF" },
+  { label: "Red", hex: "#FF3B5C" },
+  { label: "Violet", hex: "#A855F7" },
+];
+
+function KeywordColorPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (hex: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <ColorInput value={value} onChange={onChange} />
+      <div className="flex flex-wrap gap-1.5">
+        {KEYWORD_SWATCHES.map((s) => {
+          const active = value.toUpperCase() === s.hex.toUpperCase();
+          return (
+            <button
+              key={s.hex}
+              type="button"
+              title={s.label}
+              aria-label={s.label}
+              onClick={() => onChange(s.hex)}
+              className={`h-7 w-7 rounded-md border transition ${
+                active
+                  ? "border-sky-400 ring-2 ring-sky-400/50"
+                  : "border-white/15 hover:border-white/40"
+              }`}
+              style={{ background: s.hex }}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Segmented<T extends string | number>({
   options,
   value,
@@ -410,6 +456,23 @@ export function StylePanel({
         <Field label="Text color">
           <ColorInput value={style.color} onChange={(v) => onChange({ color: v })} />
         </Field>
+        <Field label="Keyword accent">
+          <KeywordColorPicker
+            value={style.highlightColor}
+            onChange={(hex) => {
+              // Hook uses accent for the big word + matching glow.
+              if ((style.animation ?? "none") === "hook" || (style.glowStrength ?? 0) > 0) {
+                onChange({ highlightColor: hex, glowColor: hex });
+              } else {
+                onChange({ highlightColor: hex });
+              }
+            }}
+          />
+        </Field>
+        <p className="text-[10px] leading-relaxed text-neutral-600">
+          Hook keyword color (Premium Style 3), karaoke fill, and auto emphasis. Pick a
+          swatch or any custom color.
+        </p>
         <Field label="Outline color">
           <ColorInput value={style.outlineColor} onChange={(v) => onChange({ outlineColor: v })} />
         </Field>
@@ -547,13 +610,22 @@ export function StylePanel({
           />
         </Field>
         <p className="text-[10px] leading-relaxed text-neutral-600">
-          Auto highlights keywords in the accent color (Tharun Speaks look).
+          Auto highlights keywords in the accent color (Tharun Speaks look). Change the color
+          under Colors → Keyword accent.
         </p>
-        {(style.karaoke || (style.emphasisMode ?? "off") === "auto") && (
+        {(style.karaoke ||
+          (style.emphasisMode ?? "off") === "auto" ||
+          (style.animation ?? "none") === "hook") && (
           <Field label="Accent / highlight color">
-            <ColorInput
+            <KeywordColorPicker
               value={style.highlightColor}
-              onChange={(v) => onChange({ highlightColor: v })}
+              onChange={(hex) => {
+                if ((style.animation ?? "none") === "hook" || (style.glowStrength ?? 0) > 0) {
+                  onChange({ highlightColor: hex, glowColor: hex });
+                } else {
+                  onChange({ highlightColor: hex });
+                }
+              }}
             />
           </Field>
         )}
