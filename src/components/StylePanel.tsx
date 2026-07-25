@@ -510,6 +510,7 @@ export function StylePanel({
               { label: "None", value: "none" },
               { label: "Fade", value: "fade" },
               { label: "Pop", value: "pop" },
+              { label: "Kinetic", value: "kinetic" },
             ]}
           />
         </Field>

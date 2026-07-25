@@ -11,6 +11,11 @@ import {
 } from "@/lib/subtitles/style";
 import { isEmphasisOn, isEmphasizedWord } from "@/lib/subtitles/emphasis";
 import { tokenizeSegment } from "@/lib/subtitles/karaoke";
+import {
+  isKinetic,
+  kineticFocusIndex,
+  kineticPoses,
+} from "@/lib/subtitles/kinetic";
 import type { Segment } from "@/lib/transcription/types";
 
 // Renders one active subtitle line over the video. All sizes are derived from the
@@ -61,6 +66,8 @@ function animationClass(style: SubtitleStyle): string {
       return "cap-anim-fade";
     case "pop":
       return "cap-anim-pop";
+    case "kinetic":
+      return "cap-anim-kinetic";
     default:
       return "";
   }
@@ -165,10 +172,63 @@ export function SubtitleOverlay({
   };
 
   let content: ReactNode = casedText;
-  const useKaraoke = hasText && style.karaoke && !prism;
-  const useEmphasis = hasText && isEmphasisOn(style) && !prism;
+  const useKinetic = hasText && isKinetic(style) && !prism;
+  const useKaraoke = hasText && style.karaoke && !prism && !useKinetic;
+  const useEmphasis = hasText && isEmphasisOn(style) && !prism && !useKinetic;
 
-  if (useKaraoke || useEmphasis) {
+  if (useKinetic) {
+    const tokens = tokenizeSegment(segment!);
+    if (tokens.length) {
+      const focus = kineticFocusIndex(tokens.length, filled);
+      const poses = kineticPoses(tokens.length, focus);
+      const baseFs = px(style.fontSizePct);
+      content = (
+        <span
+          className="cap-kinetic"
+          style={{
+            position: "relative",
+            display: "block",
+            width: "100%",
+            height: px(style.fontSizePct * 3.2),
+            pointerEvents: "none",
+          }}
+        >
+          {tokens.map((tk, i) => {
+            const pose = poses[i] ?? poses[0];
+            const word = applyTextCase(tk.text, caseMode === "sentence" && i > 0 ? "lower" : caseMode);
+            const isFocus = i === focus;
+            return (
+              <span
+                key={`${tk.start}-${i}`}
+                className={isFocus ? "cap-kinetic-word cap-kinetic-focus" : "cap-kinetic-word"}
+                style={{
+                  position: "absolute",
+                  left: `calc(50% + ${pose.xPct}%)`,
+                  top: `calc(50% + ${pose.yPct}%)`,
+                  transform: `translate(-50%, -50%) scale(${pose.scale})`,
+                  fontFamily: fontStack(style.fontFamily),
+                  fontSize: baseFs,
+                  fontWeight: style.fontWeight,
+                  color: style.color,
+                  letterSpacing: `${style.letterSpacingEm}em`,
+                  lineHeight: 1,
+                  whiteSpace: "nowrap",
+                  textShadow: buildTextShadow(style, scale, false),
+                  WebkitTextStrokeWidth: stroke > 0 ? `${stroke}px` : undefined,
+                  WebkitTextStrokeColor: stroke > 0 ? style.outlineColor : undefined,
+                  paintOrder: "stroke fill",
+                  transition:
+                    "transform 0.22s cubic-bezier(0.22, 1.15, 0.36, 1), top 0.22s ease, left 0.22s ease",
+                }}
+              >
+                {word}
+              </span>
+            );
+          })}
+        </span>
+      );
+    }
+  } else if (useKaraoke || useEmphasis) {
     const tokens = tokenizeSegment(segment!);
     if (tokens.length) {
       content = tokens.map((tk, i) => {
@@ -183,7 +243,6 @@ export function SubtitleOverlay({
         if (useEmphasis && isEmphasizedWord(tk.text)) {
           color = style.highlightColor;
         }
-        // Karaoke fill wins for words already spoken.
         if (useKaraoke && i < filled) {
           color = style.highlightColor;
         }
@@ -198,9 +257,9 @@ export function SubtitleOverlay({
     }
   }
 
-  const anim = hasText && !dragging.current ? animationClass(style) : "";
+  const anim = hasText && !dragging.current && !useKinetic ? animationClass(style) : "";
   const animKey = hasText
-    ? `${segment!.start}-${style.animation}-${style.textEffect ?? "none"}`
+    ? `${segment!.start}-${style.animation}-${style.textEffect ?? "none"}-${useKinetic ? filled : 0}`
     : "ghost";
 
   const barHeight = px(
@@ -270,6 +329,8 @@ export function SubtitleOverlay({
           <span className="cap-prism" style={spanStyle}>
             {content}
           </span>
+        ) : useKinetic ? (
+          content
         ) : (
           <span style={spanStyle}>{content}</span>
         )}
@@ -283,6 +344,10 @@ export function SubtitleOverlay({
           from { opacity: 0; transform: translateY(-50%) scale(0.85); }
           to { opacity: 1; transform: translateY(-50%) scale(1); }
         }
+        @keyframes capKineticIn {
+          from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+          to { opacity: 1; }
+        }
         @keyframes capPrismShimmer {
           0% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
@@ -293,6 +358,9 @@ export function SubtitleOverlay({
         }
         .cap-anim-pop {
           animation: capPopIn 0.32s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+        }
+        .cap-kinetic-word {
+          animation: capKineticIn 0.28s cubic-bezier(0.22, 1.15, 0.36, 1) both;
         }
         .cap-prism {
           background-image: linear-gradient(

@@ -8,6 +8,7 @@ import {
 } from "./style";
 import { isEmphasisOn, isEmphasizedWord } from "./emphasis";
 import { tokenizeSegment } from "./karaoke";
+import { isKinetic, kineticPoses } from "./kinetic";
 
 // ASS (Advanced SubStation Alpha) carries full styling, so an exported .ass reproduces
 // the font, size, colors, outline, box and position seen in the live preview. The canvas
@@ -61,6 +62,8 @@ function entranceTags(style: SubtitleStyle): string {
     case "pop":
       // Brief scale-up from 85% → 100% over ~300ms, then hold.
       return "{\\fscx85\\fscy85\\t(0,300,\\fscx100\\fscy100)}";
+    case "kinetic":
+      return "{\\fad(120,80)}";
     default:
       return "";
   }
@@ -156,7 +159,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 `;
 
   const events = segments
-    .map((s) => {
+    .flatMap((s) => {
+      if (isKinetic(style) && (style.textEffect ?? "none") !== "prism") {
+        return kineticDialogues(s, style, PLAY_W, PLAY_H);
+      }
       let body: string;
       if (style.karaoke && (style.textEffect ?? "none") !== "prism") {
         body = karaokeText(s, style);
@@ -165,11 +171,58 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
       } else {
         body = applyTextCase(s.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
       }
-      return `Dialogue: 0,${assTime(s.start)},${assTime(s.end)},Default,,0,0,0,,${enter}${body}`;
+      return [`Dialogue: 0,${assTime(s.start)},${assTime(s.end)},Default,,0,0,0,,${enter}${body}`];
     })
     .join("\n");
 
   return header + events + "\n";
+}
+
+/**
+ * Premium Style 1 burn: one Dialogue per word with absolute \\pos + scale so words
+ * sit at different heights/sizes (ASS approximation of the kinetic preview).
+ */
+function kineticDialogues(
+  seg: Segment,
+  style: SubtitleStyle,
+  playW: number,
+  playH: number,
+): string[] {
+  const tokens = tokenizeSegment(seg);
+  if (!tokens.length) {
+    const body = applyTextCase(seg.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
+    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,{\\fad(120,80)}${body}`];
+  }
+
+  const caseMode = effectiveTextCase(style);
+  const anchorY = (style.positionYPct / 100) * playH;
+  const lines: string[] = [];
+
+  // Re-layout as each word becomes focus so burned MP4 mirrors the live bounce.
+  tokens.forEach((tk, focus) => {
+    const poses = kineticPoses(tokens.length, focus);
+    const t0 = tk.start;
+    const t1 = focus < tokens.length - 1 ? tokens[focus + 1].start : seg.end;
+    if (t1 <= t0) return;
+
+    tokens.forEach((wordTk, i) => {
+      const pose = poses[i] ?? poses[0];
+      const word =
+        caseMode === "sentence" && i > 0
+          ? wordTk.text.toLowerCase()
+          : applyTextCase(wordTk.text, caseMode);
+      const x = Math.round(playW / 2 + (pose.xPct / 100) * playW);
+      const y = Math.round(anchorY + (pose.yPct / 100) * playH);
+      const sc = Math.round(pose.scale * 100);
+      // \\an5 = center mid; \\pos overrides margins. Soft fade matches preview pop-in.
+      const tags = `{\\an5\\pos(${x},${y})\\fscx${sc}\\fscy${sc}\\fad(120,80)}`;
+      lines.push(
+        `Dialogue: ${i},${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${tags}${word}`,
+      );
+    });
+  });
+
+  return lines;
 }
 
 /** Per-word accent colors via ASS `\\c` overrides (Tharun Speaks static emphasis). */
