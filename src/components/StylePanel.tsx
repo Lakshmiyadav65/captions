@@ -5,11 +5,13 @@ import { TELUGU_FONTS, fontStack } from "@/lib/fonts";
 import type {
   BoxMode,
   CaptionAnimation,
+  EmphasisMode,
   SubtitleStyle,
   TextAlign,
+  TextCase,
   TextEffect,
 } from "@/lib/subtitles/style";
-import { effectiveBoxMode } from "@/lib/subtitles/style";
+import { effectiveBoxMode, effectiveTextCase } from "@/lib/subtitles/style";
 import {
   matchingPresetId,
   PRESET_CATEGORIES,
@@ -179,7 +181,12 @@ function PresetCard({
                   fontFamily: fontStack(s.fontFamily),
                   fontWeight: s.fontWeight,
                   color: s.karaoke ? s.highlightColor : s.color,
-                  textTransform: s.uppercase ? "uppercase" : "none",
+                  textTransform:
+                    effectiveTextCase(s) === "upper"
+                      ? "uppercase"
+                      : effectiveTextCase(s) === "lower"
+                        ? "lowercase"
+                        : "none",
                   letterSpacing: `${s.letterSpacingEm}em`,
                   WebkitTextStroke:
                     s.outlineWidth > 0 && !showBox
@@ -339,9 +346,21 @@ export function StylePanel({
           </div>
         </Field>
 
-        <Field label="Font size" value={`${style.fontSizePct.toFixed(1)}%`}>
-          <Slider min={2} max={12} step={0.1} value={style.fontSizePct} onChange={(v) => onChange({ fontSizePct: v })} />
+        <Field
+          label="Font size"
+          value={Math.min(style.fontSizePct, 10).toFixed(1)}
+        >
+          <Slider
+            min={1}
+            max={10}
+            step={0.1}
+            value={Math.min(style.fontSizePct, 10)}
+            onChange={(v) => onChange({ fontSizePct: v })}
+          />
         </Field>
+        <p className="text-[10px] leading-relaxed text-neutral-600">
+          Size 1–10. Best looking captions are usually around 3–4.
+        </p>
 
         <Field label="Weight">
           <Segmented
@@ -469,7 +488,7 @@ export function StylePanel({
         </Field>
       </section>
 
-      {/* Karaoke */}
+      {/* Karaoke + keyword emphasis */}
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Word-by-word (karaoke)
@@ -487,8 +506,21 @@ export function StylePanel({
             ]}
           />
         </div>
-        {style.karaoke && (
-          <Field label="Highlight color">
+        <Field label="Keyword emphasis">
+          <Segmented
+            value={(style.emphasisMode ?? "off") as EmphasisMode}
+            onChange={(v) => onChange({ emphasisMode: v as EmphasisMode })}
+            options={[
+              { label: "Off", value: "off" },
+              { label: "Auto", value: "auto" },
+            ]}
+          />
+        </Field>
+        <p className="text-[10px] leading-relaxed text-neutral-600">
+          Auto highlights keywords in the accent color (Tharun Speaks look).
+        </p>
+        {(style.karaoke || (style.emphasisMode ?? "off") === "auto") && (
+          <Field label="Accent / highlight color">
             <ColorInput
               value={style.highlightColor}
               onChange={(v) => onChange({ highlightColor: v })}
@@ -542,17 +574,27 @@ export function StylePanel({
         <Field label="Letter spacing" value={`${style.letterSpacingEm.toFixed(2)} em`}>
           <Slider min={-0.05} max={0.3} step={0.01} value={style.letterSpacingEm} onChange={(v) => onChange({ letterSpacingEm: v })} />
         </Field>
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-neutral-400">Uppercase</span>
+        <Field label="Text case">
           <Segmented
-            value={style.uppercase ? "on" : "off"}
-            onChange={(v) => onChange({ uppercase: v === "on" })}
+            value={style.textCase ?? (style.uppercase ? "upper" : "none")}
+            onChange={(v) =>
+              onChange({
+                textCase: v as TextCase,
+                uppercase: v === "upper",
+              })
+            }
             options={[
-              { label: "On", value: "on" },
-              { label: "Off", value: "off" },
+              { label: "As typed", value: "none" },
+              { label: "Sentence", value: "sentence" },
+              { label: "Title", value: "title" },
+              { label: "lower", value: "lower" },
+              { label: "UPPER", value: "upper" },
             ]}
           />
-        </div>
+        </Field>
+        <p className="text-[10px] leading-relaxed text-neutral-600">
+          Sentence = first letter capital, rest lower. Title = Each Word Capitalized.
+        </p>
       </section>
     </div>
   );

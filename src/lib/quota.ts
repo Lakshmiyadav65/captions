@@ -1,9 +1,9 @@
 import { config } from "./config";
 import { prisma } from "./db";
+import { isPlanId, PLANS, type PlanId } from "./plans";
 
 // Per-user guardrails for a hosted, multi-tenant deployment: cap concurrent jobs and
-// monthly transcription minutes. (Upload byte-size + max video length are enforced in
-// the upload route and processor respectively.)
+// monthly transcription minutes. Paid Stripe plans raise limits via User.plan.
 
 export interface QuotaResult {
   ok: boolean;
@@ -16,11 +16,40 @@ function startOfMonth(): Date {
   return new Date(now.getFullYear(), now.getMonth(), 1);
 }
 
+export async function getUserPlanId(userId: string): Promise<PlanId> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { plan: true },
+  });
+  return isPlanId(user?.plan) ? user.plan : "free";
+}
+
+export async function getUserLimits(userId: string) {
+  const planId = await getUserPlanId(userId);
+  if (planId === "free") {
+    return {
+      planId,
+      label: PLANS.free.label,
+      monthlyMinutes: config.limits.monthlyMinutes,
+      maxActiveJobs: config.limits.maxActiveJobs,
+    };
+  }
+  const p = PLANS[planId];
+  return {
+    planId,
+    label: p.label,
+    monthlyMinutes: p.monthlyMinutes,
+    maxActiveJobs: p.maxActiveJobs,
+  };
+}
+
 export async function assertWithinQuota(userId: string): Promise<QuotaResult> {
+  const limits = await getUserLimits(userId);
+
   const active = await prisma.job.count({
     where: { userId, status: { in: ["queued", "extracting", "transcribing"] } },
   });
-  if (active >= config.limits.maxActiveJobs) {
+  if (active >= limits.maxActiveJobs) {
     return {
       ok: false,
       code: "quota_active_jobs",
@@ -33,11 +62,11 @@ export async function assertWithinQuota(userId: string): Promise<QuotaResult> {
     where: { userId, createdAt: { gte: startOfMonth() } },
   });
   const usedMinutes = (agg._sum.durationSec ?? 0) / 60;
-  if (usedMinutes >= config.limits.monthlyMinutes) {
+  if (usedMinutes >= limits.monthlyMinutes) {
     return {
       ok: false,
       code: "quota_minutes",
-      reason: `You've used your monthly ${config.limits.monthlyMinutes} minutes of transcription. Limit resets next calendar month.`,
+      reason: `You've used your monthly ${limits.monthlyMinutes} minutes on the ${limits.label} plan. Upgrade or wait until next month.`,
     };
   }
 
@@ -73,12 +102,17 @@ export async function assertWithinGenerationQuota(userId: string): Promise<Quota
 }
 
 export async function usageSummary(userId: string) {
+  const limits = await getUserLimits(userId);
   const agg = await prisma.job.aggregate({
     _sum: { durationSec: true },
     where: { userId, createdAt: { gte: startOfMonth() } },
   });
   return {
+    plan: limits.planId,
+    planLabel: limits.label,
     usedMinutes: Math.round(((agg._sum.durationSec ?? 0) / 60) * 10) / 10,
-    monthlyMinutes: config.limits.monthlyMinutes,
+    monthlyMinutes: limits.monthlyMinutes,
+    maxActiveJobs: limits.maxActiveJobs,
+    stripeEnabled: config.stripeEnabled,
   };
 }

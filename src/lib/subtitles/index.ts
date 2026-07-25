@@ -5,6 +5,7 @@ import { toVTT } from "./vtt";
 import { toASS } from "./ass";
 
 export * from "./style";
+export * from "./emphasis";
 export { toSRT } from "./srt";
 export { toVTT } from "./vtt";
 export { toASS } from "./ass";

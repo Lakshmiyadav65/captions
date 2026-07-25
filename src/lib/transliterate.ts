@@ -2,6 +2,7 @@ import Sanscript from "@indic-transliteration/sanscript";
 
 const TELUGU = /[ఀ-౿]/;
 const TELUGU_RUN = /[ఀ-౿]+/g;
+const LATIN_WORD = /[A-Za-z]+(?:'[A-Za-z]+)?/g;
 
 /**
  * Romanize Telugu text (Telugu script → Latin letters), e.g. "నమస్కారం" → "Namaskaram".
@@ -50,4 +51,64 @@ function romanizeRun(run: string): string {
 
   // Decompose and strip remaining combining diacritics → clean ASCII.
   return s.normalize("NFKD").replace(/[̀-ͯ]/g, "");
+}
+
+/** Common English tokens that should stay Latin when converting romanized Telugu → script. */
+const ENGLISH_KEEP = new Set(
+  [
+    "video",
+    "website",
+    "youtube",
+    "instagram",
+    "github",
+    "ai",
+    "api",
+    "app",
+    "ok",
+    "hello",
+    "thanks",
+    "project",
+    "college",
+    "short",
+    "shorts",
+    "reel",
+    "reels",
+    "live",
+    "now",
+    "the",
+    "and",
+    "for",
+    "with",
+    "from",
+  ].map((w) => w.toLowerCase()),
+);
+
+/**
+ * Best-effort romanized Telugu → Telugu script (for dual-script preview).
+ * Keeps known English words and already-Telugu runs. Informal spellings may be imperfect.
+ */
+export function toTeluguScript(input: string): string {
+  if (!input) return input;
+  if (TELUGU.test(input) && !/[A-Za-z]{3,}/.test(input)) return input;
+
+  return input.replace(LATIN_WORD, (word) => {
+    const lower = word.toLowerCase();
+    if (ENGLISH_KEEP.has(lower)) return word;
+    if (lower.length <= 2) return word;
+    try {
+      // itrans handles many informal romanizations better than raw IAST for creator text.
+      const te = Sanscript.t(lower, "itrans", "telugu");
+      return te || word;
+    } catch {
+      return word;
+    }
+  });
+}
+
+export type ScriptDisplay = "roman" | "telugu";
+
+/** Map caption text for the dual-script toggle (preview + export). */
+export function displayInScript(text: string, mode: ScriptDisplay): string {
+  if (mode === "roman") return romanizeTelugu(text);
+  return toTeluguScript(text);
 }

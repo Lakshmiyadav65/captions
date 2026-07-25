@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import type { Segment } from "@/lib/transcription/types";
 import type { SubtitleStyle } from "@/lib/subtitles/style";
 import { tokenizeSegment, filledCount } from "@/lib/subtitles/karaoke";
@@ -11,6 +11,20 @@ import { SubtitleOverlay } from "./SubtitleOverlay";
 // height, so the overlay maps 1:1 to the actual video pixels — captions can't spill past the
 // frame the way they did when the stage was locked to 16:9 and the video was letterboxed.
 // Tracks the real playhead with requestAnimationFrame for smooth karaoke highlighting.
+//
+// Native <video> fullscreen only shows the video (no caption overlay), and "exit then
+// re-request on the stage" fails because requestFullscreen needs a user gesture. So we hide
+// the native fullscreen control and expose our own button that fullscreens the stage.
+
+function fitBox(availW: number, availH: number, aspect: number) {
+  let w = availW;
+  let h = availW / aspect;
+  if (h > availH) {
+    h = availH;
+    w = availH * aspect;
+  }
+  return { w: Math.round(w), h: Math.round(h) };
+}
 
 export function PreviewStage({
   videoRef,
@@ -32,38 +46,45 @@ export function PreviewStage({
   onPositionChange?: (positionYPct: number) => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const [aspect, setAspect] = useState(
     initialAspect && initialAspect > 0 ? initialAspect : 16 / 9,
   );
   const [box, setBox] = useState({ w: 0, h: 0 });
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [active, setActive] = useState<{ seg: Segment | null; filled: number }>({
     seg: null,
     filled: 0,
   });
   const lastReport = useRef(0);
 
-  // Fit the video's aspect ratio inside the stage container (full width × available height).
+  // Fit the video's aspect ratio inside the stage container (or the fullscreen viewport).
   useEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
+    const wrap = wrapRef.current;
+    const stage = stageRef.current;
+    if (!wrap) return;
+
     const compute = () => {
-      const availW = el.clientWidth;
-      if (!availW) return;
-      // Prefer the laid-out container height so the preview can grow tall in the editor.
-      const availH =
-        el.clientHeight > 40
-          ? el.clientHeight
-          : Math.min(window.innerHeight * 0.62, 720);
-      let w = availW;
-      let h = availW / aspect;
-      if (h > availH) {
-        h = availH;
-        w = availH * aspect;
+      const fs = document.fullscreenElement === stage;
+      setIsFullscreen(fs);
+
+      if (fs && stage) {
+        setBox(fitBox(stage.clientWidth, stage.clientHeight, aspect));
+        return;
       }
-      setBox({ w: Math.round(w), h: Math.round(h) });
+
+      const availW = wrap.clientWidth;
+      if (!availW) return;
+      const availH =
+        wrap.clientHeight > 40
+          ? wrap.clientHeight
+          : Math.min(window.innerHeight * 0.62, 720);
+      setBox(fitBox(availW, availH, aspect));
     };
+
     const ro = new ResizeObserver(compute);
-    ro.observe(el);
+    ro.observe(wrap);
+    if (stage) ro.observe(stage);
     compute();
     window.addEventListener("resize", compute);
     return () => {
@@ -71,6 +92,28 @@ export function PreviewStage({
       window.removeEventListener("resize", compute);
     };
   }, [aspect]);
+
+  useEffect(() => {
+    const onFsChange = () => {
+      setIsFullscreen(document.fullscreenElement === stageRef.current);
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    try {
+      if (document.fullscreenElement === stage) {
+        await document.exitFullscreen();
+      } else {
+        await stage.requestFullscreen();
+      }
+    } catch {
+      // Browser blocked fullscreen (permissions / unsupported).
+    }
+  }, []);
 
   const onLoadedMetadata = () => {
     const v = videoRef.current;
@@ -108,33 +151,66 @@ export function PreviewStage({
         className="flex min-h-0 w-full flex-1 items-center justify-center"
       >
         <div
-          className="relative overflow-hidden rounded-xl bg-black shadow-lg ring-1 ring-white/10"
+          ref={stageRef}
+          className={`preview-stage relative overflow-hidden bg-black shadow-lg ring-1 ring-white/10 ${
+            isFullscreen
+              ? "flex h-full w-full items-center justify-center rounded-none ring-0"
+              : "rounded-xl"
+          }`}
           style={
-            box.w
-              ? { width: box.w, height: box.h }
-              : { width: "100%", aspectRatio: "16 / 9", maxHeight: "100%" }
+            isFullscreen
+              ? undefined
+              : box.w
+                ? { width: box.w, height: box.h }
+                : { width: "100%", aspectRatio: "16 / 9", maxHeight: "100%" }
           }
         >
-          <video
-            ref={videoRef}
-            src={videoUrl}
-            onLoadedMetadata={onLoadedMetadata}
-            controls
-            playsInline
-            className="h-full w-full bg-black object-contain"
-          />
-          <SubtitleOverlay
-            segment={active.seg}
-            style={style}
-            height={box.h}
-            filled={active.filled}
-            onPositionChange={onPositionChange}
-          />
+          <div
+            className="relative overflow-hidden bg-black"
+            style={
+              box.w
+                ? { width: box.w, height: box.h }
+                : { width: "100%", height: "100%" }
+            }
+          >
+            <video
+              ref={videoRef}
+              src={videoUrl}
+              onLoadedMetadata={onLoadedMetadata}
+              controls
+              playsInline
+              // Hide native FS — it can't include the caption overlay, and swapping FS
+              // targets after the fact is blocked (no user gesture).
+              controlsList="nofullscreen"
+              disablePictureInPicture
+              className="h-full w-full bg-black object-contain"
+            />
+            <SubtitleOverlay
+              segment={active.seg}
+              style={style}
+              height={box.h}
+              filled={active.filled}
+              onPositionChange={onPositionChange}
+            />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                void toggleFullscreen();
+              }}
+              className="absolute right-2 bottom-12 z-20 rounded-md bg-black/70 px-2.5 py-1.5 text-xs font-medium text-white shadow ring-1 ring-white/20 backdrop-blur-sm transition hover:bg-black/90"
+              title={isFullscreen ? "Exit full screen (Esc)" : "Full screen with captions"}
+              aria-label={isFullscreen ? "Exit full screen" : "Full screen with captions"}
+            >
+              {isFullscreen ? "Exit full screen" : "Full screen"}
+            </button>
+          </div>
         </div>
       </div>
-      {onPositionChange && (
+      {onPositionChange && !isFullscreen && (
         <p className="mt-1.5 shrink-0 text-center text-[11px] text-neutral-500">
-          Drag the caption up/down on the video — or use Top / Middle / Bottom in styles
+          Drag the caption up/down on the video — or use Top / Middle / Bottom in styles.
+          Use the Full screen button on the preview so captions stay visible.
         </p>
       )}
     </div>

@@ -4,7 +4,7 @@ Upload a Telugu video → **timed romanized captions** → style them live → e
 **publish-ready burned MP4** (or SRT / VTT / ASS).
 
 English words in code-mix speech stay English; Telugu becomes readable Latin letters
-(e.g. "నమస్కారం" → **"Namaskaram"**). Default look is **Center Pop**. Edits auto-teach
+(e.g. "నమస్కారం" → **"Namaskaram"**). Default look is **Tharun Speaks**. Edits auto-teach
 spelling for your next videos.
 
 **Soft launch:** invite-only. Product docs live in [`docs/`](docs/README.md).  
@@ -56,7 +56,7 @@ Restart `npm run dev` after editing `.env`.
 ```
 Upload → extract audio → energy chunk → ASR (Sarvam/OpenAI/mock)
   → romanize Telugu runs → spelling (built-in + your learned rules)
-  → short caption frames → editor (Center Pop, drag position)
+  → short caption frames → editor (Tharun Speaks, drag position)
   → Export MP4 (ffmpeg + bundled Telugu TTFs) or SRT/VTT/ASS
 ```
 

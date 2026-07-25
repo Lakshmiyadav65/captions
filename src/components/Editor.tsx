@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Segment } from "@/lib/transcription/types";
 import {
   DEFAULT_STYLE,
@@ -14,10 +14,16 @@ import {
   diffWordCorrections,
   type SpellRule,
 } from "@/lib/spelling";
+import {
+  displayInScript,
+  type ScriptDisplay,
+} from "@/lib/transliterate";
 import { friendlyJobError } from "@/lib/errors";
 import { PreviewStage } from "./PreviewStage";
 import { StylePanel } from "./StylePanel";
 import { SubtitleList } from "./SubtitleList";
+import { DictionaryPanel } from "./DictionaryPanel";
+import { QuotaBadge } from "./QuotaBadge";
 
 interface Progress {
   status: string;
@@ -67,12 +73,15 @@ export function Editor({
   });
   const [segments, setSegments] = useState<Segment[] | null>(null);
   const [style, setStyle] = useState<SubtitleStyle>({ ...DEFAULT_STYLE });
+  const [scriptMode, setScriptMode] = useState<ScriptDisplay>("roman");
   const [currentTime, setCurrentTime] = useState(0);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [exportState, setExportState] = useState<"idle" | "exporting" | "error">("idle");
   const [exportError, setExportError] = useState<string | null>(null);
   /** Word fixes auto-learned when the user edits a caption line. */
   const [learned, setLearned] = useState<SpellRule[] | null>(null);
+  /** Bump to refresh DictionaryPanel after auto-learn. */
+  const [dictRefresh, setDictRefresh] = useState(0);
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
   /** Bumped on retry so the SSE effect re-subscribes after a failure. */
@@ -218,6 +227,7 @@ export function Editor({
             })),
           }));
           setLearned(rules);
+          setDictRefresh((n) => n + 1);
           setTimeout(() => setLearned(null), 4000);
         } finally {
           learnBusy.current = false;
@@ -255,9 +265,31 @@ export function Editor({
     await persistTranscript(segments);
   };
 
+  const displaySegments = useMemo(() => {
+    if (!segments) return [];
+    if (scriptMode === "roman") {
+      return segments.map((s) => ({
+        ...s,
+        text: displayInScript(s.text, "roman"),
+        words: s.words?.map((w) => ({
+          ...w,
+          text: displayInScript(w.text, "roman"),
+        })),
+      }));
+    }
+    return segments.map((s) => ({
+      ...s,
+      text: displayInScript(s.text, "telugu"),
+      words: s.words?.map((w) => ({
+        ...w,
+        text: displayInScript(w.text, "telugu"),
+      })),
+    }));
+  }, [segments, scriptMode]);
+
   const doExport = (fmt: SubtitleFormat, mime: string) => {
     if (!segments) return;
-    download(`${baseName}.${fmt}`, renderSubtitles(fmt, segments, style), mime);
+    download(`${baseName}.${fmt}`, renderSubtitles(fmt, displaySegments, style), mime);
   };
 
   const exportMp4 = async () => {
@@ -268,7 +300,7 @@ export function Editor({
       const res = await fetch(`/api/export/${jobId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ style, segments }),
+        body: JSON.stringify({ style, segments: displaySegments }),
       });
       const data = (await res.json()) as { url?: string; filename?: string; error?: string };
       if (!res.ok || !data.url) throw new Error(data.error ?? "Export failed");
@@ -304,39 +336,42 @@ export function Editor({
             {originalName ?? "Telugu captions"}
           </h1>
         </div>
-        {progress.status === "done" && (
-          <div className="flex flex-col items-end gap-1.5">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={exportMp4}
-                disabled={exportState === "exporting"}
-                className="rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {exportState === "exporting" ? "⏳ Rendering MP4…" : "⬇ Export MP4"}
-              </button>
-              <span className="mx-1 h-6 w-px bg-white/10" aria-hidden />
-              {EXPORT_FORMATS.map((f) => (
+        <div className="flex flex-col items-end gap-1.5">
+          <QuotaBadge />
+          {progress.status === "done" && (
+            <>
+              <div className="flex items-center gap-2">
                 <button
-                  key={f.ext}
                   type="button"
-                  onClick={() => doExport(f.ext, f.mime)}
-                  className="rounded-lg bg-neutral-800 px-3 py-2 text-sm font-medium text-neutral-200 transition hover:bg-neutral-700"
+                  onClick={exportMp4}
+                  disabled={exportState === "exporting"}
+                  className="rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  ↓ {f.label}
+                  {exportState === "exporting" ? "⏳ Rendering MP4…" : "⬇ Export MP4"}
                 </button>
-              ))}
-            </div>
-            {exportState === "exporting" && (
-              <span className="text-xs text-neutral-500">
-                Burning captions into your video — this can take up to a minute.
-              </span>
-            )}
-            {exportState === "error" && exportError && (
-              <span className="text-xs text-red-400">{exportError}</span>
-            )}
-          </div>
-        )}
+                <span className="mx-1 h-6 w-px bg-white/10" aria-hidden />
+                {EXPORT_FORMATS.map((f) => (
+                  <button
+                    key={f.ext}
+                    type="button"
+                    onClick={() => doExport(f.ext, f.mime)}
+                    className="rounded-lg bg-neutral-800 px-3 py-2 text-sm font-medium text-neutral-200 transition hover:bg-neutral-700"
+                  >
+                    ↓ {f.label}
+                  </button>
+                ))}
+              </div>
+              {exportState === "exporting" && (
+                <span className="text-xs text-neutral-500">
+                  Burning captions into your video — this can take up to a minute.
+                </span>
+              )}
+              {exportState === "error" && exportError && (
+                <span className="text-xs text-red-400">{exportError}</span>
+              )}
+            </>
+          )}
+        </div>
       </header>
 
       {isProcessing && (
@@ -402,7 +437,7 @@ export function Editor({
               <PreviewStage
                 videoRef={videoRef}
                 videoUrl={videoUrl}
-                segments={segments ?? []}
+                segments={displaySegments}
                 style={style}
                 onTime={setCurrentTime}
                 initialAspect={width && height ? width / height : undefined}
@@ -410,18 +445,41 @@ export function Editor({
               />
             </div>
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-              <p className="text-xs text-neutral-500">
-                Detected language:{" "}
-                <span className="text-neutral-300">
-                  {progress.language ?? "te"}
-                </span>
-                {saveState === "saving" && (
-                  <span className="ml-2 text-neutral-500">· Saving…</span>
-                )}
-                {saveState === "saved" && (
-                  <span className="ml-2 text-emerald-400/80">· Saved</span>
-                )}
-              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-xs text-neutral-500">
+                  Detected language:{" "}
+                  <span className="text-neutral-300">
+                    {progress.language ?? "te"}
+                  </span>
+                  {saveState === "saving" && (
+                    <span className="ml-2 text-neutral-500">· Saving…</span>
+                  )}
+                  {saveState === "saved" && (
+                    <span className="ml-2 text-emerald-400/80">· Saved</span>
+                  )}
+                </p>
+                <div className="inline-flex rounded-lg bg-neutral-800 p-0.5">
+                  {(
+                    [
+                      { id: "roman" as const, label: "Roman" },
+                      { id: "telugu" as const, label: "తెలుగు" },
+                    ]
+                  ).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setScriptMode(opt.id)}
+                      className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+                        scriptMode === opt.id
+                          ? "bg-sky-600 text-white"
+                          : "text-neutral-400 hover:text-neutral-200"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={saveEdits}
@@ -459,6 +517,15 @@ export function Editor({
               style={style}
               onChange={patchStyle}
               onApplyPreset={(s) => setStyle({ ...s })}
+            />
+            <DictionaryPanel
+              segments={segments}
+              refreshToken={dictRefresh}
+              onApplySegments={(next) => {
+                setSegments(next);
+                baselineRef.current = next.map((s) => ({ ...s, text: s.text }));
+                schedulePersist(next);
+              }}
             />
           </aside>
         </div>

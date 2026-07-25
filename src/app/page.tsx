@@ -25,7 +25,7 @@ export default function Home() {
           <p className="mx-auto mt-4 max-w-xl text-neutral-400">
             Upload a Telugu video. Get timed{" "}
             <span className="text-neutral-200">romanized captions</span>, style them
-            live (Center Pop by default), and export a{" "}
+            live (Tharun Speaks by default), and export a{" "}
             <span className="text-neutral-200">publish-ready burned MP4</span> — or
             SRT / VTT / ASS.
           </p>

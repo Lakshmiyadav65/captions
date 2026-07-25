@@ -76,6 +76,12 @@ model User {
   image         String?
   createdAt     DateTime  @default(now())
 
+  /// free | creator | pro — drives monthly minute / concurrency quotas
+  plan                 String  @default("free")
+  stripeCustomerId     String? @unique
+  stripeSubscriptionId String?
+  stripePriceId        String?
+
   accounts       Account[]
   sessions       Session[]
   jobs           Job[]

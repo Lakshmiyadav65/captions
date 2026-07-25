@@ -13,10 +13,19 @@ export type CaptionAnimation = "none" | "fade" | "pop";
 /** Special glyph treatments beyond flat fill (preview-rich; ASS approximates). */
 export type TextEffect = "none" | "prism";
 
+/** Static keyword coloring (neon accents) independent of karaoke fill. */
+export type EmphasisMode = "off" | "auto";
+
+/** How caption text is cased for preview + burned export. */
+export type TextCase = "none" | "sentence" | "title" | "lower" | "upper";
+
 export interface SubtitleStyle {
   /** CSS font-family value; must match one of the bundled Telugu fonts (see fonts.ts). */
   fontFamily: string;
-  /** Font size as a percentage of the VIDEO HEIGHT, so it scales to any resolution. */
+  /**
+   * Caption size on a 1–10 scale (internally % of video height, so it scales to any
+   * resolution). Max is 10; ~3–4 usually looks best.
+   */
   fontSizePct: number;
   fontWeight: number;
   /** Fill color, hex e.g. "#FFFFFF". */
@@ -38,7 +47,12 @@ export interface SubtitleStyle {
   /** Max width of the text block as a % of video width (wraps long lines). */
   maxWidthPct: number;
   letterSpacingEm: number;
-  uppercase: boolean;
+  /**
+   * Display casing. Prefer `textCase`; legacy `uppercase: true` still means "upper".
+   */
+  textCase: TextCase;
+  /** @deprecated Prefer `textCase`. Kept so older saved styles / presets still load. */
+  uppercase?: boolean;
   /** Word-by-word "karaoke" highlight: spoken words switch to `highlightColor` and stay filled. */
   karaoke: boolean;
   /** Fill color for words that have been spoken (used when `karaoke` is on). */
@@ -61,15 +75,49 @@ export interface SubtitleStyle {
    * iridescent shimmer (preview). Burned ASS uses a soft translucent white approx.
    */
   textEffect: TextEffect;
+  /**
+   * Auto-color keywords with `highlightColor` (Tharun Speaks yellow/white look).
+   * Independent of karaoke progressive fill.
+   */
+  emphasisMode: EmphasisMode;
+}
+
+/** Resolve casing mode, including legacy `uppercase` boolean. */
+export function effectiveTextCase(style: Pick<SubtitleStyle, "textCase" | "uppercase">): TextCase {
+  if (style.textCase) return style.textCase;
+  return style.uppercase ? "upper" : "none";
+}
+
+/** Apply a casing mode to caption text (preview + ASS share this). */
+export function applyTextCase(text: string, mode: TextCase): string {
+  if (!text) return text;
+  switch (mode) {
+    case "upper":
+      return text.toUpperCase();
+    case "lower":
+      return text.toLowerCase();
+    case "sentence": {
+      // First letter of the string (and of each new line) capital; everything else lower.
+      const lower = text.toLowerCase();
+      return lower.replace(/(^|[.!?]\s+|\n\s*)(\S)/g, (_, lead: string, ch: string) => lead + ch.toUpperCase());
+    }
+    case "title":
+      return text
+        .toLowerCase()
+        .replace(/(^|[^\p{L}\p{N}])(\p{L})/gu, (_, lead: string, ch: string) => lead + ch.toUpperCase());
+    default:
+      return text;
+  }
 }
 
 /**
- * Default look — matched from Video-24275.mp4: bold white kinetic captions,
- * mid-frame, soft bloom (no hard outline), pop-in. Same as the "Center Pop" preset.
+ * Default look — extracted from Video-24275.mp4 ("Tharun Speaks"):
+ * bold white kinetic captions mid-frame, neon-yellow emphasis, soft bloom
+ * (no hard outline), pop-in. Same as the "Tharun Speaks" preset.
  */
 export const DEFAULT_STYLE: SubtitleStyle = {
   fontFamily: "NTR",
-  fontSizePct: 7.2,
+  fontSizePct: 4,
   fontWeight: 700,
   color: "#FFFFFF",
   outlineColor: "#000000",
@@ -80,19 +128,20 @@ export const DEFAULT_STYLE: SubtitleStyle = {
   bgPaddingXPct: 1.2,
   bgPaddingYPct: 0.6,
   align: "center",
-  positionYPct: 52,
+  positionYPct: 55,
   lineHeight: 1.05,
   maxWidthPct: 82,
-  letterSpacingEm: -0.02,
-  uppercase: false,
+  letterSpacingEm: -0.03,
+  textCase: "none",
   karaoke: false,
-  highlightColor: "#FFE100",
-  glowStrength: 0,
+  highlightColor: "#E2FF00",
+  glowStrength: 1,
   glowColor: "#FFFFFF",
   boxMode: "none",
   boxRadiusPct: 1.2,
   animation: "pop",
   textEffect: "none",
+  emphasisMode: "auto",
 };
 
 /**

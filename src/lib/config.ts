@@ -78,6 +78,13 @@ const schema = z.object({
   QUOTA_MONTHLY_ANALYSES: z.coerce.number().default(50),
   QUOTA_MONTHLY_GENERATIONS: z.coerce.number().default(100),
   STYLE_MATCH_THRESHOLD: z.coerce.number().default(0.9),
+
+  // Stripe billing (optional — when unset, checkout is disabled; free quotas still apply)
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_CREATOR: z.string().optional(),
+  STRIPE_PRICE_PRO: z.string().optional(),
+  APP_URL: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -123,6 +130,14 @@ export const config = {
   sentryEnabled: Boolean(env.SENTRY_DSN),
   visionModel: env.VISION_MODEL,
   generateModel: env.GENERATE_MODEL,
+  stripeEnabled: Boolean(env.STRIPE_SECRET_KEY),
+  stripe: {
+    secretKey: env.STRIPE_SECRET_KEY ?? "",
+    webhookSecret: env.STRIPE_WEBHOOK_SECRET ?? "",
+    priceCreator: env.STRIPE_PRICE_CREATOR ?? "",
+    pricePro: env.STRIPE_PRICE_PRO ?? "",
+    appUrl: env.APP_URL ?? "",
+  },
   limits: {
     maxUploadBytes: env.MAX_UPLOAD_MB * 1024 * 1024,
     maxUploadMB: env.MAX_UPLOAD_MB,
@@ -150,6 +165,7 @@ export function publicConfig() {
     maxVideoMinutes: config.limits.maxVideoMinutes,
     maxImageMB: config.limits.maxImageMB,
     monthlyAnalyses: config.limits.monthlyAnalyses,
+    stripeEnabled: config.stripeEnabled,
   };
 }
 
