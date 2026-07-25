@@ -14,8 +14,8 @@ import { tokenizeSegment } from "@/lib/subtitles/karaoke";
 import {
   isKinetic,
   kineticFocusIndex,
+  kineticGapPct,
   kineticPoses,
-  kineticStageHeightPct,
 } from "@/lib/subtitles/kinetic";
 import type { Segment } from "@/lib/transcription/types";
 
@@ -183,46 +183,48 @@ export function SubtitleOverlay({
       const focus = kineticFocusIndex(tokens.length, filled);
       const poses = kineticPoses(tokens.length, focus);
       const baseFs = px(style.fontSizePct);
+      const gap = px(kineticGapPct(style.fontSizePct));
       content = (
         <span
           className="cap-kinetic"
           style={{
-            position: "relative",
-            display: "block",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap,
             width: "100%",
-            // Stage must be tall enough for video-relative yPct offsets (not % of this box).
-            height: px(kineticStageHeightPct(style.fontSizePct)),
             pointerEvents: "none",
           }}
         >
           {tokens.map((tk, i) => {
             const pose = poses[i] ?? poses[0];
-            const word = applyTextCase(tk.text, caseMode === "sentence" && i > 0 ? "lower" : caseMode);
+            const word = applyTextCase(
+              tk.text,
+              caseMode === "sentence" && i > 0 ? "lower" : caseMode,
+            );
             const isFocus = i === focus;
             return (
               <span
                 key={`${tk.start}-${i}`}
-                className={isFocus ? "cap-kinetic-word cap-kinetic-focus" : "cap-kinetic-word"}
+                className="cap-kinetic-word"
                 style={{
-                  position: "absolute",
-                  // xPct is % of video width → % of this full-width stage is correct.
-                  left: `calc(50% + ${pose.xPct}%)`,
-                  // yPct is % of video height → convert with px(); % of this short box was wrong.
-                  top: `calc(50% + ${px(pose.yPct)}px)`,
-                  transform: `translate(-50%, -50%) scale(${pose.scale})`,
+                  display: "block",
                   fontFamily: fontStack(style.fontFamily),
-                  fontSize: baseFs,
+                  fontSize: baseFs * pose.scale,
                   fontWeight: style.fontWeight,
                   color: style.color,
                   letterSpacing: `${style.letterSpacingEm}em`,
                   lineHeight: 1,
                   whiteSpace: "nowrap",
+                  transform: pose.xEm ? `translateX(${pose.xEm}em)` : undefined,
                   textShadow: buildTextShadow(style, scale, false),
                   WebkitTextStrokeWidth: stroke > 0 ? `${stroke}px` : undefined,
                   WebkitTextStrokeColor: stroke > 0 ? style.outlineColor : undefined,
                   paintOrder: "stroke fill",
+                  opacity: isFocus ? 1 : 0.92,
                   transition:
-                    "transform 0.22s cubic-bezier(0.22, 1.15, 0.36, 1), top 0.22s ease, left 0.22s ease",
+                    "font-size 0.2s cubic-bezier(0.22, 1.15, 0.36, 1), transform 0.2s ease, opacity 0.15s ease",
                 }}
               >
                 {word}
@@ -349,7 +351,7 @@ export function SubtitleOverlay({
           to { opacity: 1; transform: translateY(-50%) scale(1); }
         }
         @keyframes capKineticIn {
-          from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+          from { opacity: 0; }
           to { opacity: 1; }
         }
         @keyframes capPrismShimmer {

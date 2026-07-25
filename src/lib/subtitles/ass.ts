@@ -179,13 +179,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 }
 
 /**
- * Premium Style 1 burn: one Dialogue per word with absolute \\pos + scale so words
- * sit at different heights/sizes (ASS approximation of the kinetic preview).
+ * Premium Style 1 burn: stacked lines with per-word \\fs so every word stays visible
+ * and the spoken word reads larger (matches the live flex stack).
  */
 function kineticDialogues(
   seg: Segment,
   style: SubtitleStyle,
-  playW: number,
+  _playW: number,
   playH: number,
 ): string[] {
   const tokens = tokenizeSegment(seg);
@@ -195,31 +195,32 @@ function kineticDialogues(
   }
 
   const caseMode = effectiveTextCase(style);
-  const anchorY = (style.positionYPct / 100) * playH;
+  const baseFs = Math.round((style.fontSizePct / 100) * playH);
   const lines: string[] = [];
 
-  // Re-layout as each word becomes focus so burned MP4 mirrors the live bounce.
   tokens.forEach((tk, focus) => {
     const poses = kineticPoses(tokens.length, focus);
     const t0 = tk.start;
     const t1 = focus < tokens.length - 1 ? tokens[focus + 1].start : seg.end;
     if (t1 <= t0) return;
 
-    tokens.forEach((wordTk, i) => {
-      const pose = poses[i] ?? poses[0];
-      const word =
-        caseMode === "sentence" && i > 0
-          ? wordTk.text.toLowerCase()
-          : applyTextCase(wordTk.text, caseMode);
-      const x = Math.round(playW / 2 + (pose.xPct / 100) * playW);
-      const y = Math.round(anchorY + (pose.yPct / 100) * playH);
-      const sc = Math.round(pose.scale * 100);
-      // \\an5 = center mid; \\pos overrides margins. Soft fade matches preview pop-in.
-      const tags = `{\\an5\\pos(${x},${y})\\fscx${sc}\\fscy${sc}\\fad(120,80)}`;
-      lines.push(
-        `Dialogue: ${i},${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${tags}${word}`,
-      );
-    });
+    const body = tokens
+      .map((wordTk, i) => {
+        const pose = poses[i] ?? poses[0];
+        const word =
+          caseMode === "sentence" && i > 0
+            ? wordTk.text.toLowerCase()
+            : applyTextCase(wordTk.text, caseMode);
+        const fs = Math.max(8, Math.round(baseFs * pose.scale));
+        // Slight \\fscx nudge approximates the preview xEm shift for non-focus words.
+        const xScale = pose.xEm === 0 ? 100 : pose.xEm < 0 ? 98 : 102;
+        return `{\\fs${fs}\\fscx${xScale}\\fscy100}${word}`;
+      })
+      .join("\\N");
+
+    lines.push(
+      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,{\\an5\\fad(120,80)}${body}`,
+    );
   });
 
   return lines;
