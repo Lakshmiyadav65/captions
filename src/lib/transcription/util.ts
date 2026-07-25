@@ -78,6 +78,65 @@ export function splitTranscriptIntoSegments(
   });
 }
 
+// Break each segment into short caption "frames" of at most `maxWords` words, so lines stay
+// clean and readable (a few words on screen at a time) instead of a whole sentence wrapping
+// over many rows. When word-level timings exist they drive each frame's start/end; otherwise
+// the segment's span is distributed across frames proportionally to their character length.
+export function splitSegmentsToMaxWords(
+  segments: Segment[],
+  maxWords: number,
+): Segment[] {
+  if (!maxWords || maxWords <= 0) return segments;
+  const out: Segment[] = [];
+
+  for (const seg of segments) {
+    // Prefer real word timings when the provider supplies them (accurate per-frame timing).
+    if (seg.words && seg.words.length > maxWords) {
+      for (const group of chunk(seg.words, maxWords)) {
+        out.push({
+          start: group[0].start,
+          end: group[group.length - 1].end,
+          text: group.map((w) => w.text).join(" ").trim(),
+          words: group,
+        });
+      }
+      continue;
+    }
+
+    const words = seg.text.split(/\s+/).filter(Boolean);
+    if (words.length <= maxWords) {
+      out.push(seg);
+      continue;
+    }
+
+    const groups = chunk(words, maxWords);
+    const totalChars = words.reduce((n, w) => n + w.length, 0) || 1;
+    const span = Math.max(0, seg.end - seg.start);
+    let t = seg.start;
+    groups.forEach((g, i) => {
+      const gChars = g.reduce((n, w) => n + w.length, 0);
+      const end =
+        i === groups.length - 1
+          ? seg.end
+          : Math.min(seg.end, t + (gChars / totalChars) * span);
+      out.push({ start: t, end, text: g.join(" ") });
+      t = end;
+    });
+  }
+  return out;
+}
+
+// Split an array into groups of `size`, merging a lone trailing item into the previous group
+// so we never emit a single-word caption frame.
+function chunk<T>(arr: T[], size: number): T[][] {
+  const groups: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) groups.push(arr.slice(i, i + size));
+  if (groups.length > 1 && groups[groups.length - 1].length === 1) {
+    groups[groups.length - 2].push(groups.pop()![0]);
+  }
+  return groups;
+}
+
 // Shift all timings by a fixed offset — used to stitch per-chunk results back together.
 export function offsetSegments(segments: Segment[], offsetSec: number): Segment[] {
   if (!offsetSec) return segments;

@@ -6,11 +6,14 @@ import {
   type TranscribeOptions,
   type TranscriptionProvider,
   type TranscriptionResult,
+  type Word,
 } from "./types";
+import { groupWordsIntoSegments } from "./util";
 
 // OpenAI transcription. Defaults to whisper-1 because its verbose_json response returns
-// segment-level timestamps directly (needed for subtitle timing). Handles multi-minute
-// audio in one request (25 MB limit ≈ 13 min of 16 kHz mono WAV); the worker chunks longer.
+// timestamps (needed for subtitle timing). Requests both segment + word granularities so
+// karaoke can use real word times. Handles multi-minute audio in one request (25 MB limit
+// ≈ 13 min of 16 kHz mono WAV); the worker chunks longer.
 
 export class OpenAIProvider implements TranscriptionProvider {
   readonly name = "openai";
@@ -30,6 +33,7 @@ export class OpenAIProvider implements TranscriptionProvider {
     form.append("model", model);
     form.append("response_format", "verbose_json");
     form.append("timestamp_granularities[]", "segment");
+    form.append("timestamp_granularities[]", "word");
     if (opts.language) form.append("language", opts.language);
 
     const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
@@ -49,13 +53,37 @@ export class OpenAIProvider implements TranscriptionProvider {
       duration?: number;
       text?: string;
       segments?: Array<{ start: number; end: number; text: string }>;
+      words?: Array<{ word: string; start: number; end: number }>;
     };
 
-    const segments: Segment[] = (json.segments ?? []).map((s) => ({
-      start: s.start,
-      end: s.end,
-      text: (s.text ?? "").trim(),
-    }));
+    const flatWords: Word[] = (json.words ?? [])
+      .map((w) => ({
+        text: (w.word ?? "").trim(),
+        start: w.start,
+        end: w.end,
+      }))
+      .filter((w) => w.text.length > 0);
+
+    let segments: Segment[];
+    if (json.segments?.length) {
+      segments = json.segments.map((s) => {
+        const text = (s.text ?? "").trim();
+        const words = flatWords.filter((w) => {
+          const mid = (w.start + w.end) / 2;
+          return mid >= s.start - 0.05 && mid <= s.end + 0.05;
+        });
+        return {
+          start: s.start,
+          end: s.end,
+          text,
+          words: words.length ? words : undefined,
+        };
+      });
+    } else if (flatWords.length) {
+      segments = groupWordsIntoSegments(flatWords);
+    } else {
+      segments = [];
+    }
 
     return {
       language: normalizeLanguage(json.language),
@@ -63,4 +91,15 @@ export class OpenAIProvider implements TranscriptionProvider {
       segments,
     };
   }
+}
+
+/** Flatten word timings from an OpenAI TranscriptionResult (for TIMING_PROVIDER refine). */
+export function flattenWords(result: TranscriptionResult): Word[] {
+  const out: Word[] = [];
+  for (const s of result.segments) {
+    if (s.words?.length) {
+      out.push(...s.words.map((w) => ({ ...w })));
+    }
+  }
+  return out;
 }

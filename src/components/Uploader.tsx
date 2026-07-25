@@ -2,6 +2,7 @@
 
 import { useRef, useState, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
+import { isQuotaError } from "@/lib/errors";
 
 const VIDEO_EXT = /\.(mp4|mov|mkv|webm|avi|m4v|mpg|mpeg|wmv|flv)$/i;
 
@@ -12,9 +13,11 @@ export function Uploader() {
   const [uploading, setUploading] = useState(false);
   const [pct, setPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [quotaHit, setQuotaHit] = useState(false);
 
   const upload = (file: File) => {
     setError(null);
+    setQuotaHit(false);
     if (!file.type.startsWith("video/") && !VIDEO_EXT.test(file.name)) {
       setError("Please choose a video file (MP4, MOV, MKV, WebM…).");
       return;
@@ -36,9 +39,14 @@ export function Uploader() {
         router.push("/signin");
       } else {
         let msg = "Upload failed. Please try again.";
+        let body: { error?: string; code?: string } = {};
         try {
-          msg = (JSON.parse(xhr.responseText) as { error?: string }).error ?? msg;
-        } catch {}
+          body = JSON.parse(xhr.responseText) as { error?: string; code?: string };
+          msg = body.error ?? msg;
+        } catch {
+          /* keep default */
+        }
+        setQuotaHit(isQuotaError(xhr.status, body));
         setError(msg);
         setUploading(false);
       }
@@ -109,7 +117,23 @@ export function Uploader() {
         )}
       </div>
 
-      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+      {error && (
+        <div
+          className={`mt-3 rounded-lg px-3 py-2 text-sm ${
+            quotaHit
+              ? "border border-amber-500/30 bg-amber-500/10 text-amber-100"
+              : "text-red-400"
+          }`}
+          role="alert"
+        >
+          {quotaHit && (
+            <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-amber-300/90">
+              Limit reached
+            </p>
+          )}
+          <p>{error}</p>
+        </div>
+      )}
     </div>
   );
 }

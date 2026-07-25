@@ -9,6 +9,12 @@ import {
   type SubtitleFormat,
   type SubtitleStyle,
 } from "@/lib/subtitles";
+import {
+  applySpelling,
+  diffWordCorrections,
+  type SpellRule,
+} from "@/lib/spelling";
+import { friendlyJobError } from "@/lib/errors";
 import { PreviewStage } from "./PreviewStage";
 import { StylePanel } from "./StylePanel";
 import { SubtitleList } from "./SubtitleList";
@@ -44,11 +50,16 @@ export function Editor({
   videoUrl,
   originalName,
   initialStatus,
+  width,
+  height,
 }: {
   jobId: string;
   videoUrl: string;
   originalName: string | null;
   initialStatus: string;
+  /** Real video pixel dimensions (detected at upload) so the preview opens at the right ratio. */
+  width?: number | null;
+  height?: number | null;
 }) {
   const [progress, setProgress] = useState<Progress>({
     status: initialStatus,
@@ -58,15 +69,58 @@ export function Editor({
   const [style, setStyle] = useState<SubtitleStyle>({ ...DEFAULT_STYLE });
   const [currentTime, setCurrentTime] = useState(0);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [exportState, setExportState] = useState<"idle" | "exporting" | "error">("idle");
+  const [exportError, setExportError] = useState<string | null>(null);
+  /** Word fixes auto-learned when the user edits a caption line. */
+  const [learned, setLearned] = useState<SpellRule[] | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
+  /** Bumped on retry so the SSE effect re-subscribes after a failure. */
+  const [streamEpoch, setStreamEpoch] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+  /** Per-line ASR/previous text — used to detect what the user just fixed. */
+  const baselineRef = useRef<Segment[] | null>(null);
+  const segmentsRef = useRef<Segment[] | null>(null);
+  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const learnBusy = useRef(false);
 
   const baseName = (originalName ?? "telugu-captions").replace(/\.[^.]+$/, "");
+
+  useEffect(() => {
+    segmentsRef.current = segments;
+  }, [segments]);
+
+  const persistTranscript = useCallback(
+    async (segs: Segment[]) => {
+      setSaveState("saving");
+      await fetch(`/api/transcript/${jobId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ segments: segs }),
+      });
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 1500);
+    },
+    [jobId],
+  );
+
+  const schedulePersist = useCallback(
+    (segs: Segment[]) => {
+      if (persistTimer.current) clearTimeout(persistTimer.current);
+      persistTimer.current = setTimeout(() => {
+        void persistTranscript(segs);
+      }, 400);
+    },
+    [persistTranscript],
+  );
 
   const loadTranscript = useCallback(async () => {
     const res = await fetch(`/api/transcript/${jobId}`);
     if (res.ok) {
       const data = (await res.json()) as { segments: Segment[] };
       setSegments(data.segments);
+      baselineRef.current = data.segments.map((s) => ({ ...s, text: s.text }));
+      setLearned(null);
     }
   }, [jobId]);
 
@@ -91,22 +145,114 @@ export function Editor({
     };
     es.onerror = () => es.close();
     return () => es.close();
+    // streamEpoch re-opens the stream after Retry.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId]);
+  }, [jobId, streamEpoch]);
+
+  // Apply a style handed over from the Style Analyzer / My Styles ("Use in editor").
+  useEffect(() => {
+    const pending = sessionStorage.getItem("pendingStyle");
+    if (!pending) return;
+    try {
+      setStyle({ ...DEFAULT_STYLE, ...(JSON.parse(pending) as Partial<SubtitleStyle>) });
+    } catch {}
+    sessionStorage.removeItem("pendingStyle");
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (persistTimer.current) clearTimeout(persistTimer.current);
+    };
+  }, []);
 
   const patchStyle = (patch: Partial<SubtitleStyle>) =>
     setStyle((s) => ({ ...s, ...patch }));
 
+  /** Structural edits (add/delete line) shift indices — resync baseline so we don't learn junk. */
+  const onSegmentsChange = useCallback((next: Segment[]) => {
+    const prev = segmentsRef.current;
+    setSegments(next);
+    if (!prev || prev.length !== next.length) {
+      baselineRef.current = next.map((s) => ({ ...s, text: s.text }));
+    }
+  }, []);
+
+  /**
+   * When the user finishes editing a caption line: learn word fixes into memory,
+   * apply them across this transcript, and auto-save — no Listener panel / Save click.
+   */
+  const onTextCommit = useCallback(
+    async (index: number, text: string) => {
+      const current = segmentsRef.current;
+      const baseline = baselineRef.current;
+      if (!current || !baseline || learnBusy.current) return;
+
+      // Keep timings from the live list; text comes from the blurred field.
+      let next = current.map((s, i) => (i === index ? { ...s, text } : s));
+
+      // Insert/delete left arrays out of sync — persist text, skip learning.
+      if (baseline.length !== current.length || !baseline[index]) {
+        setSegments(next);
+        baselineRef.current = next.map((s) => ({ ...s, text: s.text }));
+        schedulePersist(next);
+        return;
+      }
+
+      const before = baseline[index]?.text ?? "";
+      const rules = diffWordCorrections(before, text);
+
+      if (rules.length) {
+        learnBusy.current = true;
+        try {
+          await fetch("/api/spelling", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rules }),
+          });
+          next = next.map((s) => ({
+            ...s,
+            text: applySpelling(s.text, rules),
+            words: s.words?.map((w) => ({
+              ...w,
+              text: applySpelling(w.text, rules),
+            })),
+          }));
+          setLearned(rules);
+          setTimeout(() => setLearned(null), 4000);
+        } finally {
+          learnBusy.current = false;
+        }
+      }
+
+      setSegments(next);
+      baselineRef.current = next.map((s) => ({ ...s, text: s.text }));
+      schedulePersist(next);
+    },
+    [schedulePersist],
+  );
+
+  const retryJob = async () => {
+    if (retrying) return;
+    setRetrying(true);
+    setRetryError(null);
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/retry`, { method: "POST" });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Retry failed");
+      setProgress({ status: "queued", progress: 0, error: null });
+      setStreamEpoch((n) => n + 1);
+    } catch (e) {
+      setRetryError(e instanceof Error ? e.message : "Retry failed");
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  // Manual save still available for timing tweaks without leaving a text field.
   const saveEdits = async () => {
     if (!segments) return;
-    setSaveState("saving");
-    await fetch(`/api/transcript/${jobId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ segments }),
-    });
-    setSaveState("saved");
-    setTimeout(() => setSaveState("idle"), 1500);
+    baselineRef.current = segments.map((s) => ({ ...s, text: s.text }));
+    await persistTranscript(segments);
   };
 
   const doExport = (fmt: SubtitleFormat, mime: string) => {
@@ -114,13 +260,42 @@ export function Editor({
     download(`${baseName}.${fmt}`, renderSubtitles(fmt, segments, style), mime);
   };
 
+  const exportMp4 = async () => {
+    if (!segments || exportState === "exporting") return;
+    setExportState("exporting");
+    setExportError(null);
+    try {
+      const res = await fetch(`/api/export/${jobId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ style, segments }),
+      });
+      const data = (await res.json()) as { url?: string; filename?: string; error?: string };
+      if (!res.ok || !data.url) throw new Error(data.error ?? "Export failed");
+      const a = document.createElement("a");
+      a.href = data.url;
+      a.download = data.filename ?? `${baseName}-captioned.mp4`;
+      a.click();
+      setExportState("idle");
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Export failed");
+      setExportState("error");
+    }
+  };
+
   const isProcessing =
     progress.status !== "done" && progress.status !== "failed";
   const isMock = progress.provider === "mock";
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div
+      className={`mx-auto flex max-w-7xl flex-col px-4 ${
+        progress.status === "done"
+          ? "h-dvh overflow-hidden py-4"
+          : "py-6"
+      }`}
+    >
+      <header className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div>
           <a href="/" className="text-sm text-sky-400 hover:text-sky-300">
             ← New video
@@ -130,17 +305,36 @@ export function Editor({
           </h1>
         </div>
         {progress.status === "done" && (
-          <div className="flex items-center gap-2">
-            {EXPORT_FORMATS.map((f) => (
+          <div className="flex flex-col items-end gap-1.5">
+            <div className="flex items-center gap-2">
               <button
-                key={f.ext}
                 type="button"
-                onClick={() => doExport(f.ext, f.mime)}
-                className="rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-sky-500"
+                onClick={exportMp4}
+                disabled={exportState === "exporting"}
+                className="rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                ↓ {f.label}
+                {exportState === "exporting" ? "⏳ Rendering MP4…" : "⬇ Export MP4"}
               </button>
-            ))}
+              <span className="mx-1 h-6 w-px bg-white/10" aria-hidden />
+              {EXPORT_FORMATS.map((f) => (
+                <button
+                  key={f.ext}
+                  type="button"
+                  onClick={() => doExport(f.ext, f.mime)}
+                  className="rounded-lg bg-neutral-800 px-3 py-2 text-sm font-medium text-neutral-200 transition hover:bg-neutral-700"
+                >
+                  ↓ {f.label}
+                </button>
+              ))}
+            </div>
+            {exportState === "exporting" && (
+              <span className="text-xs text-neutral-500">
+                Burning captions into your video — this can take up to a minute.
+              </span>
+            )}
+            {exportState === "error" && exportError && (
+              <span className="text-xs text-red-400">{exportError}</span>
+            )}
           </div>
         )}
       </header>
@@ -172,33 +366,61 @@ export function Editor({
       {progress.status === "failed" && (
         <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-200">
           <p className="font-medium">Processing failed</p>
-          <p className="mt-1 text-red-300/80">{progress.error}</p>
+          <p className="mt-1 text-red-300/80">
+            {friendlyJobError(progress.error)}
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void retryJob()}
+              disabled={retrying}
+              className="rounded-lg bg-red-500/20 px-3.5 py-2 text-sm font-medium text-red-100 ring-1 ring-red-400/40 transition hover:bg-red-500/30 disabled:opacity-60"
+            >
+              {retrying ? "Retrying…" : "Try again"}
+            </button>
+            <a href="/" className="text-sm text-sky-400 hover:text-sky-300">
+              Upload a different video
+            </a>
+          </div>
+          {retryError && (
+            <p className="mt-2 text-xs text-amber-200/90">{retryError}</p>
+          )}
         </div>
       )}
 
       {progress.status === "done" && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
-          {/* Left: preview + transcript */}
-          <div className="space-y-4">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto overscroll-contain lg:grid-cols-[1fr_360px] lg:gap-6 lg:overflow-hidden">
+          {/* Left: large preview; caption list is a fixed strip that scrolls on its own. */}
+          <div className="flex min-h-0 flex-col gap-3 lg:overflow-hidden">
             {isMock && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-200">
+              <div className="shrink-0 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-200">
                 Showing a <strong>sample</strong> Telugu transcript. Add a Sarvam or
                 OpenAI API key (see README) to transcribe your real audio.
               </div>
             )}
-            <PreviewStage
-              videoRef={videoRef}
-              videoUrl={videoUrl}
-              segments={segments ?? []}
-              style={style}
-              onTime={setCurrentTime}
-            />
-            <div className="flex items-center justify-between">
+            <div className="min-h-[320px] flex-1 lg:min-h-0">
+              <PreviewStage
+                videoRef={videoRef}
+                videoUrl={videoUrl}
+                segments={segments ?? []}
+                style={style}
+                onTime={setCurrentTime}
+                initialAspect={width && height ? width / height : undefined}
+                onPositionChange={(positionYPct) => patchStyle({ positionYPct })}
+              />
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-neutral-500">
                 Detected language:{" "}
                 <span className="text-neutral-300">
                   {progress.language ?? "te"}
                 </span>
+                {saveState === "saving" && (
+                  <span className="ml-2 text-neutral-500">· Saving…</span>
+                )}
+                {saveState === "saved" && (
+                  <span className="ml-2 text-emerald-400/80">· Saved</span>
+                )}
               </p>
               <button
                 type="button"
@@ -206,34 +428,38 @@ export function Editor({
                 disabled={saveState === "saving"}
                 className="rounded-lg border border-white/10 bg-neutral-800 px-3 py-1.5 text-xs text-neutral-200 hover:bg-neutral-700 disabled:opacity-50"
               >
-                {saveState === "saving"
-                  ? "Saving…"
-                  : saveState === "saved"
-                    ? "Saved ✓"
-                    : "Save edits"}
+                Save timings
               </button>
             </div>
+            {learned && learned.length > 0 && (
+              <div className="shrink-0 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+                Remembered{" "}
+                {learned.map((r) => `${r.from} → ${r.to}`).join(" · ")} — will use
+                next time
+              </div>
+            )}
             {segments && (
-              <SubtitleList
-                segments={segments}
-                onChange={setSegments}
-                currentTime={currentTime}
-                onSeek={(t) => {
-                  if (videoRef.current) videoRef.current.currentTime = t;
-                }}
-              />
+              <div className="h-[min(28vh,260px)] shrink-0 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-neutral-900/40 p-3 max-lg:h-[min(40vh,320px)]">
+                <SubtitleList
+                  segments={segments}
+                  onChange={onSegmentsChange}
+                  currentTime={currentTime}
+                  onSeek={(t) => {
+                    if (videoRef.current) videoRef.current.currentTime = t;
+                  }}
+                  onTextCommit={onTextCommit}
+                />
+              </div>
             )}
           </div>
 
-          {/* Right: style controls */}
-          <aside className="lg:sticky lg:top-6 lg:h-fit">
-            <div className="rounded-xl border border-white/10 bg-neutral-900 p-4">
-              <StylePanel
-                style={style}
-                onChange={patchStyle}
-                onApplyPreset={(s) => setStyle({ ...s })}
-              />
-            </div>
+          {/* Right: styles / fonts scroll on their own when the cursor is here. */}
+          <aside className="min-h-0 max-h-[70vh] overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-neutral-900 p-4 lg:max-h-none">
+            <StylePanel
+              style={style}
+              onChange={patchStyle}
+              onApplyPreset={(s) => setStyle({ ...s })}
+            />
           </aside>
         </div>
       )}

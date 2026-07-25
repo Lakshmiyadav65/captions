@@ -8,6 +8,9 @@ import { enqueueJob } from "@/lib/queue";
 import { getStorage } from "@/lib/storage";
 import { requireUserId } from "@/lib/auth-helpers";
 import { assertWithinQuota } from "@/lib/quota";
+import { assertUploadRateLimit } from "@/lib/rate-limit";
+import { log } from "@/lib/log";
+import { reportError } from "@/lib/sentry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,6 +34,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Sign in to upload." }, { status: 401 });
   }
 
+  const forwarded = req.headers.get("x-forwarded-for");
+  const ip = forwarded?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || undefined;
+  const rate = await assertUploadRateLimit(userId, ip);
+  if (!rate.ok) {
+    log.warn("upload.rate_limited", { userId, ip, retryAfterSec: rate.retryAfterSec });
+    return NextResponse.json(
+      { error: "Too many uploads. Try again shortly.", code: "rate_limit" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rate.retryAfterSec) },
+      },
+    );
+  }
+
   // Reject over-size uploads up front via Content-Length.
   const declared = Number(req.headers.get("content-length") || 0);
   if (declared && declared > config.limits.maxUploadBytes) {
@@ -42,7 +59,10 @@ export async function POST(req: NextRequest) {
 
   const quota = await assertWithinQuota(userId);
   if (!quota.ok) {
-    return NextResponse.json({ error: quota.reason }, { status: 429 });
+    return NextResponse.json(
+      { error: quota.reason, code: quota.code },
+      { status: 429 },
+    );
   }
 
   const originalName = decodeURIComponent(
@@ -70,11 +90,13 @@ export async function POST(req: NextRequest) {
       where: { id: job.id },
       data: { status: "failed", error: message.slice(0, 500) },
     });
+    await reportError("upload.store_failed", err, { jobId: job.id, userId });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
   await prisma.job.update({ where: { id: job.id }, data: { videoKey: key } });
   await enqueueJob(job.id);
+  log.info("upload.enqueued", { jobId: job.id, userId, bytes: declared || undefined });
 
   return NextResponse.json({ id: job.id });
 }

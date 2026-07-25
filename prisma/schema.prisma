@@ -21,6 +21,8 @@ model Job {
   originalName String? //  the user's original filename
   videoKey     String? //  storage key for the uploaded video (e.g. uploads/<id>/source.mp4)
   durationSec  Float? //   media duration in seconds
+  width        Int? //     video pixel width  (detected from the upload; drives the preview/export aspect ratio)
+  height       Int? //     video pixel height
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -51,6 +53,19 @@ model StylePreset {
   createdAt DateTime @default(now())
 }
 
+/// A user's custom spelling correction: replace whole-word `from` with `to` in transcripts.
+model SpellingRule {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  from      String //  the (mis)spelling the ASR tends to produce
+  to        String //  the correction to substitute
+  createdAt DateTime @default(now())
+
+  @@unique([userId, from])
+  @@index([userId])
+}
+
 // --- Auth.js (NextAuth) models ---
 
 model User {
@@ -61,9 +76,58 @@ model User {
   image         String?
   createdAt     DateTime  @default(now())
 
-  accounts Account[]
-  sessions Session[]
-  jobs     Job[]
+  accounts       Account[]
+  sessions       Session[]
+  jobs           Job[]
+  spellingRules  SpellingRule[]
+  styleAnalyses  StyleAnalysis[]
+  savedStyles    SavedStyle[]
+  generationLogs GenerationLog[]
+}
+
+// --- Caption Style Analyzer ---
+
+/// One screenshot analysis: the extracted StyleProfile + the derived SubtitleStyle. Also
+/// serves as the per-user monthly analyze-quota ledger (one row per successful vision call).
+model StyleAnalysis {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  imageKey      String? //  storage key for the uploaded screenshot
+  provider      String //   which vision provider produced it (mock | anthropic)
+  profile       String //   JSON-serialized StyleProfile (incl. fontMatch)
+  subtitleStyle String //   JSON-serialized SubtitleStyle (render-ready)
+  ocrText       String? //  optional caption text, off by default
+  confidence    Float
+  createdAt     DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+/// A user-saved caption style ("My Styles"): the match key (profile) + the render-ready style.
+model SavedStyle {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  profile        String //   JSON-serialized StyleProfile — used for similarity matching
+  subtitleStyle  String //   JSON-serialized SubtitleStyle — render-ready
+  sourceImageKey String? //  storage key of the screenshot it came from, if any
+  confidence     Float
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+}
+
+/// Per-user monthly caption-generation ledger (one row per successful generate call).
+model GenerationLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model Account {

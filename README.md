@@ -1,18 +1,18 @@
 # Telugu Captions
 
-Upload a Telugu video → auto-generate **timed Telugu subtitles** → style them live
-(font, **size**, colour, outline, background, position) → export **SRT / VTT / ASS**.
+Upload a Telugu video → **timed romanized captions** → style them live → export a
+**publish-ready burned MP4** (or SRT / VTT / ASS).
 
-By default subtitles are **romanized** — the spoken Telugu written in English letters, e.g.
-"నమస్కారం" → **"Namaskaram"** (`OUTPUT_MODE=translit`). Set `OUTPUT_MODE=transcribe` to get
-native Telugu script instead.
+English words in code-mix speech stay English; Telugu becomes readable Latin letters
+(e.g. "నమస్కారం" → **"Namaskaram"**). Default look is **Center Pop**. Edits auto-teach
+spelling for your next videos.
 
-Works out of the box with a built-in **sample transcript** (no API key needed to try the
-UI). Add a Sarvam or OpenAI key to transcribe real audio.
+**Soft launch:** invite-only. Product docs live in [`docs/`](docs/README.md).  
+**Live URL:** _(set after deploy — see [`docs/09-phase6-launch.md`](docs/09-phase6-launch.md))_
 
 ---
 
-## Quick start
+## Quick start (local)
 
 ```bash
 npm install
@@ -20,60 +20,58 @@ npx prisma db push      # creates the local SQLite database
 npm run dev             # http://localhost:3000  (uses 3001 if 3000 is busy)
 ```
 
-Open the app, drop in a video, and you'll land in the editor. With no API key set you'll
-see a sample Telugu transcript so you can play with the styling and exports immediately.
+Open the app, drop in a video. With no API key you’ll get a sample transcript so you can
+style and export immediately.
 
-> No ffmpeg install required — the ffmpeg binary is bundled via `ffmpeg-static`.
+> No ffmpeg install required — the binary is bundled via `ffmpeg-static`.
 
 ---
 
 ## Enable real transcription
 
-Add **one** provider key to `.env` (copy from `.env.example`). The app auto-detects which
-key is present; `ASR_PROVIDER=auto` prefers Sarvam.
+Add **one** provider key to `.env` (copy from `.env.example`). `ASR_PROVIDER=auto` prefers Sarvam.
 
 ### Option A — Sarvam (recommended for Telugu)
-Tuned for real, code-mixed Telugu speech. ₹1,000 free credits on signup.
-1. Get a key: https://dashboard.sarvam.ai
-2. In `.env`:
+1. Key: https://dashboard.sarvam.ai  
+2. `.env`:
    ```
    ASR_PROVIDER=sarvam
    SARVAM_API_KEY=your_key_here
+   SARVAM_MODE=codemix
+   OUTPUT_MODE=translit
    ```
 
-### Option B — OpenAI (cheapest / easiest)
-1. Get a key: https://platform.openai.com/api-keys
-2. In `.env`:
-   ```
-   ASR_PROVIDER=openai
-   OPENAI_API_KEY=your_key_here
-   ```
+### Option B — OpenAI
+```
+ASR_PROVIDER=openai
+OPENAI_API_KEY=your_key_here
+```
 
-Restart `npm run dev` after editing `.env`. Set `ASR_LANGUAGE=auto` if you want the spoken
-language detected instead of assuming Telugu.
+Restart `npm run dev` after editing `.env`.
 
 ---
 
 ## How it works
 
 ```
-Upload (streamed to disk)
-  → ffmpeg extracts 16 kHz mono audio          (src/lib/ffmpeg.ts)
-  → audio is chunked if longer than the provider's limit
-  → transcription provider returns timed words/segments
-      · Sarvam: word timestamps → grouped into subtitle lines
-      · OpenAI (whisper-1): segment timestamps directly
-  → segments normalized to one Segment[] model  (src/lib/transcription/*)
-  → stored in SQLite via Prisma
-Editor
-  → HTML5 video + live subtitle overlay (rAF-synced)
-  → style panel drives one SubtitleStyle
-  → SRT / VTT / ASS generated client-side from segments + style
+Upload → extract audio → energy chunk → ASR (Sarvam/OpenAI/mock)
+  → romanize Telugu runs → spelling (built-in + your learned rules)
+  → short caption frames → editor (Center Pop, drag position)
+  → Export MP4 (ffmpeg + bundled Telugu TTFs) or SRT/VTT/ASS
 ```
 
-Swapping transcription vendors is a one-file change: implement `TranscriptionProvider`
-(`src/lib/transcription/types.ts`) and register it in `index.ts`. Google Chirp / ElevenLabs
-Scribe / local faster-whisper all fit this interface.
+Adapters swap via env: SQLite→Postgres, local→S3/R2, inline→BullMQ, auth off→Google OAuth.
+Details: **[DEPLOY.md](DEPLOY.md)**.
+
+---
+
+## Soft launch / production
+
+1. Follow **[docs/09-phase6-launch.md](docs/09-phase6-launch.md)**  
+2. Env template: **[docs/env.production.example.md](docs/env.production.example.md)**  
+3. Hosting: Railway / Render / Fly (app **+** worker) — not serverless-only  
+
+When the public URL is live, put it at the top of this README and in the Phase 6 doc.
 
 ---
 
@@ -81,52 +79,23 @@ Scribe / local faster-whisper all fit this interface.
 
 | Path | What |
 |------|------|
-| `src/app/` | Pages (`/`, `/jobs/[id]`) + API routes (`upload`, `jobs`, `transcript`) |
-| `src/lib/transcription/` | Provider interface + Sarvam / OpenAI / mock adapters |
-| `src/lib/ffmpeg.ts` | Audio extraction & chunking (bundled ffmpeg) |
-| `src/lib/jobs.ts` | In-process job worker + status transitions |
-| `src/lib/subtitles/` | SRT / VTT / ASS exporters + the `SubtitleStyle` model |
-| `src/lib/fonts.ts` | Curated self-hosted Telugu fonts |
-| `src/components/` | `Uploader`, `PreviewStage`, `SubtitleOverlay`, `StylePanel`, `SubtitleList`, `Editor` |
-| `src/lib/storage/`, `src/lib/queue/` | Storage (local/S3) + queue (inline/BullMQ) adapters |
-| `src/lib/auth.ts`, `config.ts`, `quota.ts` | Auth.js, env feature-flags, per-user quotas |
-| `prisma/schema.prisma` | `Job`, `Transcript`, `StylePreset`, `User`/`Account`/`Session` |
-| `Dockerfile`, `docker-compose.yml`, `DEPLOY.md` | Production deploy (app + worker + Postgres + Redis) |
+| `src/app/` | Pages + API routes |
+| `src/lib/transcription/` | Sarvam / OpenAI / mock |
+| `src/lib/processor.ts` | Job pipeline |
+| `src/lib/spelling.ts` | Built-in + learnable corrections |
+| `src/lib/subtitles/` | Style model + SRT/VTT/ASS |
+| `assets/fonts/` | TTFs for burned MP4 |
+| `docs/` | PRD → launch checklists (01–09) |
+| `Dockerfile`, `docker-compose.yml` | Prod stack |
 
 ---
 
-## Production & hosting (Phase 2)
+## Notes
 
-The app scales up via **environment variables — no code changes**. Full guide: **[DEPLOY.md](DEPLOY.md)**.
-
-| Concern | Local default | Production |
-|---|---|---|
-| Database | SQLite | Postgres (`DATABASE_URL`) |
-| Storage | local disk (`./storage`) | S3 / R2 (`STORAGE_DRIVER=s3`) |
-| Queue | in-process | BullMQ + Redis (`QUEUE_DRIVER=bullmq` + `npm run worker`) |
-| Auth | off (single dev user) | Google / GitHub OAuth (`AUTH_ENABLED=true`) |
-
-Run the whole stack locally with Docker: `docker compose up --build` (Postgres + Redis + app +
-worker). Per-user **quotas** (monthly minutes, concurrent jobs) and **upload caps** (size,
-duration) are enforced server-side via `MAX_UPLOAD_MB`, `MAX_VIDEO_MINUTES`, `QUOTA_*`.
-
-## Notes & limitations
-
-- **Telugu ASR is imperfect** (WER ~33–46%). The built-in transcript **editor** lets you fix
-  wording and timings — clean source audio helps a lot.
-- Local dev uses the in-process queue (not crash-safe); use `QUEUE_DRIVER=bullmq` + a worker in
-  production.
-- Cloud transcription sends audio to the provider. A local `faster-whisper` provider (fully
-  private/offline) is on the Phase 3 roadmap.
-
-## Roadmap
-
-- **Phase 2 (done):** Postgres, S3/R2 storage, BullMQ + Redis queue + worker, Auth.js accounts,
-  quotas + caps, Dockerfile + docker-compose + deploy docs.
-- **Phase 3:** waveform/timeline editor, more ASR providers (Google Chirp, ElevenLabs), local
-  faster-whisper toggle, custom font upload, and burned-in MP4 export (ffmpeg + ASS).
+- Telugu ASR is imperfect — the editor + auto-learn spelling are part of the product.
+- Soft-launch quotas: monthly minutes + concurrent jobs (`QUOTA_*`).
+- Roadmap after launch: better word timings, Stripe, more Indic languages (`docs/06`).
 
 ## Tech
 
-Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · Prisma 6 (SQLite → Postgres) ·
-Auth.js (NextAuth v5) · BullMQ + Redis · AWS SDK (S3/R2) · ffmpeg-static · @fontsource Telugu fonts.
+Next.js 16 · React 19 · TypeScript · Tailwind v4 · Prisma 6 · Auth.js · BullMQ · S3/R2 · ffmpeg-static.
