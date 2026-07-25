@@ -16,7 +16,10 @@ export type TextEffect = "none" | "prism";
 export interface SubtitleStyle {
   /** CSS font-family value; must match one of the bundled Telugu fonts (see fonts.ts). */
   fontFamily: string;
-  /** Font size as a percentage of the VIDEO HEIGHT, so it scales to any resolution. */
+  /**
+   * Caption size on a 1–10 scale (internally % of video height, so it scales to any
+   * resolution). Max is 10; ~3–4 usually looks best.
+   */
   fontSizePct: number;
   fontWeight: number;
   /** Fill color, hex e.g. "#FFFFFF". */
@@ -69,7 +72,7 @@ export interface SubtitleStyle {
  */
 export const DEFAULT_STYLE: SubtitleStyle = {
   fontFamily: "NTR",
-  fontSizePct: 7.2,
+  fontSizePct: 3.5,
   fontWeight: 700,
   color: "#FFFFFF",
   outlineColor: "#000000",

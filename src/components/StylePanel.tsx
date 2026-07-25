@@ -339,9 +339,21 @@ export function StylePanel({
           </div>
         </Field>
 
-        <Field label="Font size" value={`${style.fontSizePct.toFixed(1)}%`}>
-          <Slider min={2} max={12} step={0.1} value={style.fontSizePct} onChange={(v) => onChange({ fontSizePct: v })} />
+        <Field
+          label="Font size"
+          value={Math.min(style.fontSizePct, 10).toFixed(1)}
+        >
+          <Slider
+            min={1}
+            max={10}
+            step={0.1}
+            value={Math.min(style.fontSizePct, 10)}
+            onChange={(v) => onChange({ fontSizePct: v })}
+          />
         </Field>
+        <p className="text-[10px] leading-relaxed text-neutral-600">
+          Size 1–10. Best looking captions are usually around 3–4.
+        </p>
 
         <Field label="Weight">
           <Segmented

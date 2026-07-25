@@ -9,7 +9,7 @@ import type { StyleProfile } from "./types";
 // live overlay + toASS + burned-MP4 pipeline with zero new render code. Bucket->number
 // tables live here so the analyzer never has to guess pixel values.
 
-const SIZE_PCT = { s: 4.5, m: 5.5, l: 6.5, xl: 8 } as const;
+const SIZE_PCT = { s: 3, m: 3.5, l: 4.5, xl: 6 } as const;
 const TRACKING_EM = { tight: -0.02, normal: 0, wide: 0.06 } as const;
 const LINE_MULT = { tight: 1.1, normal: 1.25, loose: 1.5 } as const;
 const OPACITY = { none: 0, semi: 0.7, solid: 0.9 } as const;
@@ -40,7 +40,7 @@ export function profileToSubtitleStyle(p: StyleProfile): SubtitleStyle {
   return {
     ...DEFAULT_STYLE,
     fontFamily: familyOf(p.fontMatch.fontId),
-    fontSizePct: clamp(SIZE_PCT[t.sizeBucket], 2, 12),
+    fontSizePct: clamp(SIZE_PCT[t.sizeBucket], 1, 10),
     fontWeight: cssWeight(p.font.weight),
     color: hex(c.text, DEFAULT_STYLE.color),
     outlineColor: hex(c.outline, DEFAULT_STYLE.outlineColor),
