@@ -512,6 +512,7 @@ export function StylePanel({
               { label: "Pop", value: "pop" },
               { label: "Kinetic", value: "kinetic" },
               { label: "Scatter", value: "scatter" },
+              { label: "Hook", value: "hook" },
             ]}
           />
         </Field>

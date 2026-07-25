@@ -12,6 +12,11 @@ import {
 import { isEmphasisOn, isEmphasizedWord } from "@/lib/subtitles/emphasis";
 import { tokenizeSegment } from "@/lib/subtitles/karaoke";
 import {
+  HOOK_FOCUS_SCALE,
+  HOOK_SATELLITE_FONT,
+  HOOK_SATELLITE_SCALE,
+  hookLayout,
+  isHook,
   isKinetic,
   isScatter,
   kineticFocusIndex,
@@ -73,6 +78,8 @@ function animationClass(style: SubtitleStyle): string {
     case "kinetic":
       return "cap-anim-kinetic";
     case "scatter":
+      return "cap-anim-kinetic";
+    case "hook":
       return "cap-anim-kinetic";
     default:
       return "";
@@ -180,10 +187,119 @@ export function SubtitleOverlay({
   let content: ReactNode = casedText;
   const useKinetic = hasText && isKinetic(style) && !prism;
   const useScatter = hasText && isScatter(style) && !prism;
-  const useKaraoke = hasText && style.karaoke && !prism && !useKinetic && !useScatter;
-  const useEmphasis = hasText && isEmphasisOn(style) && !prism && !useKinetic && !useScatter;
+  const useHook = hasText && isHook(style) && !prism;
+  const useKaraoke =
+    hasText && style.karaoke && !prism && !useKinetic && !useScatter && !useHook;
+  const useEmphasis =
+    hasText && isEmphasisOn(style) && !prism && !useKinetic && !useScatter && !useHook;
 
-  if (useScatter) {
+  if (useHook) {
+    const tokens = tokenizeSegment(segment!);
+    if (tokens.length) {
+      const focus = kineticFocusIndex(tokens.length, filled);
+      const layout = hookLayout(tokens.length, focus);
+      const baseFs = px(style.fontSizePct);
+      const gap = px(kineticGapPct(style.fontSizePct) * 0.85);
+      const glow = style.glowStrength ?? 0;
+      const wordAt = (i: number) =>
+        applyTextCase(tokens[i]!.text, caseMode === "sentence" && i > 0 ? "lower" : caseMode);
+
+      const satellite = (indices: number[], key: string) =>
+        indices.length === 0 ? null : (
+          <span
+            key={key}
+            className="cap-kinetic-word"
+            style={{
+              display: "block",
+              fontFamily: fontStack(HOOK_SATELLITE_FONT),
+              fontSize: baseFs * HOOK_SATELLITE_SCALE,
+              fontWeight: 500,
+              color: style.color,
+              letterSpacing: "0.01em",
+              lineHeight: 1.05,
+              whiteSpace: "nowrap",
+              textShadow: style.shadow
+                ? `0 ${1 * scale}px ${3 * scale}px rgba(0,0,0,0.45)`
+                : "none",
+            }}
+          >
+            {indices.map((i) => wordAt(i)).join(" ")}
+          </span>
+        );
+
+      const focusGlow =
+        glow > 0
+          ? [
+              `0 0 ${glow * 2 * scale}px ${hexToRgba(style.glowColor || style.highlightColor, 0.95)}`,
+              `0 0 ${glow * 5 * scale}px ${hexToRgba(style.glowColor || style.highlightColor, 0.65)}`,
+              `0 0 ${glow * 10 * scale}px ${hexToRgba(style.glowColor || style.highlightColor, 0.35)}`,
+            ].join(", ")
+          : buildTextShadow(style, scale, false);
+
+      content = (
+        <span
+          className="cap-hook"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap,
+            width: "100%",
+            pointerEvents: "none",
+          }}
+        >
+          {satellite(layout.before, "before")}
+          <span
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "baseline",
+              justifyContent: "center",
+              gap: "0.28em",
+              flexWrap: "nowrap",
+            }}
+          >
+            <span
+              className="cap-kinetic-word"
+              style={{
+                display: "inline-block",
+                fontFamily: fontStack(style.fontFamily),
+                fontSize: baseFs * HOOK_FOCUS_SCALE,
+                fontWeight: style.fontWeight,
+                color: style.highlightColor,
+                letterSpacing: `${style.letterSpacingEm}em`,
+                lineHeight: 1,
+                whiteSpace: "nowrap",
+                textShadow: focusGlow,
+                transition: "font-size 0.2s cubic-bezier(0.22, 1.15, 0.36, 1)",
+              }}
+            >
+              {wordAt(layout.focus)}
+            </span>
+            {layout.beside != null && (
+              <span
+                className="cap-kinetic-word"
+                style={{
+                  display: "inline-block",
+                  fontFamily: fontStack(HOOK_SATELLITE_FONT),
+                  fontSize: baseFs * HOOK_SATELLITE_SCALE,
+                  fontWeight: 500,
+                  color: style.color,
+                  letterSpacing: "0.01em",
+                  lineHeight: 1,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {wordAt(layout.beside)}
+              </span>
+            )}
+          </span>
+          {satellite(layout.below, "below")}
+        </span>
+      );
+    }
+  } else if (useScatter) {
     const tokens = tokenizeSegment(segment!);
     if (tokens.length) {
       const focus = kineticFocusIndex(tokens.length, filled);
@@ -332,9 +448,11 @@ export function SubtitleOverlay({
   }
 
   const anim =
-    hasText && !dragging.current && !useKinetic && !useScatter ? animationClass(style) : "";
+    hasText && !dragging.current && !useKinetic && !useScatter && !useHook
+      ? animationClass(style)
+      : "";
   const animKey = hasText
-    ? `${segment!.start}-${style.animation}-${style.textEffect ?? "none"}-${useKinetic || useScatter ? filled : 0}`
+    ? `${segment!.start}-${style.animation}-${style.textEffect ?? "none"}-${useKinetic || useScatter || useHook ? filled : 0}`
     : "ghost";
 
   const barHeight = px(
@@ -404,7 +522,7 @@ export function SubtitleOverlay({
           <span className="cap-prism" style={spanStyle}>
             {content}
           </span>
-        ) : useKinetic || useScatter ? (
+        ) : useKinetic || useScatter || useHook ? (
           content
         ) : (
           <span style={spanStyle}>{content}</span>

@@ -1,5 +1,6 @@
-// Premium Style 1 = stacked "kinetic". Premium Style 2 = scattered "scatter"
-// (Klickpin reference: words up/down + bigger/smaller, all still visible).
+// Premium Style 1 = stacked "kinetic".
+// Premium Style 2 = scattered "scatter" (up/down + big/small).
+// Premium Style 3 = neon "hook" (support lines + glowing keyword).
 
 export interface KineticWordPose {
   /** Multiplier on the base caption font size (1 = base). */
@@ -104,12 +105,16 @@ export function isScatter(style: { animation?: string }): boolean {
   return style.animation === "scatter";
 }
 
-/** Either premium kinetic mode — needs per-word fill tracking. */
-export function isKineticMode(style: { animation?: string }): boolean {
-  return isKinetic(style) || isScatter(style);
+export function isHook(style: { animation?: string }): boolean {
+  return style.animation === "hook";
 }
 
-/** Vertical gap between stacked words, as % of video height (Style 1). */
+/** Premium modes that need per-word fill tracking. */
+export function isKineticMode(style: { animation?: string }): boolean {
+  return isKinetic(style) || isScatter(style) || isHook(style);
+}
+
+/** Vertical gap between stacked words, as % of video height (Style 1 / 3). */
 export function kineticGapPct(fontSizePct: number): number {
   return Math.max(0.55, fontSizePct * 0.12);
 }
@@ -118,3 +123,29 @@ export function kineticGapPct(fontSizePct: number): number {
 export function scatterStageHeightPct(fontSizePct: number): number {
   return Math.max(fontSizePct * 4.2, 26);
 }
+
+/**
+ * Premium Style 3 (hook) layout slices — matches the boho/Klickpin "After" reference:
+ * support words above, neon keyword (+ optional next word beside), rest below.
+ */
+export function hookLayout(tokenCount: number, focus = 0): {
+  before: number[];
+  focus: number;
+  beside: number | null;
+  below: number[];
+} {
+  const n = Math.max(1, tokenCount);
+  const f = ((focus % n) + n) % n;
+  const before = Array.from({ length: f }, (_, i) => i);
+  const after = Array.from({ length: n - f - 1 }, (_, i) => f + 1 + i);
+  const beside = after.length >= 1 ? after[0]! : null;
+  const below = after.length > 1 ? after.slice(1) : [];
+  return { before, focus: f, beside, below };
+}
+
+/** Focus scale vs satellite scale for hook mode. */
+export const HOOK_FOCUS_SCALE = 1.35;
+export const HOOK_SATELLITE_SCALE = 0.48;
+/** Prefer a serif for white support lines when available. */
+export const HOOK_SATELLITE_FONT = "Instrument Serif";
+

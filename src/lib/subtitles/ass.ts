@@ -8,7 +8,16 @@ import {
 } from "./style";
 import { isEmphasisOn, isEmphasizedWord } from "./emphasis";
 import { tokenizeSegment } from "./karaoke";
-import { isKinetic, isScatter, kineticPoses, scatterPoses } from "./kinetic";
+import {
+  HOOK_FOCUS_SCALE,
+  HOOK_SATELLITE_SCALE,
+  hookLayout,
+  isHook,
+  isKinetic,
+  isScatter,
+  kineticPoses,
+  scatterPoses,
+} from "./kinetic";
 
 // ASS (Advanced SubStation Alpha) carries full styling, so an exported .ass reproduces
 // the font, size, colors, outline, box and position seen in the live preview. The canvas
@@ -65,6 +74,8 @@ function entranceTags(style: SubtitleStyle): string {
     case "kinetic":
       return "{\\fad(120,80)}";
     case "scatter":
+      return "{\\fad(120,80)}";
+    case "hook":
       return "{\\fad(120,80)}";
     default:
       return "";
@@ -162,6 +173,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
   const events = segments
     .flatMap((s) => {
+      if (isHook(style) && (style.textEffect ?? "none") !== "prism") {
+        return hookDialogues(s, style, PLAY_W, PLAY_H);
+      }
       if (isScatter(style) && (style.textEffect ?? "none") !== "prism") {
         return scatterDialogues(s, style, PLAY_W, PLAY_H);
       }
@@ -270,6 +284,70 @@ function scatterDialogues(
         `Dialogue: ${i},${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${tags}${word}`,
       );
     });
+  });
+
+  return lines;
+}
+
+/**
+ * Premium Style 3 burn: stacked hook — neon focus word, white support lines (ASS approx).
+ */
+function hookDialogues(
+  seg: Segment,
+  style: SubtitleStyle,
+  _playW: number,
+  playH: number,
+): string[] {
+  const tokens = tokenizeSegment(seg);
+  if (!tokens.length) {
+    const body = applyTextCase(seg.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
+    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,{\\fad(120,80)}${body}`];
+  }
+
+  const caseMode = effectiveTextCase(style);
+  const baseFs = Math.round((style.fontSizePct / 100) * playH);
+  const satFs = Math.max(8, Math.round(baseFs * HOOK_SATELLITE_SCALE));
+  const focusFs = Math.max(10, Math.round(baseFs * HOOK_FOCUS_SCALE));
+  const white = assColor(style.color, 0);
+  const neon = assColor(style.highlightColor, 0);
+  const lines: string[] = [];
+
+  const wordAt = (i: number) => {
+    const raw = tokens[i]!.text;
+    return caseMode === "sentence" && i > 0
+      ? raw.toLowerCase()
+      : applyTextCase(raw, caseMode);
+  };
+
+  tokens.forEach((tk, focus) => {
+    const layout = hookLayout(tokens.length, focus);
+    const t0 = tk.start;
+    const t1 = focus < tokens.length - 1 ? tokens[focus + 1].start : seg.end;
+    if (t1 <= t0) return;
+
+    const parts: string[] = [];
+    if (layout.before.length) {
+      parts.push(
+        `{\\c${white}\\fs${satFs}}${layout.before.map(wordAt).join(" ")}`,
+      );
+    }
+    const mid = `{\\c${neon}\\fs${focusFs}\\b1}${wordAt(layout.focus)}{\\b0}`;
+    if (layout.beside != null) {
+      parts.push(
+        `${mid} {\\c${white}\\fs${satFs}}${wordAt(layout.beside)}`,
+      );
+    } else {
+      parts.push(mid);
+    }
+    if (layout.below.length) {
+      parts.push(
+        `{\\c${white}\\fs${satFs}}${layout.below.map(wordAt).join(" ")}`,
+      );
+    }
+
+    lines.push(
+      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,{\\an5\\fad(120,80)}${parts.join("\\N")}`,
+    );
   });
 
   return lines;
