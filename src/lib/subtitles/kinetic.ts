@@ -41,7 +41,7 @@ export function kineticPoses(wordCount: number, focus = 0): KineticWordPose[] {
 
 /**
  * Premium Style 2 — Klickpin scatter. Words sit at different X/Y with size hierarchy.
- * Gaps are modest so glyphs don't collide but still feel dynamic.
+ * Vertical gaps stay tight so pairs like "on my" / "podcast" nearly touch (reference look).
  */
 export function scatterPoses(wordCount: number, focus = 0): ScatterWordPose[] {
   const n = Math.max(1, wordCount);
@@ -52,29 +52,29 @@ export function scatterPoses(wordCount: number, focus = 0): ScatterWordPose[] {
   }
 
   if (n === 2) {
-    // "that every" / "on my" + "podcast": one elevated, one lower; focus is the big one.
+    // Focus first: diagonal "that" / "every". Focus second: tight stack "on my" / "podcast".
     return f === 0
       ? [
-          { scale: 1.25, xPct: -8, yPct: -5.5 },
-          { scale: 0.55, xPct: 12, yPct: 5.5 },
+          { scale: 1.22, xPct: -9, yPct: -2.0 },
+          { scale: 0.52, xPct: 11, yPct: 2.4 },
         ]
       : [
-          { scale: 0.55, xPct: -4, yPct: -6.5 },
-          { scale: 1.25, xPct: 2, yPct: 5 },
+          { scale: 0.5, xPct: 0, yPct: -2.8 },
+          { scale: 1.22, xPct: 0, yPct: 2.2 },
         ];
   }
 
   if (n === 3) {
-    // "you" / "know" / "the one"
+    // "you" / "know" / "the one" — compact scatter.
     const base: ScatterWordPose[] = [
-      { scale: 1.05, xPct: -16, yPct: -9 },
-      { scale: 0.5, xPct: 18, yPct: -1 },
-      { scale: 1.15, xPct: -6, yPct: 8 },
+      { scale: 1.0, xPct: -10, yPct: -4.5 },
+      { scale: 0.48, xPct: 12, yPct: -0.5 },
+      { scale: 1.1, xPct: -4, yPct: 4.0 },
     ];
     return base.map((p, i) =>
       i === f
-        ? { ...p, scale: Math.max(p.scale, 1.2) }
-        : { ...p, scale: Math.min(p.scale, 0.58) },
+        ? { ...p, scale: Math.max(p.scale, 1.18) }
+        : { ...p, scale: Math.min(p.scale, 0.55) },
     );
   }
 
@@ -83,9 +83,9 @@ export function scatterPoses(wordCount: number, focus = 0): ScatterWordPose[] {
     const col = i % 2;
     const isFocus = i === f;
     return {
-      scale: isFocus ? 1.18 : col === 0 ? 0.65 : 0.5,
-      xPct: col === 0 ? -14 - row * 2 : 14 + row * 2,
-      yPct: (row - 1) * 8 + (col === 0 ? -4 : 5),
+      scale: isFocus ? 1.15 : col === 0 ? 0.6 : 0.48,
+      xPct: col === 0 ? -10 - row : 10 + row,
+      yPct: (row - 1) * 4.5 + (col === 0 ? -2 : 2.5),
     };
   });
 }
@@ -119,9 +119,9 @@ export function kineticGapPct(fontSizePct: number): number {
   return Math.max(0.55, fontSizePct * 0.12);
 }
 
-/** Scatter stage height (% of video) so ±yPct words aren't clipped. */
+/** Scatter stage height (% of video) — compact now that yPct offsets are tight. */
 export function scatterStageHeightPct(fontSizePct: number): number {
-  return Math.max(fontSizePct * 4.2, 26);
+  return Math.max(fontSizePct * 3.2, 18);
 }
 
 /**
@@ -148,4 +148,3 @@ export const HOOK_FOCUS_SCALE = 1.35;
 export const HOOK_SATELLITE_SCALE = 0.48;
 /** Prefer a serif for white support lines when available. */
 export const HOOK_SATELLITE_FONT = "Instrument Serif";
-
