@@ -13,8 +13,8 @@ import type { Segment } from "@/lib/transcription/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Burning re-encodes the whole video; allow long-running requests on a container host.
-export const maxDuration = 600;
+// Burning re-encodes the whole video. Vercel Hobby caps serverless at 300s; keep at the max.
+export const maxDuration = 300;
 
 // POST /api/export/[id] — render the current captions + style permanently into the video
 // and return a URL to the finished MP4. The client sends its live style and (possibly
