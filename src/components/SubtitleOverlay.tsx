@@ -119,20 +119,35 @@ export function SubtitleOverlay({
   const caseMode = effectiveTextCase(style);
   const casedText = applyTextCase(displayText, caseMode);
 
+  // Boxed captions: flex + slightly more top padding so glyphs sit optically centered
+  // in the white pill (Telugu/Latin fonts often sit high in the em box).
+  const boxPadY = px(style.bgPaddingYPct);
+  const boxPadX = px(style.bgPaddingXPct);
+  const opticalNudge = showBox && !isBar ? Math.max(1, px(style.fontSizePct) * 0.08) : 0;
+
   const spanStyle: CSSProperties = {
-    display: "inline-block",
+    display: showBox && !isBar ? "inline-flex" : "inline-block",
+    alignItems: showBox && !isBar ? "center" : undefined,
+    justifyContent:
+      showBox && !isBar
+        ? style.align === "left"
+          ? "flex-start"
+          : style.align === "right"
+            ? "flex-end"
+            : "center"
+        : undefined,
     maxWidth: "100%",
     fontFamily: fontStack(style.fontFamily),
     fontSize: px(style.fontSizePct),
     fontWeight: style.fontWeight,
     color: prism ? undefined : style.color,
-    lineHeight: style.lineHeight,
+    lineHeight: showBox && !isBar ? 1 : style.lineHeight,
     letterSpacing: `${style.letterSpacingEm}em`,
     whiteSpace: "pre-wrap",
     wordBreak: "break-word",
     background: prism ? undefined : bg,
     padding: showBox && !isBar
-      ? `${px(style.bgPaddingYPct)}px ${px(style.bgPaddingXPct)}px`
+      ? `${boxPadY + opticalNudge}px ${boxPadX}px ${Math.max(0, boxPadY - opticalNudge)}px`
       : isBar
         ? `${px(Math.max(style.bgPaddingYPct, 1.2))}px ${px(style.bgPaddingXPct)}px`
         : "0",

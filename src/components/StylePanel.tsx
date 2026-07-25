@@ -163,7 +163,9 @@ function PresetCard({
           />
         )}
         <span
-          className="relative z-[1] max-w-full truncate px-1.5 py-0.5 text-[11px] font-semibold leading-tight"
+          className={`relative z-[1] max-w-full truncate px-1.5 text-[11px] font-semibold leading-none ${
+            showBox && box !== "bar" ? "inline-flex items-center pt-[5px] pb-[3px]" : "py-0.5 leading-tight"
+          }`}
           style={
             prism
               ? {
