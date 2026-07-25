@@ -90,7 +90,7 @@ export const PRESETS: StylePreset[] = [
       align: "center",
       positionYPct: 48,
       maxWidthPct: 92,
-      letterSpacingEm: 0.02,
+      letterSpacingEm: -0.02,
       lineHeight: 1,
       textCase: "lower",
       uppercase: false,
