@@ -1,15 +1,42 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fontStack } from "@/lib/fonts";
 import type { Segment } from "@/lib/transcription/types";
 
 // Editable transcript. When the user finishes editing a line (blur), onTextCommit
 // fires so the parent can auto-learn word corrections into memory — no Listener panel.
+// While the video plays, the active line auto-scrolls into view (paused briefly if the
+// user scrolls or edits manually).
 
 function fmt(t: number): string {
   const m = Math.floor(t / 60);
   const s = t % 60;
   return `${m}:${s.toFixed(1).padStart(4, "0")}`;
+}
+
+function scrollRowIntoPanel(row: HTMLElement) {
+  let parent: HTMLElement | null = row.parentElement;
+  while (parent) {
+    const style = getComputedStyle(parent);
+    const canScroll =
+      /(auto|scroll)/.test(style.overflowY) && parent.scrollHeight > parent.clientHeight + 1;
+    if (canScroll) break;
+    parent = parent.parentElement;
+  }
+
+  if (parent) {
+    const parentRect = parent.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    const pad = 12;
+    if (rowRect.top < parentRect.top + pad) {
+      parent.scrollBy({ top: rowRect.top - parentRect.top - pad, behavior: "smooth" });
+    } else if (rowRect.bottom > parentRect.bottom - pad) {
+      parent.scrollBy({ top: rowRect.bottom - parentRect.bottom + pad, behavior: "smooth" });
+    }
+  } else {
+    row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
 }
 
 export function SubtitleList({
@@ -26,6 +53,70 @@ export function SubtitleList({
   /** Fired when the user leaves a caption line after editing (blur). */
   onTextCommit?: (index: number, text: string) => void;
 }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef<HTMLLIElement>(null);
+  const lastActiveRef = useRef(-1);
+  /** Epoch ms — skip auto-follow until then (user is scrolling / editing). */
+  const pauseUntilRef = useRef(0);
+  const [following, setFollowing] = useState(true);
+
+  const activeIndex = segments.findIndex(
+    (s) => currentTime >= s.start && currentTime < s.end,
+  );
+
+  const pauseFollow = (ms = 4000) => {
+    pauseUntilRef.current = Date.now() + ms;
+    setFollowing(false);
+  };
+
+  const tryScrollActive = useCallback(() => {
+    const row = activeRef.current;
+    if (!row) return;
+
+    const root = rootRef.current;
+    const focused = document.activeElement;
+    if (
+      root &&
+      focused &&
+      root.contains(focused) &&
+      (focused instanceof HTMLTextAreaElement || focused instanceof HTMLInputElement)
+    ) {
+      return;
+    }
+
+    scrollRowIntoPanel(row);
+  }, []);
+
+  const resumeFollow = () => {
+    pauseUntilRef.current = 0;
+    setFollowing(true);
+    requestAnimationFrame(() => tryScrollActive());
+  };
+
+  // Keep the spoken line in view as the playhead moves.
+  useEffect(() => {
+    if (activeIndex < 0) return;
+    if (activeIndex === lastActiveRef.current) return;
+    lastActiveRef.current = activeIndex;
+
+    if (Date.now() < pauseUntilRef.current) return;
+
+    setFollowing(true);
+    requestAnimationFrame(() => tryScrollActive());
+  }, [activeIndex, tryScrollActive]);
+
+  // After a manual-scroll pause, resume following automatically.
+  useEffect(() => {
+    if (following) return;
+    const id = window.setInterval(() => {
+      if (Date.now() >= pauseUntilRef.current) {
+        setFollowing(true);
+        tryScrollActive();
+      }
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [following, tryScrollActive]);
+
   const update = (i: number, patch: Partial<Segment>) =>
     onChange(segments.map((s, j) => (j === i ? { ...s, ...patch } : s)));
 
@@ -39,28 +130,47 @@ export function SubtitleList({
   };
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
+    <div
+      ref={rootRef}
+      className="space-y-2"
+      onWheel={() => pauseFollow()}
+      onTouchMove={() => pauseFollow()}
+    >
+      <div className="flex items-center justify-between gap-2">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Transcript · {segments.length} lines
         </h3>
-        {segments.length === 0 && (
-          <button
-            type="button"
-            onClick={() => addAfter(-1)}
-            className="text-xs text-sky-400 hover:text-sky-300"
-          >
-            + Add line
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {!following && (
+            <button
+              type="button"
+              onClick={resumeFollow}
+              className="text-[11px] text-sky-400 hover:text-sky-300"
+              title="Scroll the transcript with the video again"
+            >
+              Follow playback
+            </button>
+          )}
+          {segments.length === 0 && (
+            <button
+              type="button"
+              onClick={() => addAfter(-1)}
+              className="text-xs text-sky-400 hover:text-sky-300"
+            >
+              + Add line
+            </button>
+          )}
+        </div>
       </div>
 
       <ol className="space-y-1.5">
         {segments.map((s, i) => {
-          const active = currentTime >= s.start && currentTime < s.end;
+          const active = i === activeIndex;
           return (
             <li
               key={i}
+              ref={active ? activeRef : undefined}
+              data-active={active || undefined}
               className={`rounded-lg border p-2.5 transition ${
                 active
                   ? "border-sky-500/60 bg-sky-500/10"
@@ -82,6 +192,7 @@ export function SubtitleList({
                   step={0.1}
                   value={s.start.toFixed(1)}
                   onChange={(e) => update(i, { start: parseFloat(e.target.value) || 0 })}
+                  onFocus={() => pauseFollow(8000)}
                   onBlur={() => onTextCommit?.(i, segments[i].text)}
                   className="w-16 rounded bg-neutral-800 px-1.5 py-0.5 font-mono text-neutral-200 outline-none focus:ring-1 focus:ring-sky-500"
                   aria-label="Start time (seconds)"
@@ -91,6 +202,7 @@ export function SubtitleList({
                   step={0.1}
                   value={s.end.toFixed(1)}
                   onChange={(e) => update(i, { end: parseFloat(e.target.value) || 0 })}
+                  onFocus={() => pauseFollow(8000)}
                   onBlur={() => onTextCommit?.(i, segments[i].text)}
                   className="w-16 rounded bg-neutral-800 px-1.5 py-0.5 font-mono text-neutral-200 outline-none focus:ring-1 focus:ring-sky-500"
                   aria-label="End time (seconds)"
@@ -119,6 +231,7 @@ export function SubtitleList({
                 lang="te"
                 rows={Math.max(1, Math.ceil(s.text.length / 42))}
                 onChange={(e) => update(i, { text: e.target.value })}
+                onFocus={() => pauseFollow(8000)}
                 onBlur={(e) => onTextCommit?.(i, e.target.value)}
                 style={{ fontFamily: fontStack("Noto Sans Telugu") }}
                 className="w-full resize-none rounded bg-transparent text-[15px] leading-snug text-neutral-100 outline-none focus:bg-neutral-800/60"
