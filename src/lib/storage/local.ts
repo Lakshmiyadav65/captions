@@ -16,9 +16,13 @@ import {
 // Local-disk storage under ./storage (git-ignored, NOT public). Objects are served via
 // the /api/media route with HTTP range support, so playback doesn't depend on /public.
 
+// On Vercel the app filesystem is read-only except /tmp. Prefer /tmp so a local-driver
+// upload can at least accept bytes (still ephemeral — use STORAGE_DRIVER=s3 in prod).
 const ROOT = process.env.STORAGE_LOCAL_DIR
   ? resolve(process.env.STORAGE_LOCAL_DIR)
-  : join(process.cwd(), "storage");
+  : process.env.VERCEL
+    ? join("/tmp", "captions-storage")
+    : join(process.cwd(), "storage");
 
 function keyToPath(key: string): string {
   const target = resolve(ROOT, key);

@@ -38,7 +38,10 @@ export function Uploader() {
       } else if (xhr.status === 401) {
         router.push("/signin");
       } else {
-        let msg = "Upload failed. Please try again.";
+        let msg =
+          xhr.responseText?.trim()
+            ? "Upload failed. Please try again."
+            : "Upload failed — the server crashed (often a missing Postgres DATABASE_URL on Vercel). Check /api/health.";
         let body: { error?: string; code?: string } = {};
         try {
           body = JSON.parse(xhr.responseText) as { error?: string; code?: string };

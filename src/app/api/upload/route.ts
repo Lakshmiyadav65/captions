@@ -23,80 +23,116 @@ function safeExt(name: string): string {
   return /^\.[a-z0-9]{1,5}$/.test(e) ? e : ".mp4";
 }
 
+function dbMisconfiguredMessage(err: unknown): string | null {
+  const message = err instanceof Error ? err.message : String(err);
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("database") ||
+    lower.includes("prisma") ||
+    lower.includes("sqlite") ||
+    lower.includes("postgres") ||
+    lower.includes("p1001") ||
+    lower.includes("p1003") ||
+    lower.includes("p1010") ||
+    lower.includes("does not exist") ||
+    lower.includes("can't reach") ||
+    lower.includes("econnrefused")
+  ) {
+    return (
+      "Database is not configured for this deploy. On Vercel set DATABASE_URL to a " +
+      "Postgres URL (Neon / Vercel Postgres), enable it for Production and Build, " +
+      "then run: npx prisma db push"
+    );
+  }
+  return null;
+}
+
 export async function POST(req: NextRequest) {
-  if (!req.body) {
-    return NextResponse.json({ error: "No file in request body." }, { status: 400 });
-  }
-
-  // Auth (no-op / dev user when AUTH_ENABLED=false).
-  const userId = await requireUserId();
-  if (userId === null) {
-    return NextResponse.json({ error: "Sign in to upload." }, { status: 401 });
-  }
-
-  const forwarded = req.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || undefined;
-  const rate = await assertUploadRateLimit(userId, ip);
-  if (!rate.ok) {
-    log.warn("upload.rate_limited", { userId, ip, retryAfterSec: rate.retryAfterSec });
-    return NextResponse.json(
-      { error: "Too many uploads. Try again shortly.", code: "rate_limit" },
-      {
-        status: 429,
-        headers: { "Retry-After": String(rate.retryAfterSec) },
-      },
-    );
-  }
-
-  // Reject over-size uploads up front via Content-Length.
-  const declared = Number(req.headers.get("content-length") || 0);
-  if (declared && declared > config.limits.maxUploadBytes) {
-    return NextResponse.json(
-      { error: `File too large. Max ${config.limits.maxUploadMB} MB.` },
-      { status: 413 },
-    );
-  }
-
-  const quota = await assertWithinQuota(userId);
-  if (!quota.ok) {
-    return NextResponse.json(
-      { error: quota.reason, code: quota.code },
-      { status: 429 },
-    );
-  }
-
-  const originalName = decodeURIComponent(
-    req.headers.get("x-filename") || "video.mp4",
-  );
-  const ext = safeExt(originalName);
-
-  const job = await prisma.job.create({
-    data: { status: "queued", originalName, userId },
-  });
-
-  const key = `uploads/${job.id}/source${ext}`;
-  const storage = getStorage();
-
   try {
-    const nodeStream = Readable.fromWeb(
-      req.body as unknown as NodeWebReadableStream,
+    if (!req.body) {
+      return NextResponse.json({ error: "No file in request body." }, { status: 400 });
+    }
+
+    // Auth (no-op / dev user when AUTH_ENABLED=false).
+    const userId = await requireUserId();
+    if (userId === null) {
+      return NextResponse.json({ error: "Sign in to upload." }, { status: 401 });
+    }
+
+    const forwarded = req.headers.get("x-forwarded-for");
+    const ip = forwarded?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || undefined;
+    const rate = await assertUploadRateLimit(userId, ip);
+    if (!rate.ok) {
+      log.warn("upload.rate_limited", { userId, ip, retryAfterSec: rate.retryAfterSec });
+      return NextResponse.json(
+        { error: "Too many uploads. Try again shortly.", code: "rate_limit" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rate.retryAfterSec) },
+        },
+      );
+    }
+
+    // Reject over-size uploads up front via Content-Length.
+    const declared = Number(req.headers.get("content-length") || 0);
+    if (declared && declared > config.limits.maxUploadBytes) {
+      return NextResponse.json(
+        { error: `File too large. Max ${config.limits.maxUploadMB} MB.` },
+        { status: 413 },
+      );
+    }
+
+    const quota = await assertWithinQuota(userId);
+    if (!quota.ok) {
+      return NextResponse.json(
+        { error: quota.reason, code: quota.code },
+        { status: 429 },
+      );
+    }
+
+    const originalName = decodeURIComponent(
+      req.headers.get("x-filename") || "video.mp4",
     );
-    await storage.put(key, nodeStream, {
-      contentType: req.headers.get("content-type") ?? undefined,
+    const ext = safeExt(originalName);
+
+    const job = await prisma.job.create({
+      data: { status: "queued", originalName, userId },
     });
+
+    const key = `uploads/${job.id}/source${ext}`;
+    const storage = getStorage();
+
+    try {
+      const nodeStream = Readable.fromWeb(
+        req.body as unknown as NodeWebReadableStream,
+      );
+      await storage.put(key, nodeStream, {
+        contentType: req.headers.get("content-type") ?? undefined,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Upload failed";
+      await prisma.job.update({
+        where: { id: job.id },
+        data: { status: "failed", error: message.slice(0, 500) },
+      }).catch(() => {});
+      await reportError("upload.store_failed", err, { jobId: job.id, userId });
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+
+    await prisma.job.update({ where: { id: job.id }, data: { videoKey: key } });
+    await enqueueJob(job.id);
+    log.info("upload.enqueued", { jobId: job.id, userId, bytes: declared || undefined });
+
+    return NextResponse.json({ id: job.id });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Upload failed";
-    await prisma.job.update({
-      where: { id: job.id },
-      data: { status: "failed", error: message.slice(0, 500) },
-    });
-    await reportError("upload.store_failed", err, { jobId: job.id, userId });
-    return NextResponse.json({ error: message }, { status: 500 });
+    const dbMsg = dbMisconfiguredMessage(err);
+    const message =
+      dbMsg ?? (err instanceof Error ? err.message : "Upload failed");
+    log.error("upload.failed", { err });
+    await reportError("upload.failed", err);
+    return NextResponse.json(
+      { error: message, code: dbMsg ? "db_misconfigured" : "upload_failed" },
+      { status: 500 },
+    );
   }
-
-  await prisma.job.update({ where: { id: job.id }, data: { videoKey: key } });
-  await enqueueJob(job.id);
-  log.info("upload.enqueued", { jobId: job.id, userId, bytes: declared || undefined });
-
-  return NextResponse.json({ id: job.id });
 }

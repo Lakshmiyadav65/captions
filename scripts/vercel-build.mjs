@@ -10,25 +10,34 @@ import { dirname, join } from "node:path";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const schemaPath = join(root, "prisma", "schema.prisma");
 const dbUrl = process.env.DATABASE_URL ?? "";
+const isPostgresUrl = /^postgres(ql)?:\/\//i.test(dbUrl);
+// Vercel is always Postgres: SQLite file DBs are not writable/persistent on serverless.
+// Switch even if DATABASE_URL is missing at build time so the generated client matches runtime.
+const usePostgres = isPostgresUrl || Boolean(process.env.VERCEL);
 
 function run(cmd, args) {
   const r = spawnSync(cmd, args, { stdio: "inherit", cwd: root, shell: true });
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
 
-if (/^postgres(ql)?:\/\//i.test(dbUrl)) {
+if (usePostgres) {
   let schema = readFileSync(schemaPath, "utf8");
   if (schema.includes('provider = "sqlite"')) {
     schema = schema.replace('provider = "sqlite"', 'provider = "postgresql"');
     writeFileSync(schemaPath, schema);
-    console.log("✓ Prisma datasource → postgresql (DATABASE_URL is Postgres)");
+    console.log(
+      isPostgresUrl
+        ? "✓ Prisma datasource → postgresql (DATABASE_URL is Postgres)"
+        : "✓ Prisma datasource → postgresql (Vercel build; set DATABASE_URL to a Postgres URL)",
+    );
   }
-} else if (process.env.VERCEL) {
-  console.warn(
-    "⚠ Vercel build without a Postgres DATABASE_URL. " +
-      "Set DATABASE_URL to a Postgres connection string (Neon / Vercel Postgres / Supabase). " +
-      "SQLite will not work on serverless.",
-  );
+  if (!isPostgresUrl) {
+    console.warn(
+      "⚠ DATABASE_URL is missing or not Postgres. Upload/API will 500 until you set " +
+        "a postgresql:// URL (Neon / Vercel Postgres / Supabase) for Production + Build, " +
+        "then run: npx prisma db push",
+    );
+  }
 }
 
 run("npx", ["prisma", "generate"]);

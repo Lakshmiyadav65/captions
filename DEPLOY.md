@@ -71,13 +71,15 @@ local storage; switch to S3/R2 for multi-host.
 
 The earlier build failure (`maxDuration` 600) is fixed — export is capped at **300s** (Hobby max).
 
-1. **Project → Settings → Environment Variables** (Production), set at least:
+1. **Project → Settings → Environment Variables** (Production **and** Build), set at least:
    - `DATABASE_URL` — **Postgres** (Neon / Vercel Postgres / Supabase). SQLite will not work on Vercel.
+     Enable the variable for **Production** and **Build** (missing at build time used to leave a SQLite Prisma client).
    - `AUTH_SECRET` — `openssl rand -hex 32`
    - ASR keys (`SARVAM_API_KEY` or `OPENAI_API_KEY`) as needed
    - For durable uploads/exports: `STORAGE_DRIVER=s3` + S3/R2 vars (local disk is ephemeral on serverless)
 2. Connect the GitHub repo; push to `main` redeploys automatically.
 3. After first deploy with Postgres: run `npx prisma db push` against that `DATABASE_URL` once (local machine or Vercel CLI) so tables exist.
+4. Smoke-check: open `/api/health` — expect `{ "ok": true, "db": "ok" }`. If `db` is `"error"`, uploads will keep failing until Postgres + `db push` are fixed.
 
 `vercel.json` runs `scripts/vercel-build.mjs`, which switches Prisma to Postgres when `DATABASE_URL` is a `postgres://` URL, then `prisma generate` + `next build`.
 
