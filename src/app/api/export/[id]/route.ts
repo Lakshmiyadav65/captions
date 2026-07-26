@@ -1,24 +1,20 @@
 import { NextResponse } from "next/server";
-import { createReadStream } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-helpers";
-import { getStorage, type LocalFile } from "@/lib/storage";
-import { burnSubtitles, getVideoSize } from "@/lib/ffmpeg";
-import { toASS, DEFAULT_STYLE, type SubtitleStyle } from "@/lib/subtitles";
-import { fontsDir } from "@/lib/subtitles/fonts-dir";
+import { config } from "@/lib/config";
+import { burnCaptionedMp4 } from "@/lib/export-burn";
+import type { SubtitleStyle } from "@/lib/subtitles";
+import { reportError } from "@/lib/sentry";
 import type { Segment } from "@/lib/transcription/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Vercel Hobby allows maxDuration 1–300 only. Do not raise above 300 or deploys fail.
+// Vercel Hobby max 300s. On Docker/BullMQ the worker does the burn; this route mostly waits.
 export const maxDuration = 300;
 
-// POST /api/export/[id] — render the current captions + style permanently into the video
-// and return a URL to the finished MP4. The client sends its live style and (possibly
-// unsaved) segments so the burned file matches exactly what the editor previews.
+// POST /api/export/[id] — burn captions + style into an MP4.
+// Production (QUEUE_DRIVER=bullmq): enqueue to the export worker and wait for the result.
+// Local/inline: burn in-process (dev convenience).
 
 interface Body {
   style?: Partial<SubtitleStyle>;
@@ -54,37 +50,28 @@ export async function POST(
   const segments = Array.isArray(body.segments)
     ? body.segments
     : (JSON.parse(job.transcript.segments) as Segment[]);
-  const style: SubtitleStyle = { ...DEFAULT_STYLE, ...(body.style ?? {}) };
 
-  const storage = getStorage();
-  let localVideo: LocalFile | null = null;
-  let workDir: string | null = null;
+  const input = {
+    jobId: job.id,
+    videoKey: job.videoKey,
+    originalName: job.originalName,
+    durationSec: job.durationSec,
+    segments,
+    style: body.style ?? {},
+  };
 
   try {
-    localVideo = await storage.toLocalFile(job.videoKey);
-    // Author the ASS canvas at the real video resolution so libass doesn't stretch text
-    // on portrait/square footage (margins are % of width, font % of height).
-    const size = await getVideoSize(localVideo.path);
-    const ass = toASS(segments, style, size ?? undefined);
-    workDir = await mkdtemp(join(tmpdir(), "captions-burn-"));
-    const outPath = join(workDir, "captioned.mp4");
+    if (config.usesBull) {
+      const { enqueueExportAndWait } = await import("@/lib/queue/bull");
+      const result = await enqueueExportAndWait(input);
+      return NextResponse.json({ url: result.url, filename: result.filename });
+    }
 
-    await burnSubtitles(localVideo.path, ass, outPath, {
-      fontsDir: fontsDir(),
-      totalSec: job.durationSec ?? undefined,
-    });
-
-    const key = `exports/${job.id}/captioned.mp4`;
-    await storage.put(key, createReadStream(outPath), { contentType: "video/mp4" });
-
-    const url = await storage.getUrl(key);
-    const filename = `${(job.originalName ?? "telugu-captions").replace(/\.[^.]+$/, "")}-captioned.mp4`;
-    return NextResponse.json({ url, filename });
+    const result = await burnCaptionedMp4(input);
+    return NextResponse.json({ url: result.url, filename: result.filename });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Export failed";
+    await reportError("export.route_failed", err, { jobId: job.id, userId });
     return NextResponse.json({ error: message.slice(0, 500) }, { status: 500 });
-  } finally {
-    if (workDir) await rm(workDir, { recursive: true, force: true }).catch(() => {});
-    if (localVideo) await localVideo.cleanup().catch(() => {});
   }
 }

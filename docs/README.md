@@ -16,6 +16,8 @@ These six documents are the **source of truth** for shipping this product. Paste
 | 08 | [Phase 5 checklist](./08-phase5-checklist.md) | QA matrix + font parity |
 | 09 | [Phase 6 soft launch](./09-phase6-launch.md) | Invite pack + LIVE_URL |
 | 10 | [Phase 7 roadmap](./10-phase7-roadmap.md) | Timings, Stripe, languages, batch |
+| 11 | [Magazine production](./11-production-magazine.md) | Audience Magazine launch checklist + runbooks |
+| — | [Production env example](./env.production.example.md) | Secrets / quotas for compose prod |
 
 Also see:
 

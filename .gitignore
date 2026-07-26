@@ -31,3 +31,7 @@ next-env.d.ts
 /tmp/
 /tmp-*/
 .turbo/
+
+.vercel
+.env*
+!.env.example

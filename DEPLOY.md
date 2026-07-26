@@ -67,7 +67,20 @@ local storage; switch to S3/R2 for multi-host.
 
 ---
 
-## Deploy on Vercel (Hobby)
+## Deploy production (Audience Magazine)
+
+Use **[`docker-compose.prod.yml`](docker-compose.prod.yml)** with managed Neon + Redis + R2 — not Vercel Hobby for processing.
+
+Full checklist + runbooks: [`docs/11-production-magazine.md`](docs/11-production-magazine.md).
+
+```bash
+# Fill secrets (see docs/env.production.example.md)
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+Web applies `prisma migrate deploy` on boot. Worker runs transcription **and** MP4 export burns via BullMQ.
+
+## Deploy on Vercel (Hobby) — demos only
 
 The earlier build failure (`maxDuration` 600) is fixed — export is capped at **300s** (Hobby max).
 

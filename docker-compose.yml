@@ -25,8 +25,8 @@ services:
   app:
     build: .
     restart: unless-stopped
-    # Sync the schema on boot, then start the web server.
-    command: sh -c "npx prisma db push --accept-data-loss --skip-generate && npm run start"
+    # Apply Postgres migrations (never accept-data-loss on real data), then start web.
+    command: sh -c "node scripts/use-postgres.mjs && npx prisma migrate deploy && npm run start"
     environment:
       DATABASE_URL: postgresql://captions:captions@postgres:5432/captions
       QUEUE_DRIVER: bullmq
@@ -72,6 +72,7 @@ services:
       REDIS_URL: redis://redis:6379
       STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
+      EXPORT_WORKER_CONCURRENCY: ${EXPORT_WORKER_CONCURRENCY:-1}
       ASR_PROVIDER: ${ASR_PROVIDER:-mock}
       ASR_LANGUAGE: ${ASR_LANGUAGE:-te}
       SARVAM_API_KEY: ${SARVAM_API_KEY:-}

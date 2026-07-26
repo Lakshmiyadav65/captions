@@ -1,13 +1,18 @@
-import { Queue, type ConnectionOptions } from "bullmq";
+import { Queue, QueueEvents, type ConnectionOptions } from "bullmq";
 import { env } from "../config";
+import type { ExportBurnInput, ExportBurnResult } from "../export-burn";
 
-// BullMQ queue (production). The web app only ADDS jobs; the standalone worker
-// (src/worker.ts) consumes them. We pass connection *options* (not an ioredis instance)
-// so BullMQ uses its own bundled ioredis and there's no dual-package type clash.
+// BullMQ queues (production). Web ADDS jobs; standalone worker (src/worker.ts) consumes.
+// Pass connection *options* (not an ioredis instance) so BullMQ uses its bundled ioredis.
 
 export const QUEUE_NAME = "transcription";
+export const EXPORT_QUEUE_NAME = "export";
 
-const globalForQueue = globalThis as unknown as { asrQueue?: Queue };
+const globalForQueue = globalThis as unknown as {
+  asrQueue?: Queue;
+  exportQueue?: Queue;
+  exportEvents?: QueueEvents;
+};
 
 export function redisConnection(): ConnectionOptions {
   if (!env.REDIS_URL) {
@@ -33,16 +38,57 @@ export function getQueue(): Queue {
   return globalForQueue.asrQueue;
 }
 
+export function getExportQueue(): Queue {
+  if (!globalForQueue.exportQueue) {
+    globalForQueue.exportQueue = new Queue(EXPORT_QUEUE_NAME, {
+      connection: redisConnection(),
+    });
+  }
+  return globalForQueue.exportQueue;
+}
+
+function getExportEvents(): QueueEvents {
+  if (!globalForQueue.exportEvents) {
+    globalForQueue.exportEvents = new QueueEvents(EXPORT_QUEUE_NAME, {
+      connection: redisConnection(),
+    });
+  }
+  return globalForQueue.exportEvents;
+}
+
 export async function addBullJob(jobId: string): Promise<void> {
   await getQueue().add(
     "transcribe",
     { jobId },
     {
-      jobId, // dedupe: one queue entry per job
+      jobId,
       removeOnComplete: true,
       removeOnFail: 100,
       attempts: 2,
       backoff: { type: "exponential", delay: 5000 },
     },
   );
+}
+
+/** Enqueue an MP4 burn and wait for the worker result (keeps /api/export response shape). */
+export async function enqueueExportAndWait(
+  input: ExportBurnInput,
+  timeoutMs = 14 * 60 * 1000,
+): Promise<ExportBurnResult> {
+  const queue = getExportQueue();
+  const events = getExportEvents();
+  await events.waitUntilReady();
+
+  const bullJob = await queue.add("burn", input, {
+    removeOnComplete: true,
+    removeOnFail: 50,
+    attempts: 2,
+    backoff: { type: "exponential", delay: 8000 },
+  });
+
+  const result = (await bullJob.waitUntilFinished(
+    events,
+    timeoutMs,
+  )) as ExportBurnResult;
+  return result;
 }
