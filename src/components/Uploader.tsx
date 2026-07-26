@@ -27,7 +27,6 @@ export function Uploader() {
       access: "public",
       handleUploadUrl: "/api/upload/blob",
       multipart: true,
-      addRandomSuffix: true,
       onUploadProgress: ({ percentage }) => {
         setPct(Math.min(99, Math.round(percentage)));
       },
