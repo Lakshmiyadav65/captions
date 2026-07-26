@@ -69,6 +69,44 @@ function marginV(style: SubtitleStyle, playH: number): number {
   return Math.round(((100 - style.positionYPct) / 100) * playH);
 }
 
+/**
+ * Absolute caption anchor matching the live preview (`top: positionYPct%` + translateY(-50%)).
+ * Prefer \\pos over Style MarginV — Dialogue lines were overriding margins to 0, and
+ * premium burns hard-coded \\an5 (dead center), so exports ignored drag/Top/Bottom.
+ */
+function anchorPoint(
+  style: SubtitleStyle,
+  playW: number,
+  playH: number,
+): { x: number; y: number; an: number } {
+  const pct = Math.min(95, Math.max(5, style.positionYPct ?? 50));
+  const y = Math.round((pct / 100) * playH);
+  if (style.align === "left") {
+    return { x: Math.round(((100 - style.maxWidthPct) / 2 / 100) * playW), y, an: 4 };
+  }
+  if (style.align === "right") {
+    return {
+      x: Math.round(playW - ((100 - style.maxWidthPct) / 2 / 100) * playW),
+      y,
+      an: 6,
+    };
+  }
+  return { x: Math.round(playW / 2), y, an: 5 };
+}
+
+/** Merge \\an/\\pos with entrance (and optional extra) override tags into one block. */
+function overrideBlock(
+  style: SubtitleStyle,
+  playW: number,
+  playH: number,
+  extra = "",
+): string {
+  const { x, y, an } = anchorPoint(style, playW, playH);
+  const enter = entranceTags(style).replace(/^\{|\}$/g, "");
+  const bits = [`\\an${an}`, `\\pos(${x},${y})`, enter, extra].filter(Boolean);
+  return `{${bits.join("")}}`;
+}
+
 /** Prefix ASS override tags for entrance animation (fade / pop). */
 function entranceTags(style: SubtitleStyle): string {
   switch (style.animation) {
@@ -159,12 +197,9 @@ export function toASS(
 
   // Bar: tighter left/right margins so the opaque box reads wider (band-like).
   const maxW = isBar ? Math.max(style.maxWidthPct, 96) : style.maxWidthPct;
-  const align = alignmentCode(style);
-  const mv = marginV(style, PLAY_H);
   const marginLR = Math.round(((100 - maxW) / 2 / 100) * PLAY_W);
   const bold = style.fontWeight >= 600 ? -1 : 0;
   const spacing = Math.round(style.letterSpacingEm * fontSize);
-  const enter = entranceTags(style);
 
   const header = `[Script Info]
 Title: Telugu Captions
@@ -176,7 +211,7 @@ PlayResY: ${PLAY_H}
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,${style.fontFamily},${fontSize},${primaryColor},${secondaryColor},${outlineCol},${backCol},${bold},0,0,0,100,100,${spacing},0,${borderStyle},${outline},${shadow},${align},${marginLR},${marginLR},${mv},1
+Style: Default,${style.fontFamily},${fontSize},${primaryColor},${secondaryColor},${outlineCol},${backCol},${bold},0,0,0,100,100,${spacing},0,${borderStyle},${outline},${shadow},${alignmentCode(style)},${marginLR},${marginLR},${marginV(style, PLAY_H)},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -185,10 +220,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
   const events = segments
     .flatMap((s) => {
       if (isEditorial(style) && (style.textEffect ?? "none") !== "prism") {
-        return editorialDialogues(s, style, PLAY_H);
+        return editorialDialogues(s, style, PLAY_W, PLAY_H);
       }
       if (isFlash(style) && (style.textEffect ?? "none") !== "prism") {
-        return flashDialogues(s, style, PLAY_H);
+        return flashDialogues(s, style, PLAY_W, PLAY_H);
       }
       if (isHook(style) && (style.textEffect ?? "none") !== "prism") {
         return hookDialogues(s, style, PLAY_W, PLAY_H);
@@ -207,7 +242,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
       } else {
         body = applyTextCase(s.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
       }
-      return [`Dialogue: 0,${assTime(s.start)},${assTime(s.end)},Default,,0,0,0,,${enter}${body}`];
+      return [
+        `Dialogue: 0,${assTime(s.start)},${assTime(s.end)},Default,,0,0,0,,${overrideBlock(style, PLAY_W, PLAY_H)}${body}`,
+      ];
     })
     .join("\n");
 
@@ -221,13 +258,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 function kineticDialogues(
   seg: Segment,
   style: SubtitleStyle,
-  _playW: number,
+  playW: number,
   playH: number,
 ): string[] {
   const tokens = tokenizeSegment(seg);
+  const prefix = overrideBlock(style, playW, playH);
   if (!tokens.length) {
     const body = applyTextCase(seg.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
-    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,{\\fad(120,80)}${body}`];
+    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${body}`];
   }
 
   const caseMode = effectiveTextCase(style);
@@ -254,7 +292,7 @@ function kineticDialogues(
       .join("\\N");
 
     lines.push(
-      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,{\\an5\\fad(120,80)}${body}`,
+      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${prefix}${body}`,
     );
   });
 
@@ -312,12 +350,14 @@ function scatterDialogues(
 function editorialDialogues(
   seg: Segment,
   style: SubtitleStyle,
+  playW: number,
   playH: number,
 ): string[] {
   const tokens = tokenizeSegment(seg);
+  const prefix = overrideBlock(style, playW, playH);
   if (!tokens.length) {
     const body = applyTextCase(seg.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
-    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,{\\fad(140,100)}${body}`];
+    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${body}`];
   }
 
   const caseMode = effectiveTextCase(style);
@@ -355,7 +395,7 @@ function editorialDialogues(
     }
 
     lines.push(
-      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,{\\an5\\fad(140,100)}${parts.join("\\N")}`,
+      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${prefix}${parts.join("\\N")}`,
     );
   });
 
@@ -368,13 +408,16 @@ function editorialDialogues(
 function flashDialogues(
   seg: Segment,
   style: SubtitleStyle,
+  playW: number,
   playH: number,
 ): string[] {
   const tokens = tokenizeSegment(seg);
+  // Flash already encodes a scale pop in entranceTags — keep \\fs/\\c per word.
+  const prefix = overrideBlock(style, playW, playH);
   if (!tokens.length) {
     const body = applyTextCase(seg.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
     return [
-      `Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,{\\fscx80\\fscy80\\t(0,160,\\fscx100\\fscy100)}${body}`,
+      `Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${body}`,
     ];
   }
 
@@ -396,9 +439,8 @@ function flashDialogues(
         ? tk.text.toLowerCase()
         : applyTextCase(tk.text, caseMode);
     const col = useEmphasis && isEmphasizedWord(tk.text) ? accent : white;
-    const tags = `{\\an5\\fs${fs}\\c${col}\\fscx80\\fscy80\\t(0,160,\\fscx100\\fscy100)}`;
     lines.push(
-      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${tags}${word}`,
+      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${prefix}{\\fs${fs}\\c${col}}${word}`,
     );
   });
 
@@ -411,13 +453,14 @@ function flashDialogues(
 function hookDialogues(
   seg: Segment,
   style: SubtitleStyle,
-  _playW: number,
+  playW: number,
   playH: number,
 ): string[] {
   const tokens = tokenizeSegment(seg);
+  const prefix = overrideBlock(style, playW, playH);
   if (!tokens.length) {
     const body = applyTextCase(seg.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
-    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,{\\fad(120,80)}${body}`];
+    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${body}`];
   }
 
   const caseMode = effectiveTextCase(style);
@@ -462,7 +505,7 @@ function hookDialogues(
     }
 
     lines.push(
-      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,{\\an5\\fad(120,80)}${parts.join("\\N")}`,
+      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${prefix}${parts.join("\\N")}`,
     );
   });
 
