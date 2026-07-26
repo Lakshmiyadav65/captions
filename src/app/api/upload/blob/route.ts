@@ -56,6 +56,7 @@ export async function POST(request: Request) {
           "application/octet-stream",
         ],
         maximumSizeInBytes: config.limits.maxUploadBytes,
+        addRandomSuffix: true,
         tokenPayload: JSON.stringify({ userId }),
       }),
       onUploadCompleted: async ({ blob }) => {
