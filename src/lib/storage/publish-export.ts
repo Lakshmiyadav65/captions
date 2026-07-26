@@ -30,7 +30,15 @@ export async function publishExportMp4(
       multipart: true,
       token: process.env.BLOB_READ_WRITE_TOKEN,
     });
-    return { url: blob.downloadUrl || blob.url, key: blob.pathname };
+    // Use the plain CDN URL (not ?download=1). The client fetches bytes and
+    // triggers a same-origin blob: download — more reliable in Chrome.
+    return { url: blob.url, key: blob.pathname };
+  }
+
+  if (process.env.VERCEL) {
+    throw new Error(
+      "Burned MP4 download needs Vercel Blob (or S3). In the Vercel project: Storage → Blob → Connect, then redeploy.",
+    );
   }
 
   const storage = getStorage();

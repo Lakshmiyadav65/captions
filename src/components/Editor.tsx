@@ -51,22 +51,21 @@ function download(name: string, text: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
-/** Trigger a real file download for relative or absolute export URLs. */
+/** Fetch the export and save via a blob: URL so Chrome doesn't fail on cross-origin CDN links. */
 async function downloadFromUrl(url: string, filename: string) {
-  const abs = url.startsWith("http")
+  const raw = url.startsWith("http")
     ? url
     : new URL(url, window.location.origin).toString();
 
-  // Blob CDN / S3: ?download=1 (or Content-Disposition) makes the browser save the file.
-  if (/^https?:\/\//i.test(abs) && /blob\.vercel-storage\.com|download=1/i.test(abs)) {
-    const a = document.createElement("a");
-    a.href = abs;
-    a.download = filename;
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    return;
+  // Prefer the plain file URL — Chrome often fails ?download=1 cross-origin with
+  // "File wasn't available on site".
+  let abs = raw;
+  try {
+    const parsed = new URL(raw);
+    parsed.searchParams.delete("download");
+    abs = parsed.toString();
+  } catch {
+    /* keep raw */
   }
 
   const res = await fetch(abs);
@@ -78,14 +77,20 @@ async function downloadFromUrl(url: string, filename: string) {
     );
   }
   const blob = await res.blob();
+  if (!blob.size) {
+    throw new Error("Export file was empty. Click Export video again.");
+  }
   const objectUrl = URL.createObjectURL(blob);
   try {
     const a = document.createElement("a");
     a.href = objectUrl;
-    a.download = filename;
+    a.download = filename.endsWith(".mp4") ? filename : `${filename}.mp4`;
+    a.style.display = "none";
     document.body.appendChild(a);
     a.click();
     a.remove();
+    // Keep the object URL briefly so the browser can start the download.
+    await new Promise((r) => setTimeout(r, 1500));
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
@@ -439,7 +444,7 @@ export function Editor({
               </div>
               {exportState === "exporting" && (
                 <span className="text-xs text-neutral-500">
-                  Burning captions into your video — this can take up to a minute.
+                  Burning captions, then saving the MP4 to your device…
                 </span>
               )}
               {exportState === "error" && exportError && (
