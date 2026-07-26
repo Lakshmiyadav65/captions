@@ -1,7 +1,9 @@
 # Audience Magazine — production launch checklist
 
-Target stack: **Docker host** (`docker-compose.prod.yml`) + **Neon Postgres** + **Redis** + **Cloudflare R2** + **BullMQ workers**.  
+Target stack: **Railway** (web + worker + Redis) + **Neon Postgres** + **Cloudflare R2** + **BullMQ**.  
 Do **not** put magazine traffic on Vercel Hobby for processing.
+
+Railway step-by-step: [12-railway-deploy.md](./12-railway-deploy.md).
 
 Live demo (Neon only): https://captions-gilt.vercel.app — keep for marketing; processing for launch goes on the container host.
 
@@ -11,6 +13,7 @@ Live demo (Neon only): https://captions-gilt.vercel.app — keep for marketing; 
 
 | Area | Choice |
 |------|--------|
+| Host | **Railway** (web + worker + Redis plugin) — see [12-railway-deploy.md](./12-railway-deploy.md) |
 | DB | Keep Neon (already provisioned for this project) |
 | Media | Cloudflare R2 (`STORAGE_DRIVER=s3`) |
 | Queue | BullMQ + Redis; web enqueues, worker burns ASR + export |
@@ -22,13 +25,13 @@ Live demo (Neon only): https://captions-gilt.vercel.app — keep for marketing; 
 
 ## Infra checklist
 
-- [ ] Container host live (Railway / Fly / Render / VPS) running `docker-compose.prod.yml`
-- [ ] Neon `DATABASE_URL` set on app + worker
-- [ ] If Neon was created via `db push`, run once: `npx prisma migrate resolve --applied 0_init`
-- [ ] Redis healthy (compose service or Upstash `rediss://`)
+- [ ] **Railway** project live: **web** + **worker** + **Redis** ([12-railway-deploy.md](./12-railway-deploy.md))
+- [ ] Neon `DATABASE_URL` set on web + worker
+- [ ] If Neon was created via `db push`, migration `0_init` already resolved (done for current Neon)
+- [ ] Redis healthy (`REDIS_URL` from Railway Redis plugin)
 - [ ] R2 bucket + keys; `STORAGE_DRIVER=s3` smoke: upload → play → export
-- [ ] Separate `worker` process healthy (`worker.listening` in logs)
-- [ ] Custom domain + HTTPS → app port 3000
+- [ ] Worker logs show `worker.listening`
+- [ ] Railway domain (or custom domain) + HTTPS
 - [ ] `APP_URL` matches public HTTPS origin
 
 ## Security checklist

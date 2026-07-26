@@ -69,12 +69,15 @@ local storage; switch to S3/R2 for multi-host.
 
 ## Deploy production (Audience Magazine)
 
-Use **[`docker-compose.prod.yml`](docker-compose.prod.yml)** with managed Neon + Redis + R2 — not Vercel Hobby for processing.
+**Host: Railway** — see [`docs/12-railway-deploy.md`](docs/12-railway-deploy.md).
 
-Full checklist + runbooks: [`docs/11-production-magazine.md`](docs/11-production-magazine.md).
+Use the Dockerfile + `railway.json` (web). Add a second service for **worker** (`npm run worker`) and a **Redis** plugin. Postgres stays on **Neon**; media on **Cloudflare R2**.
+
+Checklist + runbooks: [`docs/11-production-magazine.md`](docs/11-production-magazine.md).
+
+Local / VPS alternative:
 
 ```bash
-# Fill secrets (see docs/env.production.example.md)
 docker compose -f docker-compose.prod.yml up --build -d
 ```
 

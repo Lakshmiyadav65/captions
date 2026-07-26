@@ -30,5 +30,6 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=build /app ./
 EXPOSE 3000
-# Default command runs the web server; the worker service overrides this in compose.
+# Default command runs the web server; Railway/worker override the start command.
+# Railway web start: node scripts/use-postgres.mjs && npx prisma migrate deploy && npm run start
 CMD ["npm", "run", "start"]
