@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getStorage, type LocalFile } from "@/lib/storage";
+import { resolveVideoLocal } from "@/lib/storage/resolve";
 import { burnSubtitles, getVideoSize } from "@/lib/ffmpeg";
 import { toASS, DEFAULT_STYLE, type SubtitleStyle } from "@/lib/subtitles";
 import { fontsDir } from "@/lib/subtitles/fonts-dir";
@@ -32,7 +33,7 @@ export async function burnCaptionedMp4(
   let workDir: string | null = null;
 
   try {
-    localVideo = await storage.toLocalFile(input.videoKey);
+    localVideo = await resolveVideoLocal(input.videoKey);
     const style: SubtitleStyle = { ...DEFAULT_STYLE, ...input.style };
     const size = await getVideoSize(localVideo.path);
     const ass = toASS(input.segments, style, size ?? undefined);

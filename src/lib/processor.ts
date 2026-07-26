@@ -5,7 +5,8 @@ import { config } from "./config";
 import { prisma } from "./db";
 import { extractAudio, getDurationSec, getVideoSize } from "./ffmpeg";
 import { chunkAudioByEnergy } from "./audio-chunk";
-import { getStorage, type LocalFile } from "./storage";
+import { type LocalFile } from "./storage";
+import { resolveVideoLocal } from "./storage/resolve";
 import { getProvider, isLiveProvider, type Segment, type Word } from "./transcription";
 import { alignWordTimings } from "./transcription/align-timings";
 import { flattenWords, OpenAIProvider } from "./transcription/openai";
@@ -111,7 +112,6 @@ export async function processJob(jobId: string): Promise<void> {
 
   const provider = getProvider();
   const language = languageHint();
-  const storage = getStorage();
   const started = Date.now();
 
   let localVideo: LocalFile | null = null;
@@ -140,7 +140,7 @@ export async function processJob(jobId: string): Promise<void> {
       segments = r.segments;
       detected = r.language;
     } else {
-      localVideo = await storage.toLocalFile(job.videoKey);
+      localVideo = await resolveVideoLocal(job.videoKey);
       workDir = await mkdtemp(join(tmpdir(), "captions-audio-"));
       const audioPath = join(workDir, "audio.wav");
 

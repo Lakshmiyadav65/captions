@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { config } from "@/lib/config";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-helpers";
-import { getStorage } from "@/lib/storage";
+import { resolveVideoUrl } from "@/lib/storage/resolve";
 import { Editor } from "@/components/Editor";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export default async function JobPage({
     if (job.userId && job.userId !== userId) notFound();
   }
 
-  const videoUrl = await getStorage().getUrl(job.videoKey);
+  const videoUrl = await resolveVideoUrl(job.videoKey);
 
   return (
     <Editor

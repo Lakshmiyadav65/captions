@@ -2,9 +2,12 @@
 
 import { useRef, useState, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
+import { upload as blobUpload } from "@vercel/blob/client";
 import { isQuotaError } from "@/lib/errors";
 
 const VIDEO_EXT = /\.(mp4|mov|mkv|webm|avi|m4v|mpg|mpeg|wmv|flv)$/i;
+/** Vercel Functions reject bodies over ~4.5MB — use Blob direct upload above this. */
+const VERCEL_BODY_LIMIT = 4.2 * 1024 * 1024;
 
 export function Uploader() {
   const router = useRouter();
@@ -15,7 +18,94 @@ export function Uploader() {
   const [error, setError] = useState<string | null>(null);
   const [quotaHit, setQuotaHit] = useState(false);
 
-  const upload = (file: File) => {
+  const finishWithJobId = (id: string) => {
+    router.push(`/jobs/${id}`);
+  };
+
+  const uploadViaBlob = async (file: File) => {
+    const blob = await blobUpload(file.name, file, {
+      access: "public",
+      handleUploadUrl: "/api/upload/blob",
+      multipart: true,
+      onUploadProgress: ({ percentage }) => {
+        setPct(Math.min(99, Math.round(percentage)));
+      },
+    });
+    const res = await fetch("/api/upload/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: blob.url, filename: file.name }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      id?: string;
+      error?: string;
+      code?: string;
+    };
+    if (res.status === 401) {
+      router.push("/signin");
+      return;
+    }
+    if (!res.ok || !data.id) {
+      setQuotaHit(isQuotaError(res.status, data));
+      throw new Error(data.error ?? "Upload failed. Please try again.");
+    }
+    setPct(100);
+    finishWithJobId(data.id);
+  };
+
+  const uploadViaApi = (file: File) =>
+    new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/upload");
+      xhr.setRequestHeader("x-filename", encodeURIComponent(file.name));
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) setPct(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const { id } = JSON.parse(xhr.responseText) as { id: string };
+            finishWithJobId(id);
+            resolve();
+          } catch (err) {
+            reject(err);
+          }
+          return;
+        }
+        if (xhr.status === 401) {
+          router.push("/signin");
+          resolve();
+          return;
+        }
+        if (xhr.status === 413) {
+          reject(
+            new Error(
+              "This video is too large for the free Vercel upload path (~4.5 MB). Compress it, or we need Vercel Blob enabled for larger files.",
+            ),
+          );
+          return;
+        }
+        let msg = "Upload failed. Please try again.";
+        let body: { error?: string; code?: string } = {};
+        try {
+          body = JSON.parse(xhr.responseText) as { error?: string; code?: string };
+          msg = body.error ?? msg;
+        } catch {
+          if (!xhr.responseText?.trim()) {
+            msg =
+              "Upload failed — the file may exceed Vercel’s 4.5 MB limit. Try a shorter/compressed clip.";
+          }
+        }
+        setQuotaHit(isQuotaError(xhr.status, body));
+        reject(new Error(msg));
+      };
+      xhr.onerror = () => {
+        reject(new Error("Upload failed. Please try again."));
+      };
+      xhr.send(file);
+    });
+
+  const upload = async (file: File) => {
     setError(null);
     setQuotaHit(false);
     if (!file.type.startsWith("video/") && !VIDEO_EXT.test(file.name)) {
@@ -25,47 +115,38 @@ export function Uploader() {
     setUploading(true);
     setPct(0);
 
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/upload");
-    xhr.setRequestHeader("x-filename", encodeURIComponent(file.name));
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) setPct(Math.round((e.loaded / e.total) * 100));
-    };
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        const { id } = JSON.parse(xhr.responseText) as { id: string };
-        router.push(`/jobs/${id}`);
-      } else if (xhr.status === 401) {
-        router.push("/signin");
+    try {
+      // Prefer Blob for anything near/over the serverless body limit.
+      if (file.size > VERCEL_BODY_LIMIT) {
+        await uploadViaBlob(file);
       } else {
-        let msg =
-          xhr.responseText?.trim()
-            ? "Upload failed. Please try again."
-            : "Upload failed — the server crashed (often a missing Postgres DATABASE_URL on Vercel). Check /api/health.";
-        let body: { error?: string; code?: string } = {};
         try {
-          body = JSON.parse(xhr.responseText) as { error?: string; code?: string };
-          msg = body.error ?? msg;
-        } catch {
-          /* keep default */
+          await uploadViaBlob(file);
+        } catch (blobErr) {
+          const msg = blobErr instanceof Error ? blobErr.message : "";
+          if (/blob_not_configured|not configured|BLOB/i.test(msg)) {
+            await uploadViaApi(file);
+          } else {
+            // Small file: fall back to classic API if Blob token missing mid-flow
+            try {
+              await uploadViaApi(file);
+            } catch {
+              throw blobErr;
+            }
+          }
         }
-        setQuotaHit(isQuotaError(xhr.status, body));
-        setError(msg);
-        setUploading(false);
       }
-    };
-    xhr.onerror = () => {
-      setError("Upload failed. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
       setUploading(false);
-    };
-    xhr.send(file);
+    }
   };
 
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragging(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) upload(file);
+    if (file) void upload(file);
   };
 
   return (
@@ -78,63 +159,55 @@ export function Uploader() {
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         onClick={() => !uploading && inputRef.current?.click()}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-16 text-center transition ${
+        className={[
+          "flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-16 text-center transition",
           dragging
-            ? "border-sky-500 bg-sky-500/10"
-            : "border-white/15 bg-neutral-900/60 hover:border-white/30"
-        } ${uploading ? "pointer-events-none opacity-80" : ""}`}
+            ? "border-sky-400 bg-sky-400/10"
+            : "border-neutral-700 bg-neutral-900/50 hover:border-neutral-500",
+          uploading ? "pointer-events-none opacity-70" : "",
+        ].join(" ")}
       >
-        <input
-          ref={inputRef}
-          type="file"
-          accept="video/*"
-          hidden
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) upload(f);
-          }}
-        />
-
+        <div className="mb-3 text-4xl" aria-hidden>
+          🎬
+        </div>
         {uploading ? (
-          <div className="w-full max-w-sm">
-            <div className="mb-2 text-sm text-neutral-300">Uploading… {pct}%</div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-800">
+          <>
+            <p className="text-lg font-medium text-neutral-100">Uploading… {pct}%</p>
+            <div className="mt-4 h-1.5 w-48 overflow-hidden rounded-full bg-neutral-800">
               <div
-                className="h-full rounded-full bg-sky-500 transition-all"
+                className="h-full rounded-full bg-sky-400 transition-all"
                 style={{ width: `${pct}%` }}
               />
             </div>
-          </div>
+          </>
         ) : (
           <>
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-sky-500/15 text-2xl">
-              🎬
-            </div>
-            <p className="text-lg font-medium text-white">
-              Drop a Telugu video here
-            </p>
+            <p className="text-lg font-medium text-neutral-100">Drop a Telugu video here</p>
             <p className="mt-1 text-sm text-neutral-400">
               or click to browse · MP4, MOV, MKV, WebM
             </p>
           </>
         )}
+        <input
+          ref={inputRef}
+          type="file"
+          accept="video/*,.mp4,.mov,.mkv,.webm,.avi,.m4v"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void upload(file);
+            e.target.value = "";
+          }}
+        />
       </div>
-
       {error && (
-        <div
-          className={`mt-3 rounded-lg px-3 py-2 text-sm ${
-            quotaHit
-              ? "border border-amber-500/30 bg-amber-500/10 text-amber-100"
-              : "text-red-400"
-          }`}
-          role="alert"
-        >
-          {quotaHit && (
-            <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-amber-300/90">
-              Limit reached
-            </p>
-          )}
+        <div className="mt-3 space-y-2 text-sm text-red-400">
           <p>{error}</p>
+          {quotaHit && (
+            <a href="/billing" className="text-sky-400 underline">
+              View usage / plans
+            </a>
+          )}
         </div>
       )}
     </div>
