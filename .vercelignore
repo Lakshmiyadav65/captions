@@ -1,0 +1,10 @@
+# Keep deploys small — Vercel builds deps itself from package-lock.
+node_modules
+.next
+.git
+/tmp
+/tmp-*
+/storage
+/public/uploads
+.env*
+.vercel
