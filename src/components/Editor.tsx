@@ -51,6 +51,46 @@ function download(name: string, text: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
+/** Trigger a real file download for relative or absolute export URLs. */
+async function downloadFromUrl(url: string, filename: string) {
+  const abs = url.startsWith("http")
+    ? url
+    : new URL(url, window.location.origin).toString();
+
+  // Blob CDN / S3: ?download=1 (or Content-Disposition) makes the browser save the file.
+  if (/^https?:\/\//i.test(abs) && /blob\.vercel-storage\.com|download=1/i.test(abs)) {
+    const a = document.createElement("a");
+    a.href = abs;
+    a.download = filename;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return;
+  }
+
+  const res = await fetch(abs);
+  if (!res.ok) {
+    throw new Error(
+      res.status === 404
+        ? "Export finished but the file was lost. Click Export video again."
+        : `Download failed (${res.status}).`,
+    );
+  }
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 export function Editor({
   jobId,
   videoUrl,
@@ -302,12 +342,18 @@ export function Editor({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ style, segments: displaySegments }),
       });
-      const data = (await res.json()) as { url?: string; filename?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error ?? "Export failed");
-      const a = document.createElement("a");
-      a.href = data.url;
-      a.download = data.filename ?? `${baseName}-captioned.mp4`;
-      a.click();
+      const data = (await res.json().catch(() => ({}))) as {
+        url?: string;
+        filename?: string;
+        error?: string;
+      };
+      if (!res.ok || !data.url) {
+        throw new Error(data.error ?? `Export failed (${res.status})`);
+      }
+      await downloadFromUrl(
+        data.url,
+        data.filename ?? `${baseName}-captioned.mp4`,
+      );
       setExportState("idle");
     } catch (err) {
       setExportError(err instanceof Error ? err.message : "Export failed");

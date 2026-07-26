@@ -8,6 +8,18 @@ const VIDEO_EXT = /\.(mp4|mov|mkv|webm|avi|m4v|mpg|mpeg|wmv|flv)$/i;
 /** Vercel Functions reject bodies over ~4.5MB — use Blob direct upload above this. */
 const VERCEL_BODY_LIMIT = 4.2 * 1024 * 1024;
 
+function isLocalHost(): boolean {
+  if (typeof window === "undefined") return false;
+  return /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+}
+
+function isBlobUnavailable(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /blob_not_configured|not configured|BLOB|client token|Failed to retrieve/i.test(
+    msg,
+  );
+}
+
 type UploaderProps = {
   /** Dark for the app shell; light for the marketing landing hero. */
   tone?: "dark" | "light";
@@ -117,25 +129,26 @@ export function Uploader({ tone = "dark" }: UploaderProps) {
     setPct(0);
 
     try {
-      // Prefer Blob for anything near/over the serverless body limit.
-      if (file.size > VERCEL_BODY_LIMIT) {
+      // Local next dev uses disk storage — Blob token is only on Vercel.
+      if (isLocalHost()) {
+        await uploadViaApi(file);
+        return;
+      }
+
+      try {
         await uploadViaBlob(file);
-      } else {
-        try {
-          await uploadViaBlob(file);
-        } catch (blobErr) {
-          const msg = blobErr instanceof Error ? blobErr.message : "";
-          if (/blob_not_configured|not configured|BLOB/i.test(msg)) {
+      } catch (blobErr) {
+        // Fall back to classic API when Blob isn't configured (or for smaller files).
+        if (file.size <= VERCEL_BODY_LIMIT || isBlobUnavailable(blobErr)) {
+          try {
             await uploadViaApi(file);
-          } else {
-            // Small file: fall back to classic API if Blob token missing mid-flow
-            try {
-              await uploadViaApi(file);
-            } catch {
-              throw blobErr;
-            }
+            return;
+          } catch (apiErr) {
+            if (file.size > VERCEL_BODY_LIMIT) throw blobErr;
+            throw apiErr;
           }
         }
+        throw blobErr;
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed. Please try again.");

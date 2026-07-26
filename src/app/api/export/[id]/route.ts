@@ -70,7 +70,11 @@ export async function POST(
     const result = await burnCaptionedMp4(input);
     return NextResponse.json({ url: result.url, filename: result.filename });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Export failed";
+    const raw = err instanceof Error ? err.message : "Export failed";
+    const message =
+      /timeout|TIMED_OUT|FUNCTION_INVOCATION|canceled|AbortError/i.test(raw)
+        ? "Export timed out while burning captions. Try a shorter clip, or retry Export video."
+        : raw;
     await reportError("export.route_failed", err, { jobId: job.id, userId });
     return NextResponse.json({ error: message.slice(0, 500) }, { status: 500 });
   }

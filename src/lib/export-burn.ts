@@ -1,9 +1,9 @@
-import { createReadStream } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getStorage, type LocalFile } from "@/lib/storage";
+import type { LocalFile } from "@/lib/storage";
 import { resolveVideoLocal } from "@/lib/storage/resolve";
+import { publishExportMp4 } from "@/lib/storage/publish-export";
 import { burnSubtitles, getVideoSize } from "@/lib/ffmpeg";
 import { toASS, DEFAULT_STYLE, type SubtitleStyle } from "@/lib/subtitles";
 import { fontsDir } from "@/lib/subtitles/fonts-dir";
@@ -28,7 +28,6 @@ export interface ExportBurnResult {
 export async function burnCaptionedMp4(
   input: ExportBurnInput,
 ): Promise<ExportBurnResult> {
-  const storage = getStorage();
   let localVideo: LocalFile | null = null;
   let workDir: string | null = null;
 
@@ -46,11 +45,9 @@ export async function burnCaptionedMp4(
     });
 
     const key = `exports/${input.jobId}/captioned.mp4`;
-    await storage.put(key, createReadStream(outPath), { contentType: "video/mp4" });
-
-    const url = await storage.getUrl(key);
+    const published = await publishExportMp4(key, outPath);
     const filename = `${(input.originalName ?? "telugu-captions").replace(/\.[^.]+$/, "")}-captioned.mp4`;
-    return { url, filename, key };
+    return { url: published.url, filename, key: published.key };
   } finally {
     if (workDir) await rm(workDir, { recursive: true, force: true }).catch(() => {});
     if (localVideo) await localVideo.cleanup().catch(() => {});

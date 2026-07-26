@@ -44,12 +44,18 @@ export async function GET(
   }
 
   const obj = await storage.getStream(key);
+  const isExport = key.startsWith("exports/");
   return new Response(Readable.toWeb(obj.stream) as unknown as ReadableStream, {
     headers: {
       "Content-Type": obj.contentType ?? "application/octet-stream",
       "Content-Length": String(obj.contentLength),
       "Accept-Ranges": "bytes",
       "Cache-Control": "private, max-age=3600",
+      ...(isExport
+        ? {
+            "Content-Disposition": `attachment; filename="${key.split("/").pop() ?? "captioned.mp4"}"`,
+          }
+        : {}),
     },
   });
 }
