@@ -329,7 +329,7 @@ export function Editor({
     >
       <header className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div>
-          <a href="/create" className="text-sm text-sky-400 hover:text-sky-300">
+          <a href="/" className="text-sm text-sky-400 hover:text-sky-300">
             ← New video
           </a>
           <h1 className="mt-1 text-xl font-semibold text-white">
@@ -443,7 +443,7 @@ export function Editor({
             >
               {retrying ? "Retrying…" : "Try again"}
             </button>
-            <a href="/create" className="text-sm text-sky-400 hover:text-sky-300">
+            <a href="/#upload" className="text-sm text-sky-400 hover:text-sky-300">
               Upload a different video
             </a>
           </div>

@@ -8,13 +8,19 @@ const VIDEO_EXT = /\.(mp4|mov|mkv|webm|avi|m4v|mpg|mpeg|wmv|flv)$/i;
 /** Vercel Functions reject bodies over ~4.5MB — use Blob direct upload above this. */
 const VERCEL_BODY_LIMIT = 4.2 * 1024 * 1024;
 
-export function Uploader() {
+type UploaderProps = {
+  /** Dark for the app shell; light for the marketing landing hero. */
+  tone?: "dark" | "light";
+};
+
+export function Uploader({ tone = "dark" }: UploaderProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [pct, setPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const light = tone === "light";
 
   const finishWithJobId = (id: string) => {
     router.push(`/jobs/${id}`);
@@ -155,20 +161,43 @@ export function Uploader() {
         onDrop={onDrop}
         onClick={() => !uploading && inputRef.current?.click()}
         className={[
-          "flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-16 text-center transition",
-          dragging
-            ? "border-sky-400 bg-sky-400/10"
-            : "border-neutral-700 bg-neutral-900/50 hover:border-neutral-500",
+          "flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-14 text-center transition sm:py-16",
+          light
+            ? dragging
+              ? "border-sky-400 bg-sky-50"
+              : "border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-white"
+            : dragging
+              ? "border-sky-400 bg-sky-400/10"
+              : "border-neutral-700 bg-neutral-900/50 hover:border-neutral-500",
           uploading ? "pointer-events-none opacity-70" : "",
         ].join(" ")}
       >
-        <div className="mb-3 text-4xl" aria-hidden>
-          🎬
+        <div
+          className={[
+            "mb-3 flex h-12 w-12 items-center justify-center rounded-full text-xl",
+            light ? "bg-slate-900 text-white" : "",
+          ].join(" ")}
+          aria-hidden
+        >
+          {light ? (
+            <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+          ) : (
+            "🎬"
+          )}
         </div>
         {uploading ? (
           <>
-            <p className="text-lg font-medium text-neutral-100">Uploading… {pct}%</p>
-            <div className="mt-4 h-1.5 w-48 overflow-hidden rounded-full bg-neutral-800">
+            <p className={["text-lg font-medium", light ? "text-slate-900" : "text-neutral-100"].join(" ")}>
+              Uploading… {pct}%
+            </p>
+            <div
+              className={[
+                "mt-4 h-1.5 w-48 overflow-hidden rounded-full",
+                light ? "bg-slate-200" : "bg-neutral-800",
+              ].join(" ")}
+            >
               <div
                 className="h-full rounded-full bg-sky-400 transition-all"
                 style={{ width: `${pct}%` }}
@@ -177,8 +206,10 @@ export function Uploader() {
           </>
         ) : (
           <>
-            <p className="text-lg font-medium text-neutral-100">Drop a Telugu video here</p>
-            <p className="mt-1 text-sm text-neutral-400">
+            <p className={["text-lg font-medium", light ? "text-slate-900" : "text-neutral-100"].join(" ")}>
+              Drop a Telugu video here
+            </p>
+            <p className={["mt-1 text-sm", light ? "text-slate-500" : "text-neutral-400"].join(" ")}>
               or click to browse · MP4, MOV, MKV, WebM
             </p>
           </>
@@ -196,7 +227,7 @@ export function Uploader() {
         />
       </div>
       {error && (
-        <div className="mt-3 text-sm text-red-400">
+        <div className={["mt-3 text-sm", light ? "text-red-600" : "text-red-400"].join(" ")}>
           <p>{error}</p>
         </div>
       )}

@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default function SignInPage() {
   // With auth disabled there's nothing to sign into — everything runs as the dev user.
-  if (!config.authEnabled) redirect("/create");
+  if (!config.authEnabled) redirect("/");
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4">
@@ -20,7 +20,7 @@ export default function SignInPage() {
           <form
             action={async () => {
               "use server";
-              await signIn("google", { redirectTo: "/create" });
+              await signIn("google", { redirectTo: "/" });
             }}
           >
             <button className="w-full rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-neutral-900 hover:bg-neutral-200">
@@ -32,7 +32,7 @@ export default function SignInPage() {
           <form
             action={async () => {
               "use server";
-              await signIn("github", { redirectTo: "/create" });
+              await signIn("github", { redirectTo: "/" });
             }}
           >
             <button className="w-full rounded-lg bg-neutral-800 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700">
@@ -47,7 +47,7 @@ export default function SignInPage() {
               "use server";
               await signIn("dev", {
                 email: String(fd.get("email") ?? ""),
-                redirectTo: "/create",
+                redirectTo: "/",
               });
             }}
             className="space-y-2 border-t border-white/10 pt-4"

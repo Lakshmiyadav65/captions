@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { Uploader } from "@/components/Uploader";
 
 function ScrollReveal({
   children,
@@ -57,17 +58,17 @@ function Navbar() {
         </Link>
 
         <nav className="nav-links">
-          <a href="#product">Product</a>
+          <a href="#upload">Product</a>
           <a href="#features">Features</a>
           <Link href="/billing">Pricing</Link>
-          <a href="#faq">Resources</a>
-          <a href="#features">Telugu AI</a>
+          <Link href="/style-analyzer">Style Analyzer</Link>
+          <Link href="/styles">My Styles</Link>
         </nav>
 
         <div className="nav-actions">
-          <Link href="/create" className="btn-primary">
+          <a href="#upload" className="btn-primary">
             Sign up free
-          </Link>
+          </a>
         </div>
       </div>
     </header>
@@ -85,33 +86,49 @@ function Hero() {
         </ScrollReveal>
 
         <ScrollReveal delay={0.15} scale>
-          <div className="hero-mockup-frame">
+          <div className="hero-mockup-frame" id="upload">
             <div className="mockup-header">
               <div className="mockup-dots">
                 <span />
                 <span />
                 <span />
               </div>
-              <div className="mockup-title-bar" />
+              <div className="mockup-title-label">Create captions</div>
             </div>
-            <div className="mockup-content-blank">
-              <div className="blank-image-placeholder hero-editor-placeholder">
-                <div className="placeholder-icon">
-                  <svg
-                    width="48"
-                    height="48"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
-                    />
-                  </svg>
+            <div className="mockup-workspace">
+              <p className="workspace-lead">
+                Upload a Telugu video. Get timed romanized captions, style them live,
+                and export a publish-ready burned MP4 — or SRT / VTT / ASS.
+              </p>
+
+              <Uploader tone="light" />
+
+              <div className="workspace-steps">
+                <div className="workspace-step">
+                  <strong>1 · Upload</strong>
+                  <span>Drop a Reel or Short. We transcribe Telugu + English code-mix.</span>
                 </div>
+                <div className="workspace-step">
+                  <strong>2 · Fix & learn</strong>
+                  <span>Edit a wrong word once — we remember it for your next videos.</span>
+                </div>
+                <div className="workspace-step">
+                  <strong>3 · Export MP4</strong>
+                  <span>Style live, then burn captions into the video ready to post.</span>
+                </div>
+              </div>
+
+              <Link href="/style-analyzer" className="workspace-analyzer">
+                <div>
+                  <div className="workspace-analyzer-title">Caption Style Analyzer</div>
+                  <p>Drop a screenshot of any Reel caption and reuse that look on yours.</p>
+                </div>
+                <span aria-hidden>→</span>
+              </Link>
+
+              <div className="workspace-links">
+                <Link href="/styles">My Styles</Link>
+                <Link href="/billing">Pricing</Link>
               </div>
             </div>
           </div>
@@ -195,9 +212,9 @@ function TwoCardSection() {
                   pauses, generates accurate Telugu captions, applies zoom cuts,
                   and formats for Reels & Shorts.
                 </p>
-                <Link href="/create" className="btn-primary" style={{ marginTop: 16 }}>
+                <a href="#upload" className="btn-primary" style={{ marginTop: 16 }}>
                   Start editing
-                </Link>
+                </a>
               </div>
             </div>
           </ScrollReveal>
@@ -214,9 +231,9 @@ function TwoCardSection() {
                   prompts. Perfect for Telugu creators, marketers, and digital
                   brands.
                 </p>
-                <Link href="/create" className="btn-primary" style={{ marginTop: 16 }}>
+                <a href="#upload" className="btn-primary" style={{ marginTop: 16 }}>
                   Get started
-                </Link>
+                </a>
               </div>
             </div>
           </ScrollReveal>
@@ -420,9 +437,9 @@ function CtaSection() {
             videos with AI.
           </p>
 
-          <Link href="/create" className="btn-primary" style={{ fontSize: 16, padding: "14px 32px" }}>
+          <a href="#upload" className="btn-primary" style={{ fontSize: 16, padding: "14px 32px" }}>
             Start for free
-          </Link>
+          </a>
         </ScrollReveal>
       </div>
     </section>
@@ -540,9 +557,9 @@ function Footer() {
               <h5>Product</h5>
               <a href="#features">Features</a>
               <Link href="/billing">Pricing</Link>
-              <Link href="/create">Web Editor</Link>
-              <Link href="/create">Desktop App</Link>
-              <Link href="/create">Mobile App</Link>
+              <a href="#upload">Web Editor</a>
+              <a href="#upload">Desktop App</a>
+              <a href="#upload">Mobile App</a>
             </div>
 
             <div className="footer-col">
@@ -556,7 +573,7 @@ function Footer() {
 
             <div className="footer-col">
               <h5>AI Tools</h5>
-              <Link href="/create">Telugu Subtitle Generator</Link>
+              <a href="#upload">Telugu Subtitle Generator</a>
               <a href="#features">Telugu AI Dubbing</a>
               <a href="#features">Voice Generator</a>
               <a href="#features">Eye Contact</a>
