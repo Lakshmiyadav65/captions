@@ -15,7 +15,8 @@ export type CaptionAnimation =
   | "kinetic"
   | "scatter"
   | "hook"
-  | "flash";
+  | "flash"
+  | "editorial";
 
 /** Special glyph treatments beyond flat fill (preview-rich; ASS approximates). */
 export type TextEffect = "none" | "prism";

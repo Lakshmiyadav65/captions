@@ -12,11 +12,16 @@ import {
 import { isEmphasisOn, isEmphasizedWord } from "@/lib/subtitles/emphasis";
 import { tokenizeSegment } from "@/lib/subtitles/karaoke";
 import {
+  EDITORIAL_FOCUS_SCALE,
+  EDITORIAL_SATELLITE_FONT,
+  EDITORIAL_SATELLITE_SCALE,
+  editorialLayout,
   FLASH_SCALE,
   HOOK_FOCUS_SCALE,
   HOOK_SATELLITE_FONT,
   HOOK_SATELLITE_SCALE,
   hookLayout,
+  isEditorial,
   isFlash,
   isHook,
   isKinetic,
@@ -85,6 +90,8 @@ function animationClass(style: SubtitleStyle): string {
       return "cap-anim-kinetic";
     case "flash":
       return "cap-anim-pop";
+    case "editorial":
+      return "cap-anim-fade";
     default:
       return "";
   }
@@ -193,6 +200,7 @@ export function SubtitleOverlay({
   const useScatter = hasText && isScatter(style) && !prism;
   const useHook = hasText && isHook(style) && !prism;
   const useFlash = hasText && isFlash(style) && !prism;
+  const useEditorial = hasText && isEditorial(style) && !prism;
   const useKaraoke =
     hasText &&
     style.karaoke &&
@@ -200,7 +208,8 @@ export function SubtitleOverlay({
     !useKinetic &&
     !useScatter &&
     !useHook &&
-    !useFlash;
+    !useFlash &&
+    !useEditorial;
   const useEmphasis =
     hasText &&
     isEmphasisOn(style) &&
@@ -208,9 +217,122 @@ export function SubtitleOverlay({
     !useKinetic &&
     !useScatter &&
     !useHook &&
-    !useFlash;
+    !useFlash &&
+    !useEditorial;
 
-  if (useFlash) {
+  if (useEditorial) {
+    const tokens = tokenizeSegment(segment!);
+    if (tokens.length) {
+      const focus = kineticFocusIndex(tokens.length, filled);
+      const layout = editorialLayout(tokens.length, focus);
+      const baseFs = px(style.fontSizePct);
+      const gap = px(kineticGapPct(style.fontSizePct) * 0.7);
+      const wordAt = (i: number) =>
+        applyTextCase(tokens[i]!.text, caseMode === "sentence" && i > 0 ? "lower" : caseMode);
+
+      const satellite = (
+        indices: number[],
+        key: string,
+        alignSelf: "flex-start" | "center" | "flex-end",
+        xNudgeEm: number,
+      ) =>
+        indices.length === 0 ? null : (
+          <span
+            key={key}
+            className="cap-kinetic-word"
+            style={{
+              display: "block",
+              alignSelf,
+              fontFamily: fontStack(EDITORIAL_SATELLITE_FONT),
+              fontStyle: "italic",
+              fontSize: baseFs * EDITORIAL_SATELLITE_SCALE,
+              fontWeight: 400,
+              color: style.color,
+              letterSpacing: "0.04em",
+              lineHeight: 1.1,
+              whiteSpace: "nowrap",
+              transform: xNudgeEm ? `translateX(${xNudgeEm}em)` : undefined,
+              textShadow: style.shadow
+                ? `0 ${1 * scale}px ${3 * scale}px rgba(0,0,0,0.4)`
+                : "none",
+            }}
+          >
+            {indices.map((i) => wordAt(i)).join(" ")}
+          </span>
+        );
+
+      const showRuler = layout.before.length > 0 || tokens.length >= 2;
+
+      content = (
+        <span
+          className="cap-editorial"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap,
+            width: "100%",
+            pointerEvents: "none",
+          }}
+        >
+          {showRuler && (
+            <span
+              aria-hidden
+              style={{
+                display: "flex",
+                alignItems: "center",
+                alignSelf: layout.before.length ? "flex-start" : "center",
+                width: "58%",
+                maxWidth: px(style.maxWidthPct) * 0.55,
+                marginBottom: gap * 0.35,
+                transform: layout.before.length ? "translateX(0.15em)" : undefined,
+              }}
+            >
+              <span
+                style={{
+                  width: Math.max(5, 6 * scale),
+                  height: Math.max(5, 6 * scale),
+                  borderRadius: "50%",
+                  background: style.color,
+                  flexShrink: 0,
+                  boxShadow: `0 0 ${4 * scale}px rgba(0,0,0,0.35)`,
+                }}
+              />
+              <span
+                style={{
+                  flex: 1,
+                  height: Math.max(1, 1.5 * scale),
+                  marginLeft: 4 * scale,
+                  background: hexToRgba(style.color, 0.85),
+                  borderRadius: 1,
+                }}
+              />
+            </span>
+          )}
+          {satellite(layout.before, "before", "flex-start", -0.35)}
+          <span
+            className="cap-kinetic-word"
+            style={{
+              display: "inline-block",
+              fontFamily: fontStack(style.fontFamily),
+              fontSize: baseFs * EDITORIAL_FOCUS_SCALE,
+              fontWeight: style.fontWeight,
+              color: style.highlightColor,
+              letterSpacing: `${style.letterSpacingEm}em`,
+              lineHeight: 1,
+              whiteSpace: "nowrap",
+              textShadow: buildTextShadow(style, scale, false),
+              transition: "font-size 0.18s cubic-bezier(0.22, 1.15, 0.36, 1)",
+            }}
+          >
+            {wordAt(layout.focus)}
+          </span>
+          {satellite(layout.after, "after", "flex-end", 0.45)}
+        </span>
+      );
+    }
+  } else if (useFlash) {
     const tokens = tokenizeSegment(segment!);
     if (tokens.length) {
       const focus = kineticFocusIndex(tokens.length, filled);
@@ -506,7 +628,7 @@ export function SubtitleOverlay({
       ? animationClass(style)
       : "";
   const animKey = hasText
-    ? `${segment!.start}-${style.animation}-${style.textEffect ?? "none"}-${useKinetic || useScatter || useHook || useFlash ? filled : 0}`
+    ? `${segment!.start}-${style.animation}-${style.textEffect ?? "none"}-${useKinetic || useScatter || useHook || useFlash || useEditorial ? filled : 0}`
     : "ghost";
 
   const barHeight = px(

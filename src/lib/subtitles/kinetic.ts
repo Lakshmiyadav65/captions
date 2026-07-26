@@ -2,6 +2,7 @@
 // Premium Style 2 = scattered "scatter" (up/down + big/small).
 // Premium Style 3 = neon "hook" (support lines + glowing keyword).
 // Premium Style 4 = "flash" (one punch word at a time — fast Klickpin/Hormozi look).
+// Premium Style 5 = "editorial" (blue sans focus + italic serif supports + accent ruler).
 
 export interface KineticWordPose {
   /** Multiplier on the base caption font size (1 = base). */
@@ -114,13 +115,46 @@ export function isFlash(style: { animation?: string }): boolean {
   return style.animation === "flash";
 }
 
+export function isEditorial(style: { animation?: string }): boolean {
+  return style.animation === "editorial";
+}
+
 /** Premium modes that need per-word fill tracking. */
 export function isKineticMode(style: { animation?: string }): boolean {
-  return isKinetic(style) || isScatter(style) || isHook(style) || isFlash(style);
+  return (
+    isKinetic(style) ||
+    isScatter(style) ||
+    isHook(style) ||
+    isFlash(style) ||
+    isEditorial(style)
+  );
 }
 
 /** Scale bump for the single on-screen flash word. */
 export const FLASH_SCALE = 1.25;
+
+/**
+ * Premium Style 5 — editorial slices (Klickpin watch/blue studio look):
+ * italic serif supports above (left-staggered) + large blue sans focus +
+ * italic serif trail below-right.
+ */
+export function editorialLayout(tokenCount: number, focus = 0): {
+  before: number[];
+  focus: number;
+  after: number[];
+} {
+  const n = Math.max(1, tokenCount);
+  const f = ((focus % n) + n) % n;
+  return {
+    before: Array.from({ length: f }, (_, i) => i),
+    focus: f,
+    after: Array.from({ length: n - f - 1 }, (_, i) => f + 1 + i),
+  };
+}
+
+export const EDITORIAL_FOCUS_SCALE = 1.28;
+export const EDITORIAL_SATELLITE_SCALE = 0.46;
+export const EDITORIAL_SATELLITE_FONT = "Instrument Serif";
 
 /** Vertical gap between stacked words, as % of video height (Style 1 / 3). */
 export function kineticGapPct(fontSizePct: number): number {

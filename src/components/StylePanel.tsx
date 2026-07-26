@@ -577,6 +577,7 @@ export function StylePanel({
               { label: "Scatter", value: "scatter" },
               { label: "Hook", value: "hook" },
               { label: "Flash", value: "flash" },
+              { label: "Editorial", value: "editorial" },
             ]}
           />
         </Field>

@@ -9,10 +9,14 @@ import {
 import { isEmphasisOn, isEmphasizedWord } from "./emphasis";
 import { tokenizeSegment } from "./karaoke";
 import {
+  EDITORIAL_FOCUS_SCALE,
+  EDITORIAL_SATELLITE_SCALE,
+  editorialLayout,
   FLASH_SCALE,
   HOOK_FOCUS_SCALE,
   HOOK_SATELLITE_SCALE,
   hookLayout,
+  isEditorial,
   isFlash,
   isHook,
   isKinetic,
@@ -82,6 +86,8 @@ function entranceTags(style: SubtitleStyle): string {
     case "flash":
       // Snappy scale pop — matches the fast one-word punch look.
       return "{\\fscx80\\fscy80\\t(0,160,\\fscx100\\fscy100)}";
+    case "editorial":
+      return "{\\fad(140,100)}";
     default:
       return "";
   }
@@ -178,6 +184,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
   const events = segments
     .flatMap((s) => {
+      if (isEditorial(style) && (style.textEffect ?? "none") !== "prism") {
+        return editorialDialogues(s, style, PLAY_H);
+      }
       if (isFlash(style) && (style.textEffect ?? "none") !== "prism") {
         return flashDialogues(s, style, PLAY_H);
       }
@@ -292,6 +301,62 @@ function scatterDialogues(
         `Dialogue: ${i},${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${tags}${word}`,
       );
     });
+  });
+
+  return lines;
+}
+
+/**
+ * Premium Style 5 burn: blue sans focus + italic serif supports (ASS approx of editorial).
+ */
+function editorialDialogues(
+  seg: Segment,
+  style: SubtitleStyle,
+  playH: number,
+): string[] {
+  const tokens = tokenizeSegment(seg);
+  if (!tokens.length) {
+    const body = applyTextCase(seg.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
+    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,{\\fad(140,100)}${body}`];
+  }
+
+  const caseMode = effectiveTextCase(style);
+  const baseFs = Math.round((style.fontSizePct / 100) * playH);
+  const satFs = Math.max(8, Math.round(baseFs * EDITORIAL_SATELLITE_SCALE));
+  const focusFs = Math.max(10, Math.round(baseFs * EDITORIAL_FOCUS_SCALE));
+  const white = assColor(style.color, 0);
+  const blue = assColor(style.highlightColor, 0);
+  const lines: string[] = [];
+
+  const wordAt = (i: number) => {
+    const raw = tokens[i]!.text;
+    return caseMode === "sentence" && i > 0
+      ? raw.toLowerCase()
+      : applyTextCase(raw, caseMode);
+  };
+
+  tokens.forEach((tk, focus) => {
+    const layout = editorialLayout(tokens.length, focus);
+    const t0 = tk.start;
+    const t1 = focus < tokens.length - 1 ? tokens[focus + 1]!.start : seg.end;
+    if (t1 <= t0) return;
+
+    const parts: string[] = [];
+    if (layout.before.length) {
+      parts.push(
+        `{\\c${white}\\fs${satFs}\\i1}${layout.before.map(wordAt).join(" ")}{\\i0}`,
+      );
+    }
+    parts.push(`{\\c${blue}\\fs${focusFs}\\b1}${wordAt(layout.focus)}{\\b0}`);
+    if (layout.after.length) {
+      parts.push(
+        `{\\c${white}\\fs${satFs}\\i1}${layout.after.map(wordAt).join(" ")}{\\i0}`,
+      );
+    }
+
+    lines.push(
+      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,{\\an5\\fad(140,100)}${parts.join("\\N")}`,
+    );
   });
 
   return lines;
