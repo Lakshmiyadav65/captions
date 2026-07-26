@@ -329,7 +329,7 @@ export function Editor({
     >
       <header className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div>
-          <a href="/" className="text-sm text-sky-400 hover:text-sky-300">
+          <a href="/create" className="text-sm text-sky-400 hover:text-sky-300">
             ← New video
           </a>
           <h1 className="mt-1 text-xl font-semibold text-white">
@@ -422,7 +422,7 @@ export function Editor({
           </div>
           <p className="mt-3 text-xs text-neutral-500">
             {progress.provider && progress.provider !== "mock"
-              ? `Transcribing with ${progress.provider}.`
+              ? `Transcribing with ${progress.provider}. Longer clips can take several minutes — audio is sent in short pieces.`
               : "Using the built-in sample transcript (no API key set)."}
           </p>
         </div>
@@ -443,7 +443,7 @@ export function Editor({
             >
               {retrying ? "Retrying…" : "Try again"}
             </button>
-            <a href="/" className="text-sm text-sky-400 hover:text-sky-300">
+            <a href="/create" className="text-sm text-sky-400 hover:text-sky-300">
               Upload a different video
             </a>
           </div>

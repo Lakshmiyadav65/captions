@@ -3,7 +3,6 @@
 import { useRef, useState, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { upload as blobUpload } from "@vercel/blob/client";
-import { isQuotaError } from "@/lib/errors";
 
 const VIDEO_EXT = /\.(mp4|mov|mkv|webm|avi|m4v|mpg|mpeg|wmv|flv)$/i;
 /** Vercel Functions reject bodies over ~4.5MB — use Blob direct upload above this. */
@@ -16,7 +15,6 @@ export function Uploader() {
   const [uploading, setUploading] = useState(false);
   const [pct, setPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [quotaHit, setQuotaHit] = useState(false);
 
   const finishWithJobId = (id: string) => {
     router.push(`/jobs/${id}`);
@@ -46,7 +44,6 @@ export function Uploader() {
       return;
     }
     if (!res.ok || !data.id) {
-      setQuotaHit(isQuotaError(res.status, data));
       throw new Error(data.error ?? "Upload failed. Please try again.");
     }
     setPct(100);
@@ -96,7 +93,6 @@ export function Uploader() {
               "Upload failed — the file may exceed Vercel’s 4.5 MB limit. Try a shorter/compressed clip.";
           }
         }
-        setQuotaHit(isQuotaError(xhr.status, body));
         reject(new Error(msg));
       };
       xhr.onerror = () => {
@@ -107,7 +103,6 @@ export function Uploader() {
 
   const upload = async (file: File) => {
     setError(null);
-    setQuotaHit(false);
     if (!file.type.startsWith("video/") && !VIDEO_EXT.test(file.name)) {
       setError("Please choose a video file (MP4, MOV, MKV, WebM…).");
       return;
@@ -201,13 +196,8 @@ export function Uploader() {
         />
       </div>
       {error && (
-        <div className="mt-3 space-y-2 text-sm text-red-400">
+        <div className="mt-3 text-sm text-red-400">
           <p>{error}</p>
-          {quotaHit && (
-            <a href="/billing" className="text-sky-400 underline">
-              View usage / plans
-            </a>
-          )}
         </div>
       )}
     </div>

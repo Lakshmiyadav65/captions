@@ -15,10 +15,12 @@ These six documents are the **source of truth** for shipping this product. Paste
 | 07 | [Phase 4 checklist](./07-phase4-checklist.md) | Staging/prod hardening |
 | 08 | [Phase 5 checklist](./08-phase5-checklist.md) | QA matrix + font parity |
 | 09 | [Phase 6 soft launch](./09-phase6-launch.md) | Invite pack + LIVE_URL |
-| 10 | [Phase 7 roadmap](./10-phase7-roadmap.md) | Timings, Stripe, languages, batch |
+| 10 | [Phase 7 roadmap](./10-phase7-roadmap.md) | Timings, Razorpay billing, languages, batch |
 | 11 | [Magazine production](./11-production-magazine.md) | Audience Magazine launch checklist + runbooks |
 | 12 | [Railway deploy](./12-railway-deploy.md) | Railway web + worker + Redis setup |
+| 13 | [Oracle Always Free](./13-oracle-always-free.md) | $0 production VM + Compose |
 | — | [Production env example](./env.production.example.md) | Secrets / quotas for compose prod |
+| — | [Oracle env example](./env.oracle.example.md) | Soft bring-up env for Oracle VM |
 
 Also see:
 

@@ -8,6 +8,8 @@ import { reportError } from "@/lib/sentry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Inline ASR runs via `after()` on this request — Hobby max is 300s.
+export const maxDuration = 300;
 
 function isVercelBlobUrl(url: string): boolean {
   try {

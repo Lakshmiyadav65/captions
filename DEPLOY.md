@@ -138,15 +138,14 @@ Playback uses **presigned URLs** (the browser streams straight from the bucket).
 Video upload + long transcription exceed serverless limits, so use a **container host**
 (not Vercel). All of these build the `Dockerfile`:
 
-- **Railway** — add Postgres + Redis plugins; two services from this repo: web
-  (`npm run start`) and worker (`npm run worker`); set env vars; add a volume or use R2.
-- **Render** — a Web Service + a Background Worker (same repo/Dockerfile, different start
-  commands) + Render Postgres + Redis.
-- **Fly.io** — `fly launch`; add `fly postgres` + Upstash Redis; run the worker as a
-  second process/machine.
+- **Oracle Always Free (Ampere VM)** — $0 path: `docker-compose.prod.yml` + `docker-compose.oracle.yml`; see [`docs/13-oracle-always-free.md`](docs/13-oracle-always-free.md).
+- **Railway** — Redis plugin; web (`npm run start`) + worker (`npm run worker`); see [`docs/12-railway-deploy.md`](docs/12-railway-deploy.md).
+- **Render** — Web Service + Background Worker + Redis.
+- **Fly.io** — `fly launch`; Redis; second process/machine for the worker.
 
-The Docker build automatically switches Prisma to Postgres (`scripts/use-postgres.mjs`)
-and the app runs `prisma db push` on boot to sync the schema.
+Keep **Neon Postgres** as `DATABASE_URL`. Prefer **Cloudflare R2** for media (`STORAGE_DRIVER=s3`); on a single Oracle VM you can start with local disk (`STORAGE_DRIVER=local`) then move to R2.
+
+The Docker build switches Prisma to Postgres (`scripts/use-postgres.mjs`). Prod compose runs `prisma migrate deploy` on boot.
 
 ## Scaling notes
 

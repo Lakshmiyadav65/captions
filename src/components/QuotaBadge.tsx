@@ -33,10 +33,9 @@ export function QuotaBadge() {
   );
 
   return (
-    <a
-      href="/billing"
-      className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-neutral-900 px-2.5 py-1.5 text-[11px] text-neutral-300 transition hover:border-white/20 hover:text-white"
-      title="View plan and usage"
+    <span
+      className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-neutral-900 px-2.5 py-1.5 text-[11px] text-neutral-300"
+      title="Minutes used this month"
     >
       <span className="font-medium text-neutral-200">{usage.planLabel}</span>
       <span className="tabular-nums text-neutral-500">
@@ -48,6 +47,6 @@ export function QuotaBadge() {
           style={{ width: `${pct}%` }}
         />
       </span>
-    </a>
+    </span>
   );
 }

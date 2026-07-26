@@ -1,9 +1,8 @@
 # Audience Magazine — production launch checklist
 
-Target stack: **Railway** (web + worker + Redis) + **Neon Postgres** + **Cloudflare R2** + **BullMQ**.  
+Target stack (paid host): **Railway** (web + worker + Redis) + **Neon Postgres** + **Cloudflare R2** + **BullMQ**.  
+Target stack ($0 host): **Oracle Always Free Ampere VM** + same Compose stack — see [13-oracle-always-free.md](./13-oracle-always-free.md).  
 Do **not** put magazine traffic on Vercel Hobby for processing.
-
-Railway step-by-step: [12-railway-deploy.md](./12-railway-deploy.md).
 
 Live demo (Neon only): https://captions-gilt.vercel.app — keep for marketing; processing for launch goes on the container host.
 
@@ -13,7 +12,7 @@ Live demo (Neon only): https://captions-gilt.vercel.app — keep for marketing; 
 
 | Area | Choice |
 |------|--------|
-| Host | **Railway** (web + worker + Redis plugin) — see [12-railway-deploy.md](./12-railway-deploy.md) |
+| Host | **Oracle Always Free** ($0) or **Railway** when budget allows |
 | DB | Keep Neon (already provisioned for this project) |
 | Media | Cloudflare R2 (`STORAGE_DRIVER=s3`) |
 | Queue | BullMQ + Redis; web enqueues, worker burns ASR + export |
@@ -25,7 +24,7 @@ Live demo (Neon only): https://captions-gilt.vercel.app — keep for marketing; 
 
 ## Infra checklist
 
-- [ ] **Railway** project live: **web** + **worker** + **Redis** ([12-railway-deploy.md](./12-railway-deploy.md))
+- [ ] **Host** live: Oracle Always Free ([13](./13-oracle-always-free.md)) **or** Railway web+worker+Redis ([12](./12-railway-deploy.md))
 - [ ] Neon `DATABASE_URL` set on web + worker
 - [ ] If Neon was created via `db push`, migration `0_init` already resolved (done for current Neon)
 - [ ] Redis healthy (`REDIS_URL` from Railway Redis plugin)

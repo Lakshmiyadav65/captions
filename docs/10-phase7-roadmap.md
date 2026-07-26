@@ -5,7 +5,7 @@ Priority order from the implementation plan. This doc tracks status.
 | # | Track | Status |
 |---|-------|--------|
 | 7.1 | Better timings (Sarvam text + Whisper words) | **Shipped** (`TIMING_PROVIDER=openai`) |
-| 7.2 | Stripe billing + plan quotas | Not started |
+| 7.2 | Razorpay billing + plan quotas | Deferred (free demo now) |
 | 7.3 | Multi-language Indic packs (hi / ta / kn) | Not started |
 | 7.4 | Batch jobs | Not started |
 
@@ -34,14 +34,19 @@ Research background: [session-sarvam-accuracy-timing.md](./session-sarvam-accura
 
 ---
 
-## 7.2 Stripe billing + plan quotas
+## 7.2 Razorpay billing + plan quotas
 
-- Plans: free / creator / pro (minutes + concurrent jobs)
-- Checkout + Customer Portal
-- Map Stripe price → `QUOTA_*` overrides per user
-- Webhook ledger (no raw card data in DB)
+**Decision (soft launch):** No paid checkout yet. Demo users stay on **Free** with env quotas (`QUOTA_MONTHLY_MINUTES`, `QUOTA_MAX_ACTIVE_JOBS`). Payment provider when we charge: **Razorpay** (not Stripe).
 
-**Done when:** A paid user gets higher monthly minutes after successful checkout.
+When plans are decided:
+- Keep Free / Creator / Pro (or rename) minute + concurrency limits in `src/lib/plans.ts`
+- Razorpay Checkout / Subscriptions + webhook → set `User.plan`
+- Map Razorpay plan/price ids → quota overrides
+- Billing UI returns only after keys + plan matrix are final
+
+Legacy Stripe routes under `src/app/api/billing/*` and `src/lib/stripe.ts` are unused for this product path — replace when implementing Razorpay.
+
+**Done when:** A paid user gets higher monthly minutes after successful Razorpay subscription.
 
 ---
 

@@ -1,4 +1,5 @@
-// Subscription plan limits. Env QUOTA_* is the Free-tier baseline; paid plans override.
+// Subscription plan limits. Env QUOTA_* is the Free-tier baseline; paid plans override
+// when Razorpay billing is wired (soft launch = Free only).
 
 export type PlanId = "free" | "creator" | "pro";
 
@@ -7,7 +8,7 @@ export interface PlanLimits {
   label: string;
   monthlyMinutes: number;
   maxActiveJobs: number;
-  /** Stripe Price ID from env (empty = checkout disabled for this plan). */
+  /** Legacy Stripe env key — unused; Razorpay plan ids will replace this. */
   priceEnvKey: "STRIPE_PRICE_CREATOR" | "STRIPE_PRICE_PRO" | null;
 }
 

@@ -4,6 +4,15 @@
   "buildCommand": "node scripts/vercel-build.mjs",
   "regions": ["iad1"],
   "functions": {
+    "src/app/api/upload/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/upload/complete/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/jobs/[id]/retry/route.ts": {
+      "maxDuration": 300
+    },
     "src/app/api/export/[id]/route.ts": {
       "maxDuration": 300
     },

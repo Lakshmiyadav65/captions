@@ -162,9 +162,14 @@ export async function processJob(jobId: string): Promise<void> {
       });
 
       const maxChunkSec = provider.maxChunkSeconds ?? 0;
-      // Target the configured chunk length, but never exceed the provider's per-request cap.
+      // Prefer larger chunks on Vercel (fewer sequential API round-trips within maxDuration).
+      // Locally keep ASR_CHUNK_SECONDS for tighter energy cuts / timing experiments.
+      const preferFastChunks = Boolean(process.env.VERCEL);
       const targetChunkSec = maxChunkSec
-        ? Math.min(config.chunkSeconds, maxChunkSec)
+        ? Math.min(
+            preferFastChunks ? maxChunkSec : config.chunkSeconds,
+            maxChunkSec,
+          )
         : 0;
       // Chunk when the audio is meaningfully longer than one target chunk (else transcribe in
       // one shot). Energy-aware cuts land in relative pauses to avoid slicing mid-word.
@@ -175,8 +180,19 @@ export async function processJob(jobId: string): Promise<void> {
           maxSec: maxChunkSec,
           searchSec: 1.5,
         });
+        log.info("job.chunking", {
+          jobId,
+          chunks: chunks.length,
+          targetChunkSec,
+          durationSec: duration,
+        });
         for (let i = 0; i < chunks.length; i++) {
           const c = chunks[i];
+          // Move the bar at the start of each chunk so the UI isn't stuck at 20% during
+          // the first Sarvam round-trip.
+          await update(jobId, {
+            progress: 20 + Math.round((i / chunks.length) * 70),
+          });
           const r = await provider.transcribe(c.path, {
             language,
             durationSec: c.durationSec,

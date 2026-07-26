@@ -14,6 +14,7 @@ import { reportError } from "@/lib/sentry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 // The client streams the raw video as the request body; we pipe it straight into storage
 // (local disk or S3) without buffering. Auth + quotas are enforced before accepting bytes.

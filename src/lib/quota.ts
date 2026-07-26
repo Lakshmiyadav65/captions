@@ -1,9 +1,10 @@
 import { config } from "./config";
 import { prisma } from "./db";
 import { isPlanId, PLANS, type PlanId } from "./plans";
+import { log } from "./log";
 
 // Per-user guardrails for a hosted, multi-tenant deployment: cap concurrent jobs and
-// monthly transcription minutes. Paid Stripe plans raise limits via User.plan.
+// monthly transcription minutes. Paid Razorpay plans will raise limits via User.plan.
 
 export interface QuotaResult {
   ok: boolean;
@@ -11,9 +12,33 @@ export interface QuotaResult {
   code?: "quota_active_jobs" | "quota_minutes" | "quota_analyses" | "quota_generations";
 }
 
+/** Vercel Hobby caps inline ASR at ~300s — anything still "active" past this is stuck. */
+const STALE_ACTIVE_JOB_MS = 6 * 60 * 1000;
+
 function startOfMonth(): Date {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+/** Mark zombie queued/extracting/transcribing jobs as failed so they stop blocking uploads. */
+export async function failStaleActiveJobs(userId: string): Promise<number> {
+  const cutoff = new Date(Date.now() - STALE_ACTIVE_JOB_MS);
+  const result = await prisma.job.updateMany({
+    where: {
+      userId,
+      status: { in: ["queued", "extracting", "transcribing"] },
+      updatedAt: { lt: cutoff },
+    },
+    data: {
+      status: "failed",
+      error:
+        "Processing timed out on the free demo host. Try a shorter clip (under ~5 min), or retry.",
+    },
+  });
+  if (result.count > 0) {
+    log.warn("quota.stale_jobs_failed", { userId, count: result.count });
+  }
+  return result.count;
 }
 
 export async function getUserPlanId(userId: string): Promise<PlanId> {
@@ -46,6 +71,8 @@ export async function getUserLimits(userId: string) {
 export async function assertWithinQuota(userId: string): Promise<QuotaResult> {
   const limits = await getUserLimits(userId);
 
+  await failStaleActiveJobs(userId);
+
   const active = await prisma.job.count({
     where: { userId, status: { in: ["queued", "extracting", "transcribing"] } },
   });
@@ -53,7 +80,7 @@ export async function assertWithinQuota(userId: string): Promise<QuotaResult> {
     return {
       ok: false,
       code: "quota_active_jobs",
-      reason: `You already have ${active} video(s) processing. Wait for one to finish, then try again.`,
+      reason: `You already have ${active} video(s) processing. Wait for one to finish (or retry a stuck job), then try again.`,
     };
   }
 
@@ -66,7 +93,7 @@ export async function assertWithinQuota(userId: string): Promise<QuotaResult> {
     return {
       ok: false,
       code: "quota_minutes",
-      reason: `You've used your monthly ${limits.monthlyMinutes} minutes on the ${limits.label} plan. Upgrade or wait until next month.`,
+      reason: `You've used your monthly ${limits.monthlyMinutes} demo minutes. Try again next month.`,
     };
   }
 

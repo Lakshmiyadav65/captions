@@ -1,0 +1,61 @@
+# docker-compose.oracle.yml
+# Always Free Oracle Ampere VM — bootstrap override for docker-compose.prod.yml
+#
+# Phase A (no R2 yet): local disk volume for media
+#   docker compose -f docker-compose.prod.yml -f docker-compose.oracle.yml up --build -d
+#
+# Phase B (R2 ready): set STORAGE_DRIVER=s3 + S3_* in .env, then recreate:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.oracle.yml up -d --force-recreate app worker
+#
+# Optional HTTPS (needs a DNS A record → VM public IP):
+#   docker compose -f docker-compose.prod.yml -f docker-compose.oracle.yml --profile tls up -d
+
+services:
+  app:
+    environment:
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_DIR: /data/storage
+      # Soft bring-up: set STRICT_PROD_AUTH=true + Google OAuth before public invite
+      AUTH_ENABLED: ${AUTH_ENABLED:-true}
+      AUTH_DEV_LOGIN: ${AUTH_DEV_LOGIN:-false}
+      STRICT_PROD_AUTH: ${STRICT_PROD_AUTH:-false}
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID:-}
+      AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET:-}
+      APP_URL: ${APP_URL}
+    volumes:
+      - mediadata:/data/storage
+    ports:
+      - "${PORT:-3000}:3000"
+
+  worker:
+    environment:
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_DIR: /data/storage
+      # Keep worker concurrency modest on free-tier shapes
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
+      EXPORT_WORKER_CONCURRENCY: ${EXPORT_WORKER_CONCURRENCY:-1}
+    volumes:
+      - mediadata:/data/storage
+
+  # Automatic HTTPS when you have a real domain pointing at the VM
+  caddy:
+    profiles: ["tls"]
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+    volumes:
+      - ./deploy/oracle/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - app
+
+volumes:
+  mediadata:
+  caddydata:
+  caddyconfig:

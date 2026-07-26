@@ -7,6 +7,7 @@ import { log } from "@/lib/log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 // Re-run a failed job without re-uploading. Resets status → queued and enqueues again.
 

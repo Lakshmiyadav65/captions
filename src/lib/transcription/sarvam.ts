@@ -16,6 +16,7 @@ import { groupWordsIntoSegments, splitTranscriptIntoSegments } from "./util";
 // zip and then group into readable subtitle lines.
 
 const ENDPOINT = "https://api.sarvam.ai/speech-to-text";
+const MAX_ATTEMPTS = 3;
 
 function toSarvamLang(code?: string): string {
   if (!code) return "unknown"; // let Sarvam auto-detect
@@ -44,6 +45,14 @@ function zipWords(timestamps: unknown): Word[] {
   }));
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function shouldRetry(status: number): boolean {
+  return status === 408 || status === 429 || status === 502 || status === 503 || status === 504;
+}
+
 export class SarvamProvider implements TranscriptionProvider {
   readonly name = "sarvam";
   readonly maxChunkSeconds = 28;
@@ -52,54 +61,78 @@ export class SarvamProvider implements TranscriptionProvider {
     audioPath: string,
     opts: TranscribeOptions = {},
   ): Promise<TranscriptionResult> {
-    const key = process.env.SARVAM_API_KEY;
+    const key = process.env.SARVAM_API_KEY?.trim();
     if (!key) throw new Error("SARVAM_API_KEY is not set");
     const model = process.env.SARVAM_MODEL || "saaras:v3";
+    const mode = process.env.SARVAM_MODE || "transcribe";
 
     const buf = await readFile(audioPath);
-    const form = new FormData();
-    form.append("file", new Blob([new Uint8Array(buf)]), basename(audioPath));
-    form.append("model", model);
-    form.append("language_code", toSarvamLang(opts.language));
-    // "transcribe" keeps the output in the spoken script (Telugu); saaras:v3 only.
-    form.append("mode", process.env.SARVAM_MODE || "transcribe");
+    const filename = basename(audioPath) || "audio.wav";
+    // Explicit WAV type — some gateways reject nameless octet-stream Blobs.
+    const file = new File([buf], filename, { type: "audio/wav" });
 
-    const res = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: { "api-subscription-key": key },
-      body: form,
-      signal: opts.signal,
-    });
-    if (!res.ok) {
-      throw new Error(
-        `Sarvam transcription failed (${res.status}): ${await res.text()}`,
-      );
+    let lastErr = "Sarvam transcription failed";
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("model", model);
+      form.append("language_code", toSarvamLang(opts.language));
+      form.append("mode", mode);
+      form.append("with_timestamps", "true");
+
+      let res: Response;
+      try {
+        res = await fetch(ENDPOINT, {
+          method: "POST",
+          headers: { "api-subscription-key": key },
+          body: form,
+          signal: opts.signal,
+        });
+      } catch (err) {
+        lastErr = `Sarvam network error: ${err instanceof Error ? err.message : String(err)}`;
+        if (attempt < MAX_ATTEMPTS) {
+          await sleep(500 * attempt);
+          continue;
+        }
+        throw new Error(lastErr);
+      }
+
+      if (res.ok) {
+        const json = (await res.json()) as {
+          transcript?: string;
+          language_code?: string | null;
+          timestamps?: unknown;
+        };
+
+        const words = zipWords(json.timestamps);
+        let segments: Segment[];
+        if (words.length) {
+          segments = groupWordsIntoSegments(words);
+        } else if (json.transcript) {
+          segments = splitTranscriptIntoSegments(
+            json.transcript,
+            opts.durationSec ?? 0,
+          );
+        } else {
+          segments = [];
+        }
+
+        return {
+          language: normalizeLanguage(json.language_code || "te"),
+          provider: this.name,
+          segments,
+        };
+      }
+
+      const body = (await res.text()).slice(0, 500);
+      lastErr = `Sarvam transcription failed (${res.status}): ${body || res.statusText}`;
+      if (attempt < MAX_ATTEMPTS && shouldRetry(res.status)) {
+        await sleep(700 * attempt);
+        continue;
+      }
+      throw new Error(lastErr);
     }
 
-    const json = (await res.json()) as {
-      transcript?: string;
-      language_code?: string | null;
-      timestamps?: unknown;
-    };
-
-    const words = zipWords(json.timestamps);
-    let segments: Segment[];
-    if (words.length) {
-      segments = groupWordsIntoSegments(words);
-    } else if (json.transcript) {
-      // No timestamps came back — distribute the transcript across the chunk length.
-      segments = splitTranscriptIntoSegments(
-        json.transcript,
-        opts.durationSec ?? 0,
-      );
-    } else {
-      segments = [];
-    }
-
-    return {
-      language: normalizeLanguage(json.language_code || "te"),
-      provider: this.name,
-      segments,
-    };
+    throw new Error(lastErr);
   }
 }

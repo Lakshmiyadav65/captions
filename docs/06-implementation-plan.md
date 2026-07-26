@@ -102,7 +102,7 @@ Full checklist: [07-phase4-checklist.md](./07-phase4-checklist.md)
 | Track | Status |
 |-------|--------|
 | 7.1 Better timings (`TIMING_PROVIDER=openai`) | Done — see [10-phase7-roadmap.md](./10-phase7-roadmap.md) |
-| 7.2 Stripe billing + plan quotas | Not started |
+| 7.2 Razorpay billing + plan quotas | Deferred — free demo; Razorpay later |
 | 7.3 Multi-language Indic packs | Not started |
 | 7.4 Batch jobs | Not started |
 

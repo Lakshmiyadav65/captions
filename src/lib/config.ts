@@ -79,7 +79,8 @@ const schema = z.object({
   QUOTA_MONTHLY_GENERATIONS: z.coerce.number().default(100),
   STYLE_MATCH_THRESHOLD: z.coerce.number().default(0.9),
 
-  // Stripe billing (optional — when unset, checkout is disabled; free quotas still apply)
+  // Billing (optional). Soft launch = free demo only. Paid path will be Razorpay.
+  // Legacy Stripe env keys remain parsed so old deploys don't crash; do not enable.
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRICE_CREATOR: z.string().optional(),
