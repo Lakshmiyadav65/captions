@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { Uploader } from "@/components/Uploader";
+
+const SIGN_IN_HREF = `/signin?next=${encodeURIComponent("/?start=1")}`;
 
 function ScrollReveal({
   children,
@@ -49,7 +51,32 @@ function ScrollReveal({
   );
 }
 
-function Navbar() {
+function StartFreeLink({
+  canStart,
+  className,
+  style,
+  children = "Start free",
+}: {
+  canStart: boolean;
+  className?: string;
+  style?: CSSProperties;
+  children?: ReactNode;
+}) {
+  if (canStart) {
+    return (
+      <a href="#upload" className={className} style={style}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link href={SIGN_IN_HREF} className={className} style={style}>
+      {children}
+    </Link>
+  );
+}
+
+function Navbar({ canStart }: { canStart: boolean }) {
   return (
     <header className="navbar">
       <div className="container nav-container">
@@ -65,9 +92,9 @@ function Navbar() {
         </nav>
 
         <div className="nav-actions">
-          <a href="#upload" className="btn-primary">
+          <StartFreeLink canStart={canStart} className="btn-primary">
             Start free
-          </a>
+          </StartFreeLink>
         </div>
       </div>
     </header>
@@ -480,7 +507,7 @@ function StatsSection() {
   );
 }
 
-function CtaSection() {
+function CtaSection({ canStart }: { canStart: boolean }) {
   return (
     <section className="cta-section">
       <div className="container cta-container">
@@ -493,9 +520,13 @@ function CtaSection() {
             videos with AI.
           </p>
 
-          <a href="#upload" className="btn-primary" style={{ fontSize: 16, padding: "14px 32px" }}>
+          <StartFreeLink
+            canStart={canStart}
+            className="btn-primary"
+            style={{ fontSize: 16, padding: "14px 32px" }}
+          >
             Start for free
-          </a>
+          </StartFreeLink>
         </ScrollReveal>
       </div>
     </section>
@@ -658,7 +689,29 @@ function Footer() {
   );
 }
 
-export function LandingPage() {
+export function LandingPage({
+  canStart = true,
+  authEnabled = false,
+}: {
+  canStart?: boolean;
+  authEnabled?: boolean;
+}) {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("start") !== "1") return;
+    const el = document.getElementById("upload");
+    if (el) {
+      requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+    // Clean the query without a full reload.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("start");
+    window.history.replaceState({}, "", url.pathname + url.hash);
+  }, []);
+
   return (
     <div className="landing-page">
       <div className="grain-texture" />
@@ -669,7 +722,7 @@ export function LandingPage() {
         <div className="glow glow-bottom-right" />
       </div>
 
-      <Navbar />
+      <Navbar canStart={canStart} />
       <Hero />
       <FeaturesSplit />
       <TwoCardSection />
@@ -677,9 +730,12 @@ export function LandingPage() {
       <ActionSection />
       <BrandsSection />
       <StatsSection />
-      <CtaSection />
+      <CtaSection canStart={canStart} />
       <FaqSection />
       <Footer />
+      {authEnabled && !canStart ? (
+        <p className="sr-only">Sign in required to start uploading.</p>
+      ) : null}
     </div>
   );
 }
