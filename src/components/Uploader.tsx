@@ -220,10 +220,12 @@ export function Uploader({ tone = "dark" }: UploaderProps) {
         ) : (
           <>
             <p className={["text-lg font-medium", light ? "text-slate-900" : "text-neutral-100"].join(" ")}>
-              Drop a Telugu video here
+              {light ? "Drop your video to start" : "Drop a Telugu video here"}
             </p>
             <p className={["mt-1 text-sm", light ? "text-slate-500" : "text-neutral-400"].join(" ")}>
-              or click to browse · MP4, MOV, MKV, WebM
+              {light
+                ? "Click to browse · MP4, MOV, MKV, WebM"
+                : "or click to browse · MP4, MOV, MKV, WebM"}
             </p>
           </>
         )}

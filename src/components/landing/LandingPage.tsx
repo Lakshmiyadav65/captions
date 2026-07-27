@@ -54,24 +54,41 @@ function Navbar() {
     <header className="navbar">
       <div className="container nav-container">
         <Link href="/" className="logo">
-          <img src="/logo.png" alt="Telugu Captions" className="nav-logo-img" />
+          <img src="/logo.png" alt="Caplio" className="nav-logo-img" />
         </Link>
 
         <nav className="nav-links">
           <a href="#upload">Product</a>
           <a href="#features">Features</a>
           <Link href="/billing">Pricing</Link>
-          <Link href="/style-analyzer">Style Analyzer</Link>
-          <Link href="/styles">My Styles</Link>
+          <Link href="/style-analyzer">Analyzer</Link>
         </nav>
 
         <div className="nav-actions">
           <a href="#upload" className="btn-primary">
-            Sign up free
+            Start free
           </a>
         </div>
       </div>
     </header>
+  );
+}
+
+function FlowIcon({ name }: { name: "upload" | "fix" | "export" }) {
+  const paths = {
+    upload:
+      "M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5",
+    fix: "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10",
+    export:
+      "M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3",
+  } as const;
+
+  return (
+    <div className="flow-icon" aria-hidden>
+      <svg fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d={paths[name]} />
+      </svg>
+    </div>
   );
 }
 
@@ -89,46 +106,85 @@ function Hero() {
           <div className="hero-mockup-frame" id="upload">
             <div className="mockup-header">
               <div className="mockup-dots">
-                <span />
-                <span />
-                <span />
+                <span className="dot-red" />
+                <span className="dot-amber" />
+                <span className="dot-green" />
               </div>
               <div className="mockup-title-label">Create captions</div>
+              <div className="mockup-header-meta">
+                <span className="mockup-chip">Soft launch</span>
+                <span className="mockup-formats">MP4 · SRT · VTT · ASS</span>
+              </div>
             </div>
+
             <div className="mockup-workspace">
-              <p className="workspace-lead">
-                Upload a Telugu video. Get timed romanized captions, style them live,
-                and export a publish-ready burned MP4 — or SRT / VTT / ASS.
-              </p>
-
-              <Uploader tone="light" />
-
-              <div className="workspace-steps">
-                <div className="workspace-step">
-                  <strong>1 · Upload</strong>
-                  <span>Drop a Reel or Short. We transcribe Telugu + English code-mix.</span>
+              <div className="workspace-stage">
+                <div className="workspace-preview" aria-hidden>
+                  <div className="preview-phone">
+                    <div className="preview-phone-screen">
+                      <div className="preview-grad" />
+                      <div className="preview-caption">
+                        <span className="preview-caption-word">Namaskaram</span>
+                        <span className="preview-caption-word is-active">andi!</span>
+                      </div>
+                      <div className="preview-phone-home" />
+                    </div>
+                  </div>
+                  <p className="preview-caption-note">Preview of styled captions</p>
                 </div>
-                <div className="workspace-step">
-                  <strong>2 · Fix & learn</strong>
-                  <span>Edit a wrong word once — we remember it for your next videos.</span>
-                </div>
-                <div className="workspace-step">
-                  <strong>3 · Export MP4</strong>
-                  <span>Style live, then burn captions into the video ready to post.</span>
+
+                <div className="workspace-upload">
+                  <p className="workspace-lead">
+                    Drop a Telugu Reel or Short. Get timed romanized captions, style
+                    them live, and export a burned MP4 ready to post.
+                  </p>
+                  <Uploader tone="light" />
                 </div>
               </div>
 
-              <Link href="/style-analyzer" className="workspace-analyzer">
-                <div>
-                  <div className="workspace-analyzer-title">Caption Style Analyzer</div>
-                  <p>Drop a screenshot of any Reel caption and reuse that look on yours.</p>
-                </div>
-                <span aria-hidden>→</span>
-              </Link>
+              <ol className="workspace-flow">
+                <li>
+                  <FlowIcon name="upload" />
+                  <div>
+                    <strong>Upload</strong>
+                    <span>Telugu + English code-mix transcription</span>
+                  </div>
+                </li>
+                <li>
+                  <FlowIcon name="fix" />
+                  <div>
+                    <strong>Fix & learn</strong>
+                    <span>Corrections stick for your next videos</span>
+                  </div>
+                </li>
+                <li>
+                  <FlowIcon name="export" />
+                  <div>
+                    <strong>Export</strong>
+                    <span>Burned MP4 or SRT / VTT / ASS</span>
+                  </div>
+                </li>
+              </ol>
 
-              <div className="workspace-links">
-                <Link href="/styles">My Styles</Link>
-                <Link href="/billing">Pricing</Link>
+              <div className="workspace-tools">
+                <Link href="/style-analyzer" className="workspace-tool-primary">
+                  <span className="tool-icon" aria-hidden>
+                    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.362-.126-.552-.3-.752A24.866 24.866 0 0012 15c2.072 0 4.028.368 5.85 1.044-.174.2-.3.39-.3.752a4.5 4.5 0 008.4 2.245 2.25 2.25 0 01-2.4-2.245 3 3 0 00-5.78-1.128 2.998 2.998 0 00-.78-2.122M15.75 9V5.677M12 10.5V4.875m-3.75 5.25V7.875"
+                      />
+                    </svg>
+                  </span>
+                  <span>
+                    <strong>Style Analyzer</strong>
+                    <em>Clone any Reel caption look from a screenshot</em>
+                  </span>
+                  <span className="tool-arrow" aria-hidden>
+                    →
+                  </span>
+                </Link>
               </div>
             </div>
           </div>
