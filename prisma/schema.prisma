@@ -89,6 +89,7 @@ model User {
   styleAnalyses  StyleAnalysis[]
   savedStyles    SavedStyle[]
   generationLogs GenerationLog[]
+  styleRequests  StyleRequest[]
 }
 
 // --- Caption Style Analyzer ---
@@ -134,6 +135,26 @@ model GenerationLog {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+/// Creator request: recreate a caption style from a reference screenshot/video within ~24h.
+model StyleRequest {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String //   short label for the look they want
+  platform      String? //  where they saw it (Instagram, YouTube, etc.)
+  notes         String? //  extra detail: fonts, colors, motion, creator name
+  referenceKey  String? //  storage key for screenshot/video
+  referenceName String? //  original filename
+  referenceType String? //  mime type
+  referenceUrl  String? //  optional external/Blob URL if not stored locally
+  status        String   @default("open") // open | in_progress | done | declined
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
 }
 
 model Account {

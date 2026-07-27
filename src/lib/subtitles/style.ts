@@ -16,10 +16,11 @@ export type CaptionAnimation =
   | "scatter"
   | "hook"
   | "flash"
-  | "editorial";
+  | "editorial"
+  | "typewriter";
 
 /** Special glyph treatments beyond flat fill (preview-rich; ASS approximates). */
-export type TextEffect = "none" | "prism";
+export type TextEffect = "none" | "prism" | "negative" | "ember";
 
 /** Static keyword coloring (neon accents) independent of karaoke fill. */
 export type EmphasisMode = "off" | "auto";
@@ -79,8 +80,10 @@ export interface SubtitleStyle {
   /** Entrance animation when a new line appears. */
   animation: CaptionAnimation;
   /**
-   * Glyph treatment. `prism` ≈ Captions.ai "Prism Pro": frosted glass fill with an
-   * iridescent shimmer (preview). Burned ASS uses a soft translucent white approx.
+   * Glyph treatment.
+   * - `prism` ≈ frosted glass + iridescent shimmer
+   * - `negative` ≈ difference-blend white (Clipvo “Negative”)
+   * - `ember` ≈ orange→red fire gradient (Clipvo “Ember”)
    */
   textEffect: TextEffect;
   /**

@@ -12,9 +12,21 @@ export const metadata: Metadata = {
 
 export default async function Home() {
   const user = await currentUser();
-  const signedIn = Boolean(user);
+  // Only treat as signed-in for UI when auth is actually enabled (local demo always
+  // has a synthetic user, but we should not show their name in the nav).
+  const signedIn = config.authEnabled && Boolean(user);
   // When auth is off, local demo mode — Start free can go straight to upload.
   const canStart = !config.authEnabled || signedIn;
 
-  return <LandingPage canStart={canStart} authEnabled={config.authEnabled} />;
+  return (
+    <LandingPage
+      canStart={canStart}
+      authEnabled={config.authEnabled}
+      user={
+        signedIn && user
+          ? { name: user.name, email: user.email, image: user.image }
+          : null
+      }
+    />
+  );
 }

@@ -3,8 +3,29 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { Uploader } from "@/components/Uploader";
+import { signOutAction } from "@/app/actions/auth";
 
 const SIGN_IN_HREF = `/signin?next=${encodeURIComponent("/?start=1")}`;
+
+export type LandingUser = {
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+};
+
+function displayName(user: LandingUser): string {
+  const raw = (user.name ?? "").trim() || (user.email ?? "").split("@")[0] || "Account";
+  return raw.split(/\s+/)[0] ?? raw;
+}
+
+function initials(user: LandingUser): string {
+  const name = (user.name ?? "").trim();
+  if (name) {
+    const parts = name.split(/\s+/).filter(Boolean);
+    return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "U";
+  }
+  return ((user.email ?? "?").slice(0, 1)).toUpperCase();
+}
 
 function ScrollReveal({
   children,
@@ -76,7 +97,7 @@ function StartFreeLink({
   );
 }
 
-function Navbar({ canStart }: { canStart: boolean }) {
+function Navbar({ canStart, user }: { canStart: boolean; user: LandingUser | null }) {
   return (
     <header className="navbar">
       <div className="container nav-container">
@@ -89,12 +110,37 @@ function Navbar({ canStart }: { canStart: boolean }) {
           <a href="#features">Features</a>
           <Link href="/billing">Pricing</Link>
           <Link href="/style-analyzer">Analyzer</Link>
+          <Link href="/style-request">24h Style</Link>
         </nav>
 
         <div className="nav-actions">
-          <StartFreeLink canStart={canStart} className="btn-primary">
-            Start free
-          </StartFreeLink>
+          {user ? (
+            <div className="nav-account">
+              <a href="#upload" className="btn-primary">
+                Upload
+              </a>
+              <div className="nav-user" title={user.email ?? undefined}>
+                {user.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.image} alt="" className="nav-user-avatar" />
+                ) : (
+                  <span className="nav-user-avatar nav-user-initials" aria-hidden>
+                    {initials(user)}
+                  </span>
+                )}
+                <span className="nav-user-name">{displayName(user)}</span>
+              </div>
+              <form action={signOutAction}>
+                <button type="submit" className="nav-signout">
+                  Sign out
+                </button>
+              </form>
+            </div>
+          ) : (
+            <StartFreeLink canStart={canStart} className="btn-primary">
+              Start free
+            </StartFreeLink>
+          )}
         </div>
       </div>
     </header>
@@ -207,6 +253,24 @@ function Hero() {
                   <span>
                     <strong>Style Analyzer</strong>
                     <em>Clone any Reel caption look from a screenshot</em>
+                  </span>
+                  <span className="tool-arrow" aria-hidden>
+                    →
+                  </span>
+                </Link>
+                <Link href="/style-request" className="workspace-tool-primary">
+                  <span className="tool-icon" aria-hidden>
+                    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </span>
+                  <span>
+                    <strong>24h Style (Beta)</strong>
+                    <em>Request any look — we add it to your presets</em>
                   </span>
                   <span className="tool-arrow" aria-hidden>
                     →
@@ -507,7 +571,51 @@ function StatsSection() {
   );
 }
 
-function CtaSection({ canStart }: { canStart: boolean }) {
+function StyleRequestSection({ canStart }: { canStart: boolean }) {
+  const href = canStart
+    ? "/style-request"
+    : `/signin?next=${encodeURIComponent("/style-request")}`;
+  return (
+    <section className="style-request-section" id="custom-style">
+      <div className="container">
+        <ScrollReveal delay={0}>
+          <div className="style-request-panel">
+            <div className="style-request-copy">
+              <span className="style-request-badge">Beta</span>
+              <h2 className="section-title">
+                Seen a caption style you love? Get it in 24 hours.
+              </h2>
+              <p className="style-request-lead">
+                Creators chase looks across Reels and Shorts, then burn hours rebuilding them.
+                Tell us the style, upload a reference video (preferred) or screenshot, and
+                we&apos;ll craft it into your presets — usually within a day.
+              </p>
+              <Link href={href} className="btn-primary style-request-cta">
+                Request a style
+              </Link>
+            </div>
+            <ul className="style-request-steps" aria-label="How custom style requests work">
+              <li>
+                <strong>1. Sign in</strong>
+                <span>Only signed-in creators can submit a request.</span>
+              </li>
+              <li>
+                <strong>2. Upload a reference</strong>
+                <span>A short clip of the look works best; screenshots work too.</span>
+              </li>
+              <li>
+                <strong>3. Find it in presets</strong>
+                <span>We deliver to My Styles within about 24 hours.</span>
+              </li>
+            </ul>
+          </div>
+        </ScrollReveal>
+      </div>
+    </section>
+  );
+}
+
+function CtaSection({ canStart, user }: { canStart: boolean; user: LandingUser | null }) {
   return (
     <section className="cta-section">
       <div className="container cta-container">
@@ -525,7 +633,7 @@ function CtaSection({ canStart }: { canStart: boolean }) {
             className="btn-primary"
             style={{ fontSize: 16, padding: "14px 32px" }}
           >
-            Start for free
+            {user ? "Upload a video" : "Start for free"}
           </StartFreeLink>
         </ScrollReveal>
       </div>
@@ -564,6 +672,10 @@ function FaqSection() {
     {
       q: "Can I customize the Telugu caption fonts and colors?",
       a: "Absolutely. You can choose from 100+ caption presets, or customize font family, font size, stroke color, active word highlight color, background box, and position.",
+    },
+    {
+      q: "What is the 24-hour Style (Beta) feature?",
+      a: "If you see a caption look on Instagram or YouTube that you want on your videos, sign in, open 24h Style, and upload a reference video or screenshot. We handcraft that style into your presets—usually within about 24 hours. For an instant match from a screenshot, use Style Analyzer.",
     },
   ];
 
@@ -672,6 +784,7 @@ function Footer() {
               <a href="#faq">Help Center</a>
               <a href="#faq">Telugu Guides</a>
               <Link href="/style-analyzer">Style Analyzer</Link>
+              <Link href="/style-request">24h Style (Beta)</Link>
               <Link href="/styles">My Styles</Link>
             </div>
           </div>
@@ -692,9 +805,11 @@ function Footer() {
 export function LandingPage({
   canStart = true,
   authEnabled = false,
+  user = null,
 }: {
   canStart?: boolean;
   authEnabled?: boolean;
+  user?: LandingUser | null;
 }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -722,7 +837,7 @@ export function LandingPage({
         <div className="glow glow-bottom-right" />
       </div>
 
-      <Navbar canStart={canStart} />
+      <Navbar canStart={canStart} user={user} />
       <Hero />
       <FeaturesSplit />
       <TwoCardSection />
@@ -730,7 +845,8 @@ export function LandingPage({
       <ActionSection />
       <BrandsSection />
       <StatsSection />
-      <CtaSection canStart={canStart} />
+      <StyleRequestSection canStart={canStart} />
+      <CtaSection canStart={canStart} user={user} />
       <FaqSection />
       <Footer />
       {authEnabled && !canStart ? (

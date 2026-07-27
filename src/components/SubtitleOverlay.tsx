@@ -92,6 +92,8 @@ function animationClass(style: SubtitleStyle): string {
       return "cap-anim-pop";
     case "editorial":
       return "cap-anim-fade";
+    case "typewriter":
+      return "cap-anim-typewriter";
     default:
       return "";
   }
@@ -129,7 +131,11 @@ export function SubtitleOverlay({
   const isBar = boxMode === "bar" && showBox;
   const isPill = boxMode === "pill" && showBox;
   const isInline = boxMode === "inline" && showBox;
-  const prism = (style.textEffect ?? "none") === "prism";
+  const effect = style.textEffect ?? "none";
+  const prism = effect === "prism";
+  const ember = effect === "ember";
+  const negative = effect === "negative";
+  const specialFill = prism || ember || negative;
   const hasText = !!(segment && segment.text);
   // Ghost placeholder so users can still drag when the current moment has no line.
   const displayText = hasText ? segment!.text : "Drag to position";
@@ -171,12 +177,12 @@ export function SubtitleOverlay({
     fontFamily: fontStack(style.fontFamily),
     fontSize: px(style.fontSizePct),
     fontWeight: style.fontWeight,
-    color: prism ? undefined : style.color,
+    color: specialFill ? undefined : style.color,
     lineHeight: showBox && !isBar ? 1 : style.lineHeight,
     letterSpacing: `${style.letterSpacingEm}em`,
     whiteSpace: "pre-wrap",
     wordBreak: "break-word",
-    background: prism ? undefined : bg,
+    background: specialFill ? undefined : bg,
     padding: showBox && !isBar
       ? `${boxPadY + opticalNudge}px ${boxPadX}px ${Math.max(0, boxPadY - opticalNudge)}px`
       : isBar
@@ -185,10 +191,11 @@ export function SubtitleOverlay({
     borderRadius: radius,
     boxDecorationBreak: "clone",
     WebkitBoxDecorationBreak: "clone",
-    WebkitTextStrokeWidth: !prism && stroke > 0 ? `${stroke}px` : undefined,
-    WebkitTextStrokeColor: !prism && stroke > 0 ? style.outlineColor : undefined,
+    WebkitTextStrokeWidth: !specialFill && stroke > 0 ? `${stroke}px` : undefined,
+    WebkitTextStrokeColor: !specialFill && stroke > 0 ? style.outlineColor : undefined,
     paintOrder: "stroke fill",
-    textShadow: buildTextShadow(style, scale, prism),
+    textShadow: buildTextShadow(style, scale, prism || ember),
+    mixBlendMode: negative ? "difference" : undefined,
     opacity: isGhost ? 0.45 : 1,
     cursor: onPositionChange ? "ns-resize" : undefined,
     userSelect: "none",
@@ -196,15 +203,15 @@ export function SubtitleOverlay({
   };
 
   let content: ReactNode = casedText;
-  const useKinetic = hasText && isKinetic(style) && !prism;
-  const useScatter = hasText && isScatter(style) && !prism;
-  const useHook = hasText && isHook(style) && !prism;
-  const useFlash = hasText && isFlash(style) && !prism;
-  const useEditorial = hasText && isEditorial(style) && !prism;
+  const useKinetic = hasText && isKinetic(style) && !specialFill;
+  const useScatter = hasText && isScatter(style) && !specialFill;
+  const useHook = hasText && isHook(style) && !specialFill;
+  const useFlash = hasText && isFlash(style) && !specialFill;
+  const useEditorial = hasText && isEditorial(style) && !specialFill;
   const useKaraoke =
     hasText &&
     style.karaoke &&
-    !prism &&
+    !specialFill &&
     !useKinetic &&
     !useScatter &&
     !useHook &&
@@ -213,7 +220,7 @@ export function SubtitleOverlay({
   const useEmphasis =
     hasText &&
     isEmphasisOn(style) &&
-    !prism &&
+    !specialFill &&
     !useKinetic &&
     !useScatter &&
     !useHook &&
@@ -698,8 +705,20 @@ export function SubtitleOverlay({
           <span className="cap-prism" style={spanStyle}>
             {content}
           </span>
+        ) : ember && !isGhost ? (
+          <span className="cap-ember" style={spanStyle}>
+            {content}
+          </span>
+        ) : negative && !isGhost ? (
+          <span className="cap-negative" style={spanStyle}>
+            {content}
+          </span>
         ) : useKinetic || useScatter || useHook ? (
           content
+        ) : style.animation === "typewriter" && !isGhost ? (
+          <span className="cap-typewriter-wrap" style={spanStyle}>
+            <span className="cap-typewriter-inner">{content}</span>
+          </span>
         ) : (
           <span style={spanStyle}>{content}</span>
         )}
@@ -722,11 +741,23 @@ export function SubtitleOverlay({
           50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
+        @keyframes capTypewriter {
+          from { max-width: 0; }
+          to { max-width: 100%; }
+        }
+        @keyframes capEmberShimmer {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
         .cap-anim-fade {
           animation: capFadeIn 0.28s ease-out both;
         }
         .cap-anim-pop {
           animation: capPopIn 0.32s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+        }
+        .cap-anim-typewriter {
+          animation: capFadeIn 0.2s ease-out both;
         }
         .cap-kinetic-word {
           animation: capKineticIn 0.28s cubic-bezier(0.22, 1.15, 0.36, 1) both;
@@ -750,6 +781,41 @@ export function SubtitleOverlay({
           animation: capPrismShimmer 4.5s ease-in-out infinite;
           filter: drop-shadow(0 1px 0 rgba(255,255,255,0.35))
             drop-shadow(0 2px 6px rgba(15,23,42,0.35));
+        }
+        .cap-ember {
+          background-image: linear-gradient(
+            90deg,
+            #ffb347 0%,
+            #ff6a00 35%,
+            #ff3b30 70%,
+            #ff1e56 100%
+          );
+          background-size: 200% 200%;
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          color: transparent;
+          animation: capEmberShimmer 3.2s ease-in-out infinite;
+          filter: drop-shadow(0 0 10px rgba(255, 59, 48, 0.45))
+            drop-shadow(0 2px 4px rgba(0,0,0,0.35));
+        }
+        .cap-negative {
+          color: #ffffff;
+          -webkit-text-fill-color: #ffffff;
+          mix-blend-mode: difference;
+        }
+        .cap-typewriter-wrap {
+          display: inline-block;
+          max-width: 100%;
+        }
+        .cap-typewriter-inner {
+          display: inline-block;
+          overflow: hidden;
+          white-space: nowrap;
+          max-width: 0;
+          animation: capTypewriter 1.15s steps(22, end) both;
+          border-right: 2px solid rgba(255,255,255,0.75);
+          padding-right: 1px;
         }
       `}</style>
     </div>

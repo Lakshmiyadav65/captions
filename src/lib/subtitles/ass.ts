@@ -144,13 +144,18 @@ export function toASS(
   const isBar = boxMode === "bar" && showBox;
   const boxAlpha = Math.round((1 - style.backgroundOpacity) * 255);
   const glow = style.glowStrength ?? 0;
-  const prism = (style.textEffect ?? "none") === "prism";
+  const effect = style.textEffect ?? "none";
+  const prism = effect === "prism";
+  const ember = effect === "ember";
+  const negative = effect === "negative";
 
   const borderStyle = showBox ? 3 : 1;
 
   // Boxes: BorderStyle 3 uses Outline as pad. Bars get extra vertical pad to read as a band.
   // Glow (no box): inflate outline + tint outline to glow color as a neon approximation.
   // Prism: soft frosted white + cool outline (ASS can't do iridescent glass).
+  // Ember: warm orange/red fill (ASS can't do fire gradients).
+  // Negative: bright white (difference blend is preview-only).
   let outline: number;
   let outlineCol: string;
   let shadow: number;
@@ -176,6 +181,20 @@ export function toASS(
     shadow = 3;
     // Near-white frosted fill — best ASS stand-in for glass.
     primaryColor = assColor("#F5F8FF", 20);
+    secondaryColor = primaryColor;
+  } else if (ember) {
+    outline = Math.max(2, style.outlineWidth || 2);
+    outlineCol = assColor("#FF6A00", 50);
+    backCol = assColor("#FF3B30", 120);
+    shadow = 3;
+    primaryColor = assColor("#FF6A00", 0);
+    secondaryColor = assColor("#FF3B30", 0);
+  } else if (negative) {
+    outline = Math.max(1, style.outlineWidth);
+    outlineCol = assColor("#000000", 0);
+    backCol = assColor("#000000", 80);
+    shadow = style.shadow ? 2 : 0;
+    primaryColor = assColor("#FFFFFF", 0);
     secondaryColor = primaryColor;
   } else if (glow > 0) {
     outline = Math.max(style.outlineWidth, Math.round(glow * 1.5));
@@ -219,25 +238,26 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
   const events = segments
     .flatMap((s) => {
-      if (isEditorial(style) && (style.textEffect ?? "none") !== "prism") {
+      const plainFx = !prism && !ember && !negative;
+      if (isEditorial(style) && plainFx) {
         return editorialDialogues(s, style, PLAY_W, PLAY_H);
       }
-      if (isFlash(style) && (style.textEffect ?? "none") !== "prism") {
+      if (isFlash(style) && plainFx) {
         return flashDialogues(s, style, PLAY_W, PLAY_H);
       }
-      if (isHook(style) && (style.textEffect ?? "none") !== "prism") {
+      if (isHook(style) && plainFx) {
         return hookDialogues(s, style, PLAY_W, PLAY_H);
       }
-      if (isScatter(style) && (style.textEffect ?? "none") !== "prism") {
+      if (isScatter(style) && plainFx) {
         return scatterDialogues(s, style, PLAY_W, PLAY_H);
       }
-      if (isKinetic(style) && (style.textEffect ?? "none") !== "prism") {
+      if (isKinetic(style) && plainFx) {
         return kineticDialogues(s, style, PLAY_W, PLAY_H);
       }
       let body: string;
-      if (style.karaoke && (style.textEffect ?? "none") !== "prism") {
+      if (style.karaoke && plainFx) {
         body = karaokeText(s, style);
-      } else if (isEmphasisOn(style) && (style.textEffect ?? "none") !== "prism") {
+      } else if (isEmphasisOn(style) && plainFx) {
         body = emphasisText(s, style);
       } else {
         body = applyTextCase(s.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");

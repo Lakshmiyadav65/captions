@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { ENGLISH_FONTS, TELUGU_FONTS, fontStack } from "@/lib/fonts";
 import type {
   BoxMode,
@@ -174,11 +174,67 @@ function PresetCard({
   const s = preset.style;
   const box = effectiveBoxMode(s);
   const showBox = box !== "none" && s.backgroundOpacity > 0;
-  const prism = (s.textEffect ?? "none") === "prism";
+  const effect = s.textEffect ?? "none";
+  const prism = effect === "prism";
+  const ember = effect === "ember";
+  const negative = effect === "negative";
   const glow = s.glowStrength > 0
     ? `0 0 ${s.glowStrength * 2}px ${s.glowColor}, 0 0 ${s.glowStrength * 4}px ${s.glowColor}`
     : "none";
   const shadow = s.shadow ? "0 1px 3px rgba(0,0,0,0.85)" : "none";
+
+  const sampleStyle: CSSProperties =
+    prism
+      ? {
+          fontFamily: fontStack(s.fontFamily),
+          fontWeight: s.fontWeight,
+          backgroundImage:
+            "linear-gradient(115deg,#fff,#d2e6ff,#fff,#ffc8f0,#c8fff0,#fff)",
+          WebkitBackgroundClip: "text",
+          backgroundClip: "text",
+          color: "transparent",
+          WebkitTextFillColor: "transparent",
+          filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
+        }
+      : ember
+        ? {
+            fontFamily: fontStack(s.fontFamily),
+            fontWeight: s.fontWeight,
+            backgroundImage: "linear-gradient(90deg,#ffb347,#ff6a00,#ff3b30,#ff1e56)",
+            WebkitBackgroundClip: "text",
+            backgroundClip: "text",
+            color: "transparent",
+            WebkitTextFillColor: "transparent",
+            filter: "drop-shadow(0 0 6px rgba(255,59,48,0.45))",
+            textTransform: "uppercase",
+            letterSpacing: `${s.letterSpacingEm}em`,
+          }
+        : {
+            fontFamily: fontStack(s.fontFamily),
+            fontWeight: s.fontWeight,
+            color: negative ? "#FFFFFF" : s.karaoke ? s.highlightColor : s.color,
+            mixBlendMode: negative ? "difference" : undefined,
+            textTransform:
+              effectiveTextCase(s) === "upper"
+                ? "uppercase"
+                : effectiveTextCase(s) === "lower"
+                  ? "lowercase"
+                  : "none",
+            letterSpacing: `${s.letterSpacingEm}em`,
+            WebkitTextStroke:
+              s.outlineWidth > 0 && !showBox
+                ? `${Math.min(s.outlineWidth * 0.25, 1.2)}px ${s.outlineColor}`
+                : undefined,
+            paintOrder: "stroke fill",
+            textShadow: [glow !== "none" ? glow : null, shadow !== "none" ? shadow : null]
+              .filter(Boolean)
+              .join(", ") || "none",
+            background:
+              showBox && box !== "bar"
+                ? hexToRgba(s.backgroundColor, s.backgroundOpacity)
+                : "transparent",
+            borderRadius: box === "pill" ? 999 : box === "inline" ? 3 : 0,
+          };
 
   return (
     <button
@@ -195,7 +251,9 @@ function PresetCard({
         style={{
           background: prism
             ? "linear-gradient(160deg, #64748b 0%, #334155 45%, #1e293b 100%)"
-            : "radial-gradient(120% 120% at 50% 0%, #334155 0%, #0f172a 75%)",
+            : negative
+              ? "linear-gradient(160deg, #e2e8f0 0%, #64748b 55%, #0f172a 100%)"
+              : "radial-gradient(120% 120% at 50% 0%, #334155 0%, #0f172a 75%)",
         }}
       >
         {box === "bar" && showBox && (
@@ -212,53 +270,16 @@ function PresetCard({
           className={`relative z-[1] max-w-full truncate px-1.5 text-[11px] font-semibold leading-none ${
             showBox && box !== "bar" ? "inline-flex items-center pt-[5px] pb-[3px]" : "py-0.5 leading-tight"
           }`}
-          style={
-            prism
-              ? {
-                  fontFamily: fontStack(s.fontFamily),
-                  fontWeight: s.fontWeight,
-                  backgroundImage:
-                    "linear-gradient(115deg,#fff,#d2e6ff,#fff,#ffc8f0,#c8fff0,#fff)",
-                  WebkitBackgroundClip: "text",
-                  backgroundClip: "text",
-                  color: "transparent",
-                  WebkitTextFillColor: "transparent",
-                  filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
-                }
-              : {
-                  fontFamily: fontStack(s.fontFamily),
-                  fontWeight: s.fontWeight,
-                  color: s.karaoke ? s.highlightColor : s.color,
-                  textTransform:
-                    effectiveTextCase(s) === "upper"
-                      ? "uppercase"
-                      : effectiveTextCase(s) === "lower"
-                        ? "lowercase"
-                        : "none",
-                  letterSpacing: `${s.letterSpacingEm}em`,
-                  WebkitTextStroke:
-                    s.outlineWidth > 0 && !showBox
-                      ? `${Math.min(s.outlineWidth * 0.25, 1.2)}px ${s.outlineColor}`
-                      : undefined,
-                  paintOrder: "stroke fill",
-                  textShadow: [glow !== "none" ? glow : null, shadow !== "none" ? shadow : null]
-                    .filter(Boolean)
-                    .join(", ") || "none",
-                  background:
-                    showBox && box !== "bar"
-                      ? hexToRgba(s.backgroundColor, s.backgroundOpacity)
-                      : "transparent",
-                  borderRadius:
-                    box === "pill" ? 999 : box === "inline" ? 3 : 0,
-                }
-          }
+          style={sampleStyle}
         >
           {preset.sample ?? "Aa"}
         </span>
       </div>
-      <div className="border-t border-white/5 bg-neutral-900 px-2 py-1.5">
+      <div className="flex items-center justify-between gap-2 border-t border-white/5 bg-neutral-900 px-2 py-1.5">
         <div className="truncate text-[11px] font-medium text-neutral-200">{preset.name}</div>
-        <div className="truncate text-[10px] capitalize text-neutral-500">{preset.category}</div>
+        <div className="shrink-0 truncate text-[10px] text-neutral-500">
+          {preset.tag ?? preset.category}
+        </div>
       </div>
     </button>
   );
@@ -273,7 +294,7 @@ export function StylePanel({
   onChange: (patch: Partial<SubtitleStyle>) => void;
   onApplyPreset: (s: SubtitleStyle) => void;
 }) {
-  const [category, setCategory] = useState<PresetCategory | "all">("all");
+  const [category, setCategory] = useState<PresetCategory | "all">("live");
   const activeId = matchingPresetId(style);
 
   const filtered = useMemo(
@@ -503,13 +524,15 @@ export function StylePanel({
             onChange={(v) => onChange({ textEffect: v as TextEffect })}
             options={[
               { label: "Flat", value: "none" },
-              { label: "Prism Pro", value: "prism" },
+              { label: "Prism", value: "prism" },
+              { label: "Negative", value: "negative" },
+              { label: "Ember", value: "ember" },
             ]}
           />
         </Field>
         <p className="text-[10px] leading-relaxed text-neutral-600">
-          Prism Pro: frosted glass + iridescent shimmer (inspired by captions.ai). Richest in
-          preview; burned MP4 uses a soft white glass approx.
+          Prism / Negative / Ember are richest in the live preview. Burned MP4 uses a close ASS
+          approximation.
         </p>
         <Field label="Glow strength" value={`${(style.glowStrength ?? 0).toFixed(0)}`}>
           <Slider
@@ -578,6 +601,7 @@ export function StylePanel({
               { label: "Hook", value: "hook" },
               { label: "Flash", value: "flash" },
               { label: "Editorial", value: "editorial" },
+              { label: "Typewriter", value: "typewriter" },
             ]}
           />
         </Field>
