@@ -9,6 +9,14 @@ export const dynamic = "force-dynamic";
 // bandwidth); for local disk it streams from ./storage with HTTP range support so the
 // <video> element can seek. Replaces serving user uploads out of /public.
 
+function contentDisposition(key: string): Record<string, string> {
+  if (!key.startsWith("exports/")) return {};
+  const filename = key.split("/").pop() ?? "captioned.mp4";
+  return {
+    "Content-Disposition": `attachment; filename="${filename}"`,
+  };
+}
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ key: string[] }> },
@@ -25,6 +33,7 @@ export async function GET(
   const stat = await storage.stat(key);
   if (!stat) return new Response("Not found", { status: 404 });
 
+  const disposition = contentDisposition(key);
   const range = req.headers.get("range");
   if (range) {
     const m = /bytes=(\d+)-(\d*)/.exec(range);
@@ -39,23 +48,19 @@ export async function GET(
         "Content-Range": `bytes ${start}-${end}/${obj.totalSize}`,
         "Accept-Ranges": "bytes",
         "Cache-Control": "private, max-age=3600",
+        ...disposition,
       },
     });
   }
 
   const obj = await storage.getStream(key);
-  const isExport = key.startsWith("exports/");
   return new Response(Readable.toWeb(obj.stream) as unknown as ReadableStream, {
     headers: {
       "Content-Type": obj.contentType ?? "application/octet-stream",
       "Content-Length": String(obj.contentLength),
       "Accept-Ranges": "bytes",
       "Cache-Control": "private, max-age=3600",
-      ...(isExport
-        ? {
-            "Content-Disposition": `attachment; filename="${key.split("/").pop() ?? "captioned.mp4"}"`,
-          }
-        : {}),
+      ...disposition,
     },
   });
 }
