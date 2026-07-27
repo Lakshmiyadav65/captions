@@ -57,8 +57,9 @@ export default async function SignInPage({
 
           {!hasAnyProvider ? (
             <p className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              Sign-in is enabled, but no providers are configured. Set Google or GitHub OAuth keys (or{" "}
-              <code className="text-xs">AUTH_DEV_LOGIN=true</code> for local testing).
+              Sign-in is almost ready. Add Google OAuth credentials in the host
+              environment (<code className="text-xs">AUTH_GOOGLE_ID</code> /{" "}
+              <code className="text-xs">AUTH_GOOGLE_SECRET</code>), then redeploy.
             </p>
           ) : (
             <div className="mt-7 space-y-3">
@@ -108,7 +109,7 @@ export default async function SignInPage({
                   className="space-y-3 border-t border-black/8 pt-5"
                 >
                   <label className="block text-xs font-medium text-neutral-500">
-                    {hasOAuth ? "Or continue with email" : "Continue with email"}
+                    Dev only — email sign-in
                   </label>
                   <input
                     name="email"
@@ -127,6 +128,13 @@ export default async function SignInPage({
                 </form>
               )}
             </div>
+          )}
+
+          {hasOAuth && (
+            <p className="mt-6 text-center text-xs leading-relaxed text-neutral-400">
+              By continuing you agree to use Caplio for your own videos. We never use
+              your footage to train public models.
+            </p>
           )}
         </div>
 

@@ -19,6 +19,7 @@ These six documents are the **source of truth** for shipping this product. Paste
 | 11 | [Magazine production](./11-production-magazine.md) | Audience Magazine launch checklist + runbooks |
 | 12 | [Railway deploy](./12-railway-deploy.md) | Railway web + worker + Redis setup |
 | 13 | [Oracle Always Free](./13-oracle-always-free.md) | $0 production VM + Compose |
+| 14 | [Production Google OAuth](./14-production-google-oauth.md) | Audience sign-in on Vercel |
 | — | [Production env example](./env.production.example.md) | Secrets / quotas for compose prod |
 | — | [Oracle env example](./env.oracle.example.md) | Soft bring-up env for Oracle VM |
 

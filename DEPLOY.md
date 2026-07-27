@@ -115,10 +115,17 @@ Playback uses **presigned URLs** (the browser streams straight from the bucket).
 
 ## Auth: Google OAuth
 
+For the live Vercel audience app, follow the step-by-step checklist:
+
+→ [`docs/14-production-google-oauth.md`](docs/14-production-google-oauth.md)
+
+Summary:
+
 1. Google Cloud Console → OAuth 2.0 Client (Web).
-2. Redirect URI: `https://your-domain/api/auth/callback/google`.
-3. Set `AUTH_ENABLED=true`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_SECRET`, and
-   `AUTH_DEV_LOGIN=false`.
+2. Redirect URI: `https://captions-gilt.vercel.app/api/auth/callback/google`
+   (or `https://your-domain/api/auth/callback/google`).
+3. Set `AUTH_ENABLED=true`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_SECRET`,
+   `AUTH_DEV_LOGIN=false`, and `AUTH_URL`/`APP_URL` to the public site URL.
 4. On real staging/prod also set `STRICT_PROD_AUTH=true` so the app **refuses to boot**
    if dev login is still on or `AUTH_SECRET` is missing/placeholder.
 

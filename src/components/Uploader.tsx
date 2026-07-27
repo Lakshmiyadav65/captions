@@ -58,7 +58,7 @@ export function Uploader({ tone = "dark" }: UploaderProps) {
       code?: string;
     };
     if (res.status === 401) {
-      router.push("/signin");
+      router.push(`/signin?next=${encodeURIComponent("/?start=1")}`);
       return;
     }
     if (!res.ok || !data.id) {
@@ -88,7 +88,7 @@ export function Uploader({ tone = "dark" }: UploaderProps) {
           return;
         }
         if (xhr.status === 401) {
-          router.push("/signin");
+          router.push(`/signin?next=${encodeURIComponent("/?start=1")}`);
           resolve();
           return;
         }
