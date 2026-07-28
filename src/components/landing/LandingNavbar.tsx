@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { signOutAction } from "@/app/actions/auth";
 import type { LandingUser } from "@/components/landing/types";
@@ -9,11 +10,6 @@ export type { LandingUser };
 
 const SIGN_IN_HREF = `/signin?next=${encodeURIComponent("/?start=1")}`;
 
-function displayName(user: LandingUser): string {
-  const raw = (user.name ?? "").trim() || (user.email ?? "").split("@")[0] || "Account";
-  return raw.split(/\s+/)[0] ?? raw;
-}
-
 function initials(user: LandingUser): string {
   const name = (user.name ?? "").trim();
   if (name) {
@@ -21,6 +17,67 @@ function initials(user: LandingUser): string {
     return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "U";
   }
   return ((user.email ?? "?").slice(0, 1)).toUpperCase();
+}
+
+function ProfileMenu({ user }: { user: LandingUser }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onPointerDown = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div className="nav-profile" ref={rootRef}>
+      <button
+        type="button"
+        className="nav-profile-trigger"
+        aria-label="Account menu"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId}
+        title={user.email ?? user.name ?? "Account"}
+        onClick={() => setOpen((value) => !value)}
+      >
+        {user.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={user.image} alt="" className="nav-user-avatar" />
+        ) : (
+          <span className="nav-user-avatar nav-user-initials" aria-hidden>
+            {initials(user)}
+          </span>
+        )}
+      </button>
+
+      {open ? (
+        <div className="nav-profile-menu" id={menuId} role="menu">
+          {user.email ? <p className="nav-profile-email">{user.email}</p> : null}
+          <form action={signOutAction}>
+            <button type="submit" className="nav-profile-signout" role="menuitem">
+              Sign out
+            </button>
+          </form>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function LandingNavbar({
@@ -51,27 +108,7 @@ export function LandingNavbar({
         <div className="nav-actions">
           <ThemeToggle />
           {user ? (
-            <div className="nav-account">
-              <a href={uploadHref} className="btn-primary">
-                Upload
-              </a>
-              <div className="nav-user" title={user.email ?? undefined}>
-                {user.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={user.image} alt="" className="nav-user-avatar" />
-                ) : (
-                  <span className="nav-user-avatar nav-user-initials" aria-hidden>
-                    {initials(user)}
-                  </span>
-                )}
-                <span className="nav-user-name">{displayName(user)}</span>
-              </div>
-              <form action={signOutAction}>
-                <button type="submit" className="nav-signout">
-                  Sign out
-                </button>
-              </form>
-            </div>
+            <ProfileMenu user={user} />
           ) : canStart ? (
             <a href={uploadHref} className="btn-primary">
               Start free

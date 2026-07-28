@@ -86,6 +86,9 @@ const schema = z.object({
   STRIPE_PRICE_CREATOR: z.string().optional(),
   STRIPE_PRICE_PRO: z.string().optional(),
   APP_URL: z.string().optional(),
+
+  // Simple password for /admin (users + video counts). Leave unset to disable the page.
+  ADMIN_SECRET: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -132,6 +135,7 @@ export const config = {
   visionModel: env.VISION_MODEL,
   generateModel: env.GENERATE_MODEL,
   stripeEnabled: Boolean(env.STRIPE_SECRET_KEY),
+  adminSecret: env.ADMIN_SECRET?.trim() || "",
   stripe: {
     secretKey: env.STRIPE_SECRET_KEY ?? "",
     webhookSecret: env.STRIPE_WEBHOOK_SECRET ?? "",
