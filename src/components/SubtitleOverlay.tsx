@@ -612,16 +612,23 @@ export function SubtitleOverlay({
               : tk.text.toLowerCase()
             : applyTextCase(tk.text, caseMode);
 
+        // Karaoke must win over keyword emphasis: otherwise Auto emphasis paints every
+        // content word in the accent color and progressive fill looks like a no-op.
         let color = style.color;
-        if (useEmphasis && isEmphasizedWord(tk.text)) {
-          color = style.highlightColor;
-        }
-        if (useKaraoke && i < filled) {
+        let opacity = 1;
+        if (useKaraoke) {
+          if (i < filled) {
+            color = style.highlightColor;
+          } else {
+            color = style.color;
+            opacity = 0.45;
+          }
+        } else if (useEmphasis && isEmphasizedWord(tk.text)) {
           color = style.highlightColor;
         }
 
         return (
-          <span key={i} style={{ color }}>
+          <span key={i} style={{ color, opacity }}>
             {word}
             {i < tokens.length - 1 ? " " : ""}
           </span>

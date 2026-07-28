@@ -44,13 +44,19 @@ export const metadata: Metadata = {
     "AI that captions Telugu videos like a native creator would. Upload a Telugu video, get timed romanized captions, style them live, and export a publish-ready burned MP4.",
 };
 
+const landingThemeInit = `(function(){try{var t=localStorage.getItem('caplio-landing-theme');if(t!=='dark'&&t!=='light'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-landing-theme',t)}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    // Theme script may set data-landing-theme before hydrate — allow that mismatch.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: landingThemeInit }} />
+      </head>
       <body className="min-h-screen bg-neutral-950 text-neutral-100 antialiased">
         {children}
       </body>

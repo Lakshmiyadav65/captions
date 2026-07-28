@@ -475,7 +475,10 @@ export function StylePanel({
           Colors
         </h3>
         <Field label="Text color">
-          <ColorInput value={style.color} onChange={(v) => onChange({ color: v })} />
+          <KeywordColorPicker
+            value={style.color}
+            onChange={(hex) => onChange({ color: hex })}
+          />
         </Field>
         <Field label="Keyword accent">
           <KeywordColorPicker
@@ -618,13 +621,23 @@ export function StylePanel({
           </span>
           <Segmented
             value={style.karaoke ? "on" : "off"}
-            onChange={(v) => onChange({ karaoke: v === "on" })}
+            onChange={(v) =>
+              onChange(
+                v === "on"
+                  ? { karaoke: true, emphasisMode: "off" }
+                  : { karaoke: false },
+              )
+            }
             options={[
               { label: "On", value: "on" },
               { label: "Off", value: "off" },
             ]}
           />
         </div>
+        <p className="text-[10px] leading-relaxed text-neutral-600">
+          Spoken words fill with the accent color; upcoming words stay dim. Turns off keyword
+          emphasis so the progressive fill is easy to see.
+        </p>
         <Field label="Keyword emphasis">
           <Segmented
             value={(style.emphasisMode ?? "off") as EmphasisMode}
@@ -636,8 +649,9 @@ export function StylePanel({
           />
         </Field>
         <p className="text-[10px] leading-relaxed text-neutral-600">
-          Auto highlights keywords in the accent color (Tharun Speaks look). Change the color
-          under Colors → Keyword accent.
+          Auto paints keywords in the accent color (Tharun Speaks look). While karaoke is on,
+          spoken-word fill takes priority over Auto. Change the color under Colors → Keyword
+          accent.
         </p>
         {(style.karaoke ||
           (style.emphasisMode ?? "off") === "auto" ||

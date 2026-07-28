@@ -3,29 +3,12 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { Uploader } from "@/components/Uploader";
-import { signOutAction } from "@/app/actions/auth";
+import { LandingNavbar } from "@/components/landing/LandingNavbar";
+import type { LandingUser } from "@/components/landing/types";
+
+export type { LandingUser };
 
 const SIGN_IN_HREF = `/signin?next=${encodeURIComponent("/?start=1")}`;
-
-export type LandingUser = {
-  name?: string | null;
-  email?: string | null;
-  image?: string | null;
-};
-
-function displayName(user: LandingUser): string {
-  const raw = (user.name ?? "").trim() || (user.email ?? "").split("@")[0] || "Account";
-  return raw.split(/\s+/)[0] ?? raw;
-}
-
-function initials(user: LandingUser): string {
-  const name = (user.name ?? "").trim();
-  if (name) {
-    const parts = name.split(/\s+/).filter(Boolean);
-    return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "U";
-  }
-  return ((user.email ?? "?").slice(0, 1)).toUpperCase();
-}
 
 function ScrollReveal({
   children,
@@ -94,56 +77,6 @@ function StartFreeLink({
     <Link href={SIGN_IN_HREF} className={className} style={style}>
       {children}
     </Link>
-  );
-}
-
-function Navbar({ canStart, user }: { canStart: boolean; user: LandingUser | null }) {
-  return (
-    <header className="navbar">
-      <div className="container nav-container">
-        <Link href="/" className="logo">
-          <img src="/logo.png" alt="Caplio" className="nav-logo-img" />
-        </Link>
-
-        <nav className="nav-links">
-          <a href="#upload">Product</a>
-          <a href="#features">Features</a>
-          <Link href="/billing">Pricing</Link>
-          <Link href="/style-analyzer">Analyzer</Link>
-          <Link href="/style-request">24h Style</Link>
-        </nav>
-
-        <div className="nav-actions">
-          {user ? (
-            <div className="nav-account">
-              <a href="#upload" className="btn-primary">
-                Upload
-              </a>
-              <div className="nav-user" title={user.email ?? undefined}>
-                {user.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={user.image} alt="" className="nav-user-avatar" />
-                ) : (
-                  <span className="nav-user-avatar nav-user-initials" aria-hidden>
-                    {initials(user)}
-                  </span>
-                )}
-                <span className="nav-user-name">{displayName(user)}</span>
-              </div>
-              <form action={signOutAction}>
-                <button type="submit" className="nav-signout">
-                  Sign out
-                </button>
-              </form>
-            </div>
-          ) : (
-            <StartFreeLink canStart={canStart} className="btn-primary">
-              Start free
-            </StartFreeLink>
-          )}
-        </div>
-      </div>
-    </header>
   );
 }
 
@@ -730,7 +663,7 @@ function Footer() {
         <div className="footer-top">
           <div className="footer-brand">
             <Link href="/" className="logo footer-logo">
-              <img src="/logo.png" alt="Telugu Captions" className="nav-logo-img" />
+              <img src="/logo.png" alt="Caplio" className="nav-logo-img" />
             </Link>
             <div className="social-links">
               <a href="#" aria-label="Twitter">
@@ -837,7 +770,7 @@ export function LandingPage({
         <div className="glow glow-bottom-right" />
       </div>
 
-      <Navbar canStart={canStart} user={user} />
+      <LandingNavbar canStart={canStart} user={user} />
       <Hero />
       <FeaturesSplit />
       <TwoCardSection />
