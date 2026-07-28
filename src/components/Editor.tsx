@@ -473,7 +473,7 @@ export function Editor({
           </div>
           <p className="mt-3 text-xs text-neutral-500">
             {progress.provider && progress.provider !== "mock"
-              ? `Transcribing with ${progress.provider}. Longer clips can take several minutes — audio is sent in short pieces.`
+              ? "Transcribing your audio. Longer clips can take several minutes — audio is sent in short pieces."
               : "Using the built-in sample transcript (no API key set)."}
           </p>
         </div>
@@ -510,8 +510,8 @@ export function Editor({
           <div className="flex min-h-0 flex-col gap-3 lg:overflow-hidden">
             {isMock && (
               <div className="shrink-0 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-200">
-                Showing a <strong>sample</strong> Telugu transcript. Add a Sarvam or
-                OpenAI API key (see README) to transcribe your real audio.
+                Showing a <strong>sample</strong> Telugu transcript. Add a transcription
+                API key (see README) to transcribe your real audio.
               </div>
             )}
             <div className="min-h-[320px] flex-1 lg:min-h-0">

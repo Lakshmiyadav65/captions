@@ -7,16 +7,16 @@ export function friendlyJobError(raw: string | null | undefined): string {
   const m = raw.toLowerCase();
   if (m.includes("sarvam")) {
     if (m.includes("(401)") || m.includes("unauthorized") || m.includes("api key")) {
-      return "Sarvam rejected the API key. Check SARVAM_API_KEY in Vercel env.";
+      return "The transcription service rejected the API key. Check your transcription API key in Vercel env.";
     }
     if (m.includes("(402)") || m.includes("credit") || m.includes("insufficient")) {
-      return "Sarvam credits are exhausted. Top up at dashboard.sarvam.ai, then retry.";
+      return "Transcription credits are exhausted. Top up your provider balance, then retry.";
     }
     if (m.includes("(429)") || m.includes("rate")) {
-      return "Sarvam rate limit hit. Wait a minute and try again.";
+      return "Transcription rate limit hit. Wait a minute and try again.";
     }
     if (m.includes("30") && (m.includes("second") || m.includes("duration"))) {
-      return "An audio chunk was too long for Sarvam. Try a shorter video, or retry.";
+      return "An audio chunk was too long for the transcription service. Try a shorter video, or retry.";
     }
     // Surface a short slice of the provider body so soft-launch debugging isn’t blind.
     const short = raw.length > 160 ? raw.slice(0, 157) + "…" : raw;
