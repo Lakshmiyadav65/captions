@@ -20,12 +20,21 @@ function isBlobUnavailable(err: unknown): boolean {
   );
 }
 
+function isAuthRequiredError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /client token|Failed to retrieve|Sign in to upload|unauthorized|401/i.test(msg);
+}
+
+const SIGN_IN_UPLOAD = `/signin?next=${encodeURIComponent("/?start=1")}`;
+
 type UploaderProps = {
   /** Dark for the app shell; light for the marketing landing hero. */
   tone?: "dark" | "light";
+  /** When false (auth on, logged out), send users to sign-in instead of uploading. */
+  canUpload?: boolean;
 };
 
-export function Uploader({ tone = "dark" }: UploaderProps) {
+export function Uploader({ tone = "dark", canUpload = true }: UploaderProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -36,6 +45,11 @@ export function Uploader({ tone = "dark" }: UploaderProps) {
 
   const finishWithJobId = (id: string) => {
     router.push(`/jobs/${id}`);
+  };
+
+  const requireSignIn = () => {
+    setError("Sign in with Google to upload a video.");
+    router.push(SIGN_IN_UPLOAD);
   };
 
   const uploadViaBlob = async (file: File) => {
@@ -58,7 +72,7 @@ export function Uploader({ tone = "dark" }: UploaderProps) {
       code?: string;
     };
     if (res.status === 401) {
-      router.push(`/signin?next=${encodeURIComponent("/?start=1")}`);
+      requireSignIn();
       return;
     }
     if (!res.ok || !data.id) {
@@ -88,7 +102,7 @@ export function Uploader({ tone = "dark" }: UploaderProps) {
           return;
         }
         if (xhr.status === 401) {
-          router.push(`/signin?next=${encodeURIComponent("/?start=1")}`);
+          requireSignIn();
           resolve();
           return;
         }
@@ -121,6 +135,10 @@ export function Uploader({ tone = "dark" }: UploaderProps) {
 
   const upload = async (file: File) => {
     setError(null);
+    if (!canUpload) {
+      requireSignIn();
+      return;
+    }
     if (!file.type.startsWith("video/") && !VIDEO_EXT.test(file.name)) {
       setError("Please choose a video file (MP4, MOV, MKV, WebM…).");
       return;
@@ -138,12 +156,22 @@ export function Uploader({ tone = "dark" }: UploaderProps) {
       try {
         await uploadViaBlob(file);
       } catch (blobErr) {
+        if (isAuthRequiredError(blobErr)) {
+          requireSignIn();
+          setUploading(false);
+          return;
+        }
         // Fall back to classic API when Blob isn't configured (or for smaller files).
         if (file.size <= VERCEL_BODY_LIMIT || isBlobUnavailable(blobErr)) {
           try {
             await uploadViaApi(file);
             return;
           } catch (apiErr) {
+            if (isAuthRequiredError(apiErr)) {
+              requireSignIn();
+              setUploading(false);
+              return;
+            }
             if (file.size > VERCEL_BODY_LIMIT) throw blobErr;
             throw apiErr;
           }
@@ -151,7 +179,12 @@ export function Uploader({ tone = "dark" }: UploaderProps) {
         throw blobErr;
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+      const msg = err instanceof Error ? err.message : "Upload failed. Please try again.";
+      setError(
+        /Failed to retrieve the client token/i.test(msg)
+          ? "Sign in with Google to upload a video."
+          : msg,
+      );
       setUploading(false);
     }
   };
@@ -159,6 +192,10 @@ export function Uploader({ tone = "dark" }: UploaderProps) {
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragging(false);
+    if (!canUpload) {
+      requireSignIn();
+      return;
+    }
     const file = e.dataTransfer.files?.[0];
     if (file) void upload(file);
   };
@@ -172,7 +209,14 @@ export function Uploader({ tone = "dark" }: UploaderProps) {
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
-        onClick={() => !uploading && inputRef.current?.click()}
+        onClick={() => {
+          if (uploading) return;
+          if (!canUpload) {
+            requireSignIn();
+            return;
+          }
+          inputRef.current?.click();
+        }}
         className={[
           "flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-14 text-center transition sm:py-16",
           light
@@ -216,6 +260,15 @@ export function Uploader({ tone = "dark" }: UploaderProps) {
                 style={{ width: `${pct}%` }}
               />
             </div>
+          </>
+        ) : !canUpload ? (
+          <>
+            <p className={["text-lg font-medium", light ? "text-slate-900" : "text-neutral-100"].join(" ")}>
+              Sign in to upload
+            </p>
+            <p className={["mt-1 text-sm", light ? "text-slate-500" : "text-neutral-400"].join(" ")}>
+              Free Google sign-in · then drop your Telugu Reel or Short
+            </p>
           </>
         ) : (
           <>

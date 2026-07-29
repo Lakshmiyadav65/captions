@@ -98,7 +98,7 @@ function FlowIcon({ name }: { name: "upload" | "fix" | "export" }) {
   );
 }
 
-function Hero() {
+function Hero({ canStart }: { canStart: boolean }) {
   return (
     <section className="hero-section" id="product">
       <div className="container hero-container">
@@ -144,7 +144,7 @@ function Hero() {
                     Drop a Telugu Reel or Short. Get timed romanized captions, style
                     them live, and export a burned MP4 ready to post.
                   </p>
-                  <Uploader tone="light" />
+                  <Uploader tone="light" canUpload={canStart} />
                 </div>
               </div>
 
@@ -771,7 +771,7 @@ export function LandingPage({
       </div>
 
       <LandingNavbar canStart={canStart} user={user} />
-      <Hero />
+      <Hero canStart={canStart} />
       <FeaturesSplit />
       <TwoCardSection />
       <GridFeatures />
