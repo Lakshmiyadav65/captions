@@ -78,6 +78,34 @@ export function splitTranscriptIntoSegments(
   });
 }
 
+/** Allowed range for user-customizable words-per-frame density. */
+export const WORDS_PER_FRAME_MIN = 1;
+export const WORDS_PER_FRAME_MAX = 6;
+export const WORDS_PER_FRAME_DEFAULT = 2;
+
+export function clampWordsPerFrame(n: number): number {
+  if (!Number.isFinite(n)) return WORDS_PER_FRAME_DEFAULT;
+  return Math.min(
+    WORDS_PER_FRAME_MAX,
+    Math.max(WORDS_PER_FRAME_MIN, Math.round(n)),
+  );
+}
+
+/** Median word count across frames — used to seed the density control from a loaded transcript. */
+export function estimateWordsPerFrame(segments: Segment[]): number {
+  if (!segments.length) return WORDS_PER_FRAME_DEFAULT;
+  const counts = segments
+    .map((s) =>
+      s.words?.length
+        ? s.words.length
+        : s.text.split(/\s+/).filter(Boolean).length,
+    )
+    .filter((n) => n > 0);
+  if (!counts.length) return WORDS_PER_FRAME_DEFAULT;
+  const sorted = [...counts].sort((a, b) => a - b);
+  return clampWordsPerFrame(sorted[Math.floor(sorted.length / 2)]!);
+}
+
 // Break each segment into short caption "frames" of at most `maxWords` words, so lines stay
 // clean and readable (a few words on screen at a time) instead of a whole sentence wrapping
 // over many rows. When word-level timings exist they drive each frame's start/end; otherwise
@@ -126,12 +154,60 @@ export function splitSegmentsToMaxWords(
   return out;
 }
 
-// Split an array into groups of `size`, merging a lone trailing item into the previous group
-// so we never emit a single-word caption frame.
+/**
+ * Re-apply a new words-per-frame density to an already-split transcript.
+ * Flattens frames back to timed words, re-groups into natural lines, then splits
+ * to `maxWords` — so raising density from 2→5 actually merges short frames.
+ */
+export function rescaleSegmentsToMaxWords(
+  segments: Segment[],
+  maxWords: number,
+): Segment[] {
+  if (!segments.length) return segments;
+  const n = clampWordsPerFrame(maxWords);
+  const words = flattenSegmentWords(segments);
+  if (!words.length) return segments;
+  const grouped = groupWordsIntoSegments(words);
+  return splitSegmentsToMaxWords(grouped, n);
+}
+
+/** Flatten caption frames into a continuous timed word list (synthesizes timings when missing). */
+function flattenSegmentWords(segments: Segment[]): Word[] {
+  const out: Word[] = [];
+  for (const seg of segments) {
+    if (seg.words?.length) {
+      for (const w of seg.words) {
+        if (!w.text.trim()) continue;
+        out.push({ start: w.start, end: w.end, text: w.text });
+      }
+      continue;
+    }
+    const toks = seg.text.split(/\s+/).filter(Boolean);
+    if (!toks.length) continue;
+    const span = Math.max(0, seg.end - seg.start);
+    const totalChars = toks.reduce((n, w) => n + w.length, 0) || 1;
+    let t = seg.start;
+    toks.forEach((text, i) => {
+      const dur = (text.length / totalChars) * span;
+      const end = i === toks.length - 1 ? seg.end : Math.min(seg.end, t + dur);
+      out.push({ start: t, end, text });
+      t = end;
+    });
+  }
+  return out;
+}
+
+// Split an array into groups of `size`. When size > 1, merge a lone trailing item into the
+// previous group so we rarely emit a single-word leftover frame (e.g. 5 words @ size 2 → 2+3).
+// When size === 1 the user asked for one word per frame — keep singletons as-is.
 function chunk<T>(arr: T[], size: number): T[][] {
   const groups: T[][] = [];
   for (let i = 0; i < arr.length; i += size) groups.push(arr.slice(i, i + size));
-  if (groups.length > 1 && groups[groups.length - 1].length === 1) {
+  if (
+    size > 1 &&
+    groups.length > 1 &&
+    groups[groups.length - 1].length === 1
+  ) {
     groups[groups.length - 2].push(groups.pop()![0]);
   }
   return groups;

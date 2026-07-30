@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Segment } from "@/lib/transcription/types";
 import {
+  estimateWordsPerFrame,
+  rescaleSegmentsToMaxWords,
+  WORDS_PER_FRAME_DEFAULT,
+} from "@/lib/transcription/util";
+import {
   DEFAULT_STYLE,
   EXPORT_FORMATS,
   renderSubtitles,
@@ -118,6 +123,8 @@ export function Editor({
   });
   const [segments, setSegments] = useState<Segment[] | null>(null);
   const [style, setStyle] = useState<SubtitleStyle>({ ...DEFAULT_STYLE });
+  /** How many words appear in each on-screen caption frame (1–6). */
+  const [wordsPerFrame, setWordsPerFrame] = useState(WORDS_PER_FRAME_DEFAULT);
   const [scriptMode, setScriptMode] = useState<ScriptDisplay>("roman");
   const [currentTime, setCurrentTime] = useState(0);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
@@ -173,10 +180,28 @@ export function Editor({
     if (res.ok) {
       const data = (await res.json()) as { segments: Segment[] };
       setSegments(data.segments);
+      setWordsPerFrame(estimateWordsPerFrame(data.segments));
       baselineRef.current = data.segments.map((s) => ({ ...s, text: s.text }));
       setLearned(null);
     }
   }, [jobId]);
+
+  /** Rebuild caption frames at a new word density and persist. */
+  const onWordsPerFrameChange = useCallback(
+    (n: number) => {
+      const current = segmentsRef.current;
+      if (!current) {
+        setWordsPerFrame(n);
+        return;
+      }
+      const next = rescaleSegmentsToMaxWords(current, n);
+      setWordsPerFrame(n);
+      setSegments(next);
+      baselineRef.current = next.map((s) => ({ ...s, text: s.text }));
+      schedulePersist(next);
+    },
+    [schedulePersist],
+  );
 
   // Follow job progress until it finishes, then load the transcript.
   useEffect(() => {
@@ -512,6 +537,8 @@ export function Editor({
               style={style}
               onChange={patchStyle}
               onApplyPreset={(s) => setStyle({ ...s })}
+              wordsPerFrame={wordsPerFrame}
+              onWordsPerFrameChange={onWordsPerFrameChange}
             />
             <DictionaryPanel
               segments={segments}

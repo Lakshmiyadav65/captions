@@ -289,10 +289,15 @@ export function StylePanel({
   style,
   onChange,
   onApplyPreset,
+  wordsPerFrame,
+  onWordsPerFrameChange,
 }: {
   style: SubtitleStyle;
   onChange: (patch: Partial<SubtitleStyle>) => void;
   onApplyPreset: (s: SubtitleStyle) => void;
+  /** How many words appear in each on-screen caption frame (1–6). */
+  wordsPerFrame?: number;
+  onWordsPerFrameChange?: (n: number) => void;
 }) {
   const [category, setCategory] = useState<PresetCategory | "all">("live");
   const activeId = matchingPresetId(style);
@@ -309,6 +314,29 @@ export function StylePanel({
 
   return (
     <div className="space-y-6">
+      {/* Caption density — how many words share each on-screen frame */}
+      {wordsPerFrame !== undefined && onWordsPerFrameChange && (
+        <section className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            Words per frame
+          </h3>
+          <Field label="Caption density" value={`${wordsPerFrame} word${wordsPerFrame === 1 ? "" : "s"}`}>
+            <Segmented
+              value={wordsPerFrame}
+              onChange={onWordsPerFrameChange}
+              options={[1, 2, 3, 4, 5, 6].map((n) => ({
+                label: String(n),
+                value: n,
+              }))}
+            />
+          </Field>
+          <p className="text-[10px] leading-relaxed text-neutral-600">
+            Fewer words feel punchier; more words show longer phrases at once.
+            Changing this rebuilds your caption lines.
+          </p>
+        </section>
+      )}
+
       {/* Presets */}
       <section className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
