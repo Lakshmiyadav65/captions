@@ -542,29 +542,30 @@ export function Editor({
       )}
 
       {progress.status === "done" && (
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto overscroll-contain lg:grid-cols-[340px_minmax(0,1fr)_420px] lg:gap-6 lg:overflow-hidden">
-          {/* Left: settings panel */}
-          <aside className="order-3 min-h-0 max-h-[70vh] overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-neutral-900 p-4 lg:order-1 lg:max-h-none">
-            <StylePanel
-              style={style}
-              onChange={patchStyle}
-              onApplyPreset={(s) => setStyle({ ...s })}
-              wordsPerFrame={wordsPerFrame}
-              onWordsPerFrameChange={onWordsPerFrameChange}
-            />
-            <DictionaryPanel
-              segments={segments}
-              refreshToken={dictRefresh}
-              onApplySegments={(next) => {
-                setSegments(next);
-                baselineRef.current = next.map((s) => ({ ...s, text: s.text }));
-                schedulePersist(next);
-              }}
-            />
-          </aside>
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto overscroll-contain lg:grid-cols-[420px_minmax(0,1fr)_340px] lg:gap-6 lg:overflow-hidden">
+          {/* Left: video preview */}
+          <section className="order-1 flex min-h-0 flex-col gap-3 lg:overflow-hidden">
+            {isMock && (
+              <div className="shrink-0 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-200">
+                Showing a <strong>sample</strong> Telugu transcript. Add a transcription
+                API key (see README) to transcribe your real audio.
+              </div>
+            )}
+            <div className="min-h-[320px] flex-1 lg:min-h-0">
+              <PreviewStage
+                videoRef={videoRef}
+                videoUrl={videoUrl}
+                segments={displaySegments}
+                style={style}
+                onTime={setCurrentTime}
+                initialAspect={width && height ? width / height : undefined}
+                onPositionChange={(positionYPct) => patchStyle({ positionYPct })}
+              />
+            </div>
+          </section>
 
           {/* Center: transcript and timings */}
-          <section className="order-2 flex min-h-0 flex-col gap-3 lg:order-2 lg:overflow-hidden">
+          <section className="order-2 flex min-h-0 flex-col gap-3 lg:overflow-hidden">
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-neutral-900/40 p-3">
               <div className="flex flex-wrap items-center gap-3">
                 <p className="text-xs text-neutral-500">
@@ -632,26 +633,25 @@ export function Editor({
             )}
           </section>
 
-          {/* Right: video preview */}
-          <section className="order-1 flex min-h-0 flex-col gap-3 lg:order-3 lg:overflow-hidden">
-            {isMock && (
-              <div className="shrink-0 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-200">
-                Showing a <strong>sample</strong> Telugu transcript. Add a transcription
-                API key (see README) to transcribe your real audio.
-              </div>
-            )}
-            <div className="min-h-[320px] flex-1 lg:min-h-0">
-              <PreviewStage
-                videoRef={videoRef}
-                videoUrl={videoUrl}
-                segments={displaySegments}
-                style={style}
-                onTime={setCurrentTime}
-                initialAspect={width && height ? width / height : undefined}
-                onPositionChange={(positionYPct) => patchStyle({ positionYPct })}
-              />
-            </div>
-          </section>
+          {/* Right: style / editor settings */}
+          <aside className="order-3 min-h-0 max-h-[70vh] overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-neutral-900 p-4 lg:max-h-none">
+            <StylePanel
+              style={style}
+              onChange={patchStyle}
+              onApplyPreset={(s) => setStyle({ ...s })}
+              wordsPerFrame={wordsPerFrame}
+              onWordsPerFrameChange={onWordsPerFrameChange}
+            />
+            <DictionaryPanel
+              segments={segments}
+              refreshToken={dictRefresh}
+              onApplySegments={(next) => {
+                setSegments(next);
+                baselineRef.current = next.map((s) => ({ ...s, text: s.text }));
+                schedulePersist(next);
+              }}
+            />
+          </aside>
         </div>
       )}
     </div>
