@@ -21,8 +21,14 @@ function initials(user: LandingUser): string {
 
 function ProfileMenu({ user }: { user: LandingUser }) {
   const [open, setOpen] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+  const showImage = Boolean(user.image) && !imageFailed;
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [user.image]);
 
   useEffect(() => {
     if (!open) return;
@@ -56,9 +62,15 @@ function ProfileMenu({ user }: { user: LandingUser }) {
         title={user.email ?? user.name ?? "Account"}
         onClick={() => setOpen((value) => !value)}
       >
-        {user.image ? (
+        {showImage ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={user.image} alt="" className="nav-user-avatar" />
+          <img
+            src={user.image!}
+            alt=""
+            className="nav-user-avatar"
+            referrerPolicy="no-referrer"
+            onError={() => setImageFailed(true)}
+          />
         ) : (
           <span className="nav-user-avatar nav-user-initials" aria-hidden>
             {initials(user)}

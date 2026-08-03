@@ -53,11 +53,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: { signIn: "/signin" },
   callbacks: {
     jwt({ token, user }) {
-      if (user) token.uid = user.id;
+      if (user) {
+        token.uid = user.id;
+        if (user.name) token.name = user.name;
+        if (user.email) token.email = user.email;
+        if (user.image) token.picture = user.image;
+      }
       return token;
     },
     session({ session, token }) {
-      if (token.uid && session.user) session.user.id = token.uid as string;
+      if (session.user) {
+        if (token.uid) session.user.id = token.uid as string;
+        if (typeof token.name === "string") session.user.name = token.name;
+        if (typeof token.email === "string") session.user.email = token.email;
+        if (typeof token.picture === "string") session.user.image = token.picture;
+      }
       return session;
     },
   },
