@@ -10,6 +10,20 @@ const nextConfig: NextConfig = {
     "bullmq",
     "ioredis",
   ],
+  // NFT often misses the ffmpeg binary and TTF burn fonts — without these, Export video
+  // fails on Vercel with ENOENT while local/dev works.
+  outputFileTracingIncludes: {
+    "/api/export/[id]": [
+      "./assets/fonts/**/*",
+      "./node_modules/ffmpeg-static/**/*",
+    ],
+    "/api/upload/complete": ["./node_modules/ffmpeg-static/**/*"],
+    "/api/jobs/[id]/retry": [
+      "./assets/fonts/**/*",
+      "./node_modules/ffmpeg-static/**/*",
+    ],
+    "/api/analyze-style": ["./node_modules/ffmpeg-static/**/*"],
+  },
 };
 
 export default nextConfig;

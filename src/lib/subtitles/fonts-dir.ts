@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 // Server-only: the directory of real TTF font files that libass (ffmpeg's `subtitles`
@@ -10,7 +11,15 @@ import { join, resolve } from "node:path";
 
 /** Absolute path to the bundled TTF font directory (override with FONTS_DIR in Docker). */
 export function fontsDir(): string {
-  return process.env.FONTS_DIR
-    ? resolve(process.env.FONTS_DIR)
-    : join(process.cwd(), "assets", "fonts");
+  if (process.env.FONTS_DIR) return resolve(process.env.FONTS_DIR);
+
+  const candidates = [
+    join(process.cwd(), "assets", "fonts"),
+    // Next/Vercel serverless sometimes resolves cwd to the function root one level up.
+    join(process.cwd(), "..", "assets", "fonts"),
+  ];
+  for (const dir of candidates) {
+    if (existsSync(dir)) return dir;
+  }
+  return candidates[0]!;
 }

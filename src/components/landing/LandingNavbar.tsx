@@ -94,12 +94,13 @@ export function LandingNavbar({
     <header className="navbar">
       <div className="container nav-container">
         <Link href="/" className="logo">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="Caplio" className="nav-logo-img" />
         </Link>
 
         <nav className="nav-links">
           <a href={uploadHref === "#upload" ? "#upload" : "/#upload"}>Product</a>
-          <a href="/#features">Features</a>
+          <a href={uploadHref === "#upload" ? "#styles" : "/#styles"}>Styles</a>
           <Link href="/billing">Pricing</Link>
           <Link href="/style-analyzer">Analyzer</Link>
           <Link href="/style-request">24h Style</Link>

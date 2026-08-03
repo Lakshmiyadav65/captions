@@ -1,10 +1,23 @@
 import { spawn } from "node:child_process";
-import { copyFile, mkdir, readdir, writeFile } from "node:fs/promises";
+import { chmod, copyFile, mkdir, readdir, writeFile } from "node:fs/promises";
 import { dirname, basename, join } from "node:path";
 import ffmpegStatic from "ffmpeg-static";
 
 // We spawn the ffmpeg binary that ships with `ffmpeg-static` — no system install needed.
 const FFMPEG: string = (ffmpegStatic as unknown as string) || "ffmpeg";
+
+let ffmpegReady: Promise<void> | null = null;
+
+/** Vercel (and some Linux hosts) ship the binary without +x after NFT copy. */
+function ensureFfmpegExecutable(): Promise<void> {
+  if (!ffmpegReady) {
+    ffmpegReady =
+      process.platform === "win32" || !FFMPEG || FFMPEG === "ffmpeg"
+        ? Promise.resolve()
+        : chmod(FFMPEG, 0o755).catch(() => undefined);
+  }
+  return ffmpegReady;
+}
 
 interface ExecOpts {
   allowFail?: boolean;
@@ -17,7 +30,8 @@ interface ExecOpts {
 
 const TIME_RE = /time=(\d+):(\d+):(\d+(?:\.\d+)?)/g;
 
-function exec(args: string[], opts: ExecOpts = {}): Promise<string> {
+async function exec(args: string[], opts: ExecOpts = {}): Promise<string> {
+  await ensureFfmpegExecutable();
   return new Promise((resolve, reject) => {
     const proc = spawn(FFMPEG, args, { signal: opts.signal, cwd: opts.cwd });
     let stderr = "";
@@ -141,23 +155,44 @@ export async function burnSubtitles(
 
   const fontDest = join(workDir, "fonts");
   await mkdir(fontDest, { recursive: true });
-  for (const f of await readdir(opts.fontsDir)) {
-    if (/\.(ttf|otf|ttc)$/i.test(f)) {
-      await copyFile(join(opts.fontsDir, f), join(fontDest, f));
+  let fontCount = 0;
+  try {
+    for (const f of await readdir(opts.fontsDir)) {
+      if (/\.(ttf|otf|ttc)$/i.test(f)) {
+        await copyFile(join(opts.fontsDir, f), join(fontDest, f));
+        fontCount += 1;
+      }
     }
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Caption fonts missing at ${opts.fontsDir} (${detail}). Redeploy with assets/fonts included.`,
+    );
   }
+  if (fontCount === 0) {
+    throw new Error(
+      `No TTF fonts found in ${opts.fontsDir}. Export needs assets/fonts on the server.`,
+    );
+  }
+
+  // On Vercel, burn must finish inside the function time/CPU budget. Prefer speed
+  // (ultrafast + slightly higher CRF) and cap long-edge at 1280 so hobby demos work.
+  const onVercel = Boolean(process.env.VERCEL);
+  const vf = onVercel
+    ? "scale='min(1280,iw)':-2,subtitles=subs.ass:fontsdir=fonts"
+    : "subtitles=subs.ass:fontsdir=fonts";
 
   await exec(
     [
       "-y",
       "-i", videoPath,
-      "-vf", "subtitles=subs.ass:fontsdir=fonts",
+      "-vf", vf,
       "-c:v", "libx264",
-      "-preset", "veryfast",
-      "-crf", "20",
+      "-preset", onVercel ? "ultrafast" : "veryfast",
+      "-crf", onVercel ? "23" : "20",
       "-pix_fmt", "yuv420p",
       "-c:a", "aac",
-      "-b:a", "192k",
+      "-b:a", onVercel ? "128k" : "192k",
       "-movflags", "+faststart",
       basename(outPath),
     ],

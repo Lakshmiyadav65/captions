@@ -28,14 +28,6 @@ export default async function StyleRequestPage() {
 
   return (
     <div className="landing-page style-request-page">
-      <div className="grain-texture" />
-      <div className="ambient-background">
-        <div className="glow glow-top-left" />
-        <div className="glow glow-top-right" />
-        <div className="glow glow-bottom" />
-        <div className="glow glow-bottom-right" />
-      </div>
-
       <LandingNavbar
         canStart={!config.authEnabled || Boolean(user)}
         user={landingUser}

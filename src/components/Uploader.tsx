@@ -32,9 +32,11 @@ type UploaderProps = {
   tone?: "dark" | "light";
   /** When false (auth on, logged out), send users to sign-in instead of uploading. */
   canUpload?: boolean;
+  /** Landing dropzone styled by landing.css (`.lp-uploader`). */
+  variant?: "default" | "landing";
 };
 
-export function Uploader({ tone = "dark", canUpload = true }: UploaderProps) {
+export function Uploader({ tone = "dark", canUpload = true, variant = "default" }: UploaderProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -199,6 +201,68 @@ export function Uploader({ tone = "dark", canUpload = true }: UploaderProps) {
     const file = e.dataTransfer.files?.[0];
     if (file) void upload(file);
   };
+
+  if (variant === "landing") {
+    return (
+      <div className="lp-uploader">
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={onDrop}
+          onClick={() => {
+            if (uploading) return;
+            if (!canUpload) {
+              requireSignIn();
+              return;
+            }
+            inputRef.current?.click();
+          }}
+          className={[
+            "lp-uploader-drop",
+            dragging ? "is-dragging" : "",
+            uploading ? "is-uploading" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          <div className="lp-uploader-icons" aria-hidden>
+            <div className="lp-uploader-stack" />
+            <div className="lp-uploader-plus">+</div>
+          </div>
+          {uploading ? (
+            <>
+              <span className="lp-uploader-title">Uploading… {pct}%</span>
+              <div className="lp-uploader-bar">
+                <div style={{ width: `${pct}%` }} />
+              </div>
+            </>
+          ) : !canUpload ? (
+            <>
+              <span className="lp-uploader-title">Sign in to upload</span>
+              <span className="lp-uploader-sub">Free Google sign-in · then drop your video</span>
+            </>
+          ) : (
+            <span className="lp-uploader-title">Drop your video</span>
+          )}
+          <input
+            ref={inputRef}
+            type="file"
+            accept="video/*,.mp4,.mov,.mkv,.webm,.avi,.m4v"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void upload(file);
+              e.target.value = "";
+            }}
+          />
+        </div>
+        {error ? <p className="lp-uploader-error">{error}</p> : null}
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">

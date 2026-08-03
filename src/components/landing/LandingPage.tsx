@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Uploader } from "@/components/Uploader";
 import { LandingNavbar } from "@/components/landing/LandingNavbar";
@@ -10,644 +10,558 @@ export type { LandingUser };
 
 const SIGN_IN_HREF = `/signin?next=${encodeURIComponent("/?start=1")}`;
 
-function ScrollReveal({
-  children,
-  className = "",
-  delay = 0,
-  scale = false,
-}: {
-  children: ReactNode;
-  className?: string;
-  delay?: number;
-  scale?: boolean;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
+const STYLE_PREVIEWS = [
+  {
+    name: "Classic",
+    tag: "Default",
+    anim: "classic",
+    sample: (
+      <span className="lp-anim lp-anim-classic">
+        <span>this</span> <span>is</span> <span>how</span> <span>you</span> <span>go</span>
+      </span>
+    ),
+  },
+  {
+    name: "Bold",
+    tag: "Impact",
+    anim: "bold",
+    sample: <span className="lp-anim lp-anim-bold lp-style-bold">this is how you</span>,
+  },
+  {
+    name: "Minimal",
+    tag: "Quiet",
+    anim: "minimal",
+    sample: <span className="lp-anim lp-anim-minimal lp-style-minimal">this is how you</span>,
+  },
+  {
+    name: "Highlight",
+    tag: "Aesthetic",
+    anim: "highlight",
+    sample: (
+      <span className="lp-anim lp-anim-highlight">
+        <span>this</span> <span>is</span> <span>how</span> <span>you</span>
+      </span>
+    ),
+  },
+  {
+    name: "Punch",
+    tag: "One word",
+    anim: "punch",
+    sample: <span className="lp-anim lp-anim-punch lp-style-punch">you</span>,
+  },
+  {
+    name: "Glow",
+    tag: "Aesthetic",
+    anim: "glow",
+    sample: <span className="lp-anim lp-anim-glow lp-style-glow">this is how you</span>,
+  },
+  {
+    name: "Outline",
+    tag: "Editorial",
+    anim: "outline",
+    sample: <span className="lp-anim lp-anim-outline lp-style-outline">you</span>,
+  },
+  {
+    name: "Typewriter",
+    tag: "Build",
+    anim: "type",
+    sample: (
+      <span className="lp-anim lp-anim-type lp-style-type">
+        <span className="lp-type-text">this is how you</span>
+        <span className="lp-type-cursor" aria-hidden>
+          |
+        </span>
+      </span>
+    ),
+  },
+  {
+    name: "Cinema",
+    tag: "Cinematic",
+    anim: "cinema",
+    sample: <span className="lp-anim lp-anim-cinema lp-style-cinema">this is how you</span>,
+    extra: true,
+  },
+  {
+    name: "Karaoke",
+    tag: "Sync",
+    anim: "karaoke",
+    sample: (
+      <span className="lp-anim lp-anim-karaoke">
+        <span>this</span> <span>is</span> <span>how</span> <span>you</span> <span>go</span>
+      </span>
+    ),
+    extra: true,
+  },
+  {
+    name: "Blur",
+    tag: "Soft focus",
+    anim: "blur",
+    sample: (
+      <span className="lp-anim lp-anim-blur">
+        <span>this</span> <span>is</span> <span>how</span> <span>you</span>
+      </span>
+    ),
+    extra: true,
+  },
+  {
+    name: "Motion",
+    tag: "Cinematic",
+    anim: "motion",
+    sample: (
+      <span className="lp-anim lp-anim-motion lp-style-motion">
+        <span>this</span>
+        <span>is</span>
+        <span>how</span>
+        <span>you</span>
+      </span>
+    ),
+    extra: true,
+  },
+] as const;
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+const STRIP_STYLES = [
+  {
+    name: "Classic",
+    caption: "namaskaram andi",
+    className: "lp-strip-classic",
+  },
+  {
+    name: "Bold",
+    caption: "ee tip meeku telusa",
+    className: "lp-strip-bold",
+  },
+  {
+    name: "Minimal",
+    caption: "chala bagundi",
+    className: "lp-strip-minimal",
+  },
+  {
+    name: "Highlight",
+    caption: (
+      <>
+        idi <span className="lp-strip-hl">super</span> idea
+      </>
+    ),
+    className: "lp-strip-highlight",
+  },
+  {
+    name: "Punch",
+    caption: "arey",
+    className: "lp-strip-punch",
+  },
+] as const;
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) setIsVisible(true);
-      },
-      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" },
-    );
+const REELS = [
+  { n: 1, caption: "ee tip meeku telusa", creator: "@ravi.cooks", style: "Classic" },
+  { n: 2, caption: "idi try cheyyandi", creator: "@teluguhacks", style: "Bold" },
+  { n: 3, caption: "chala bagundi kada", creator: "@sirichats", style: "Highlight" },
+  { n: 4, caption: "last varaku chudandi", creator: "@filmnotes.te", style: "Cinema" },
+  { n: 5, caption: "ee mistake cheyyakandi", creator: "@moneytelugu", style: "Punch" },
+  { n: 6, caption: "save cheskondi", creator: "@dailytelugu", style: "Karaoke" },
+] as const;
 
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+const FAQS = [
+  {
+    q: "How accurate is the Telugu AI speech transcription?",
+    a: "Our Telugu speech model is tuned on conversational, code-mixed speech — the way creators actually talk. Clear audio typically lands in the 90%+ range, and you can fix anything in the editor before export.",
+  },
+  {
+    q: "What is the difference between Romanized and Native Telugu captions?",
+    a: "Romanized writes Telugu in English letters (“Namaskaram andi”) — fast to scan on mobile. Native uses Telugu script (నమస్కారం అండి). Switch either way in one click.",
+  },
+  {
+    q: "Can I edit the Telugu captions before exporting?",
+    a: "Yes. Edit words, retime lines, split or merge segments, and change the style — the preview updates live before you export.",
+  },
+  {
+    q: "What video export formats are supported?",
+    a: "Burned-in MP4 at up to 1080p, in 9:16, 1:1 or 16:9. You can also download the caption file (SRT) separately.",
+  },
+  {
+    q: "Are my uploaded Telugu videos kept private?",
+    a: "Private by default. Only you can see your uploads, and files are deleted from processing storage once your export is ready.",
+  },
+  {
+    q: "Do I need to install any software?",
+    a: "No. Everything runs in the browser, on phone or desktop. Upload, caption, export.",
+  },
+  {
+    q: "Can I customize caption fonts and colors?",
+    a: "Every style is adjustable — font, size, colour, highlight, outline, position and animation. Save your set as a preset for next time.",
+  },
+  {
+    q: "What is the 24-hour Style (Beta) feature?",
+    a: "Send us a reference reel or describe the look you want. We build that caption style and add it to your account within 24 hours.",
+  },
+] as const;
 
-  const style = {
-    opacity: isVisible ? 1 : 0,
-    transform: isVisible
-      ? "translateY(0) scale(1)"
-      : `translateY(32px) ${scale ? "scale(0.95)" : "scale(1)"}`,
-    transition: `opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1) ${delay}s, transform 0.85s cubic-bezier(0.16, 1, 0.3, 1) ${delay}s`,
-    willChange: "opacity, transform",
-  } as const;
-
+function CheckIcon({ light = false }: { light?: boolean }) {
   return (
-    <div ref={ref} style={style} className={className}>
-      {children}
-    </div>
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={light ? "#FF7A4F" : "#DE5227"}
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
   );
 }
 
-function StartFreeLink({
+function ArrowIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M5 12h13" />
+      <path d="M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+function StartLink({
   canStart,
   className,
-  style,
-  children = "Start free",
+  children,
 }: {
   canStart: boolean;
   className?: string;
-  style?: CSSProperties;
-  children?: ReactNode;
+  children: ReactNode;
 }) {
   if (canStart) {
     return (
-      <a href="#upload" className={className} style={style}>
+      <a href="#upload" className={className}>
         {children}
       </a>
     );
   }
   return (
-    <Link href={SIGN_IN_HREF} className={className} style={style}>
+    <Link href={SIGN_IN_HREF} className={className}>
       {children}
     </Link>
   );
 }
 
-function FlowIcon({ name }: { name: "upload" | "fix" | "export" }) {
-  const paths = {
-    upload:
-      "M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5",
-    fix: "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10",
-    export:
-      "M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3",
-  } as const;
-
+function BrandMark() {
   return (
-    <div className="flow-icon" aria-hidden>
-      <svg fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d={paths[name]} />
-      </svg>
-    </div>
+    <span className="lp-brand">
+      <span className="lp-brand-dot" aria-hidden />
+      <span className="lp-brand-text">telugu captions</span>
+    </span>
   );
 }
 
 function Hero({ canStart }: { canStart: boolean }) {
+  const stripRef = useRef<HTMLDivElement>(null);
+
+  const scrollStrip = (dir: number) => {
+    const el = stripRef.current;
+    if (!el) return;
+    el.scrollBy({
+      left: dir * Math.max(220, el.clientWidth * 0.7),
+      behavior: "smooth",
+    });
+  };
+
   return (
-    <section className="hero-section" id="product">
-      <div className="container hero-container">
-        <ScrollReveal delay={0}>
-          <h1 className="hero-title">
-            AI that captions Telugu videos like a native creator would.
+    <section className="lp-hero" id="top">
+      <div className="lp-container">
+        <div className="lp-hero-copy">
+          <h1 className="lp-display">
+            Create <span className="lp-accent">Telugu</span> Captions in Seconds.
           </h1>
-        </ScrollReveal>
-
-        <ScrollReveal delay={0.15} scale>
-          <div className="hero-mockup-frame" id="upload">
-            <div className="mockup-header">
-              <div className="mockup-dots">
-                <span className="dot-red" />
-                <span className="dot-amber" />
-                <span className="dot-green" />
-              </div>
-              <div className="mockup-title-label">Create captions</div>
-              <div className="mockup-header-meta">
-                <span className="mockup-chip">Soft launch</span>
-                <span className="mockup-formats">MP4 · SRT · VTT · ASS</span>
-              </div>
-            </div>
-
-            <div className="mockup-workspace">
-              <div className="workspace-stage">
-                <div className="workspace-preview" aria-hidden>
-                  <div className="preview-phone">
-                    <div className="preview-phone-screen">
-                      <div className="preview-grad" />
-                      <div className="preview-caption">
-                        <span className="preview-caption-word">Namaskaram</span>
-                        <span className="preview-caption-word is-active">andi!</span>
-                      </div>
-                      <div className="preview-phone-home" />
-                    </div>
-                  </div>
-                  <p className="preview-caption-note">Preview of styled captions</p>
-                </div>
-
-                <div className="workspace-upload">
-                  <p className="workspace-lead">
-                    Drop a Telugu Reel or Short. Get timed romanized captions, style
-                    them live, and export a burned MP4 ready to post.
-                  </p>
-                  <Uploader tone="light" canUpload={canStart} />
-                </div>
-              </div>
-
-              <ol className="workspace-flow">
-                <li>
-                  <FlowIcon name="upload" />
-                  <div>
-                    <strong>Upload</strong>
-                    <span>Telugu + English code-mix transcription</span>
-                  </div>
-                </li>
-                <li>
-                  <FlowIcon name="fix" />
-                  <div>
-                    <strong>Fix & learn</strong>
-                    <span>Corrections stick for your next videos</span>
-                  </div>
-                </li>
-                <li>
-                  <FlowIcon name="export" />
-                  <div>
-                    <strong>Export</strong>
-                    <span>Burned MP4 or SRT / VTT / ASS</span>
-                  </div>
-                </li>
-              </ol>
-
-              <div className="workspace-tools">
-                <Link href="/style-analyzer" className="workspace-tool-primary">
-                  <span className="tool-icon" aria-hidden>
-                    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.362-.126-.552-.3-.752A24.866 24.866 0 0012 15c2.072 0 4.028.368 5.85 1.044-.174.2-.3.39-.3.752a4.5 4.5 0 008.4 2.245 2.25 2.25 0 01-2.4-2.245 3 3 0 00-5.78-1.128 2.998 2.998 0 00-.78-2.122M15.75 9V5.677M12 10.5V4.875m-3.75 5.25V7.875"
-                      />
-                    </svg>
-                  </span>
-                  <span>
-                    <strong>Style Analyzer</strong>
-                    <em>Clone any Reel caption look from a screenshot</em>
-                  </span>
-                  <span className="tool-arrow" aria-hidden>
-                    →
-                  </span>
-                </Link>
-                <Link href="/style-request" className="workspace-tool-primary">
-                  <span className="tool-icon" aria-hidden>
-                    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </span>
-                  <span>
-                    <strong>24h Style (Beta)</strong>
-                    <em>Request any look — we add it to your presets</em>
-                  </span>
-                  <span className="tool-arrow" aria-hidden>
-                    →
-                  </span>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </ScrollReveal>
-      </div>
-    </section>
-  );
-}
-
-function FeaturesSplit() {
-  return (
-    <section className="features-split-section">
-      <div className="container split-container">
-        <ScrollReveal delay={0}>
-          <div className="split-text">
-            <h2 className="section-title">
-              Make viral Telugu Reels & Shorts, in minutes.
-            </h2>
-
-            <div className="feature-bullet-list">
-              <div className="bullet-item">
-                <h3>Romanized Telugu by Default</h3>
-                <p>
-                  Auto-generate clear Telugu captions in English script (e.g.,
-                  &quot;Namaskaram andi!&quot;), proven to get 3x higher retention on
-                  social feeds.
-                </p>
-              </div>
-
-              <div className="bullet-item">
-                <h3>Native Telugu Script Switch</h3>
-                <p>
-                  Switch to traditional Telugu script (నమస్కారం అండి!) with a
-                  single tap while maintaining frame-accurate timing.
-                </p>
-              </div>
-
-              <div className="bullet-item">
-                <h3>Burned-In Export Ready to Post</h3>
-                <p>
-                  Export high-definition MP4 videos with animated, styled
-                  captions burned directly into your video for Reels & Shorts.
-                </p>
-              </div>
-            </div>
-          </div>
-        </ScrollReveal>
-
-        <ScrollReveal delay={0.2} scale>
-          <div className="split-media">
-            <div className="phone-card-container">
-              <div className="blank-image-placeholder phone-placeholder" />
-            </div>
-          </div>
-        </ScrollReveal>
-      </div>
-    </section>
-  );
-}
-
-function TwoCardSection() {
-  return (
-    <section className="two-card-section">
-      <div className="container">
-        <ScrollReveal delay={0}>
-          <h2 className="section-title center-title">
-            Caption existing videos or generate from scratch.
-          </h2>
-        </ScrollReveal>
-
-        <div className="cards-grid-two">
-          <ScrollReveal delay={0.1} scale>
-            <div className="feature-card">
-              <div className="card-media-box">
-                <div className="blank-image-placeholder card-placeholder-1" />
-              </div>
-              <div className="card-body">
-                <h3>Telugu AI Edit</h3>
-                <p>
-                  Upload raw Telugu video clips. AI automatically removes silent
-                  pauses, generates accurate Telugu captions, applies zoom cuts,
-                  and formats for Reels & Shorts.
-                </p>
-                <a href="#upload" className="btn-primary" style={{ marginTop: 16 }}>
-                  Start editing
-                </a>
-              </div>
-            </div>
-          </ScrollReveal>
-
-          <ScrollReveal delay={0.2} scale>
-            <div className="feature-card">
-              <div className="card-media-box">
-                <div className="blank-image-placeholder card-placeholder-2" />
-              </div>
-              <div className="card-body">
-                <h3>Telugu AI Creator</h3>
-                <p>
-                  Script, generate, and caption entire Telugu videos from text
-                  prompts. Perfect for Telugu creators, marketers, and digital
-                  brands.
-                </p>
-                <a href="#upload" className="btn-primary" style={{ marginTop: 16 }}>
-                  Get started
-                </a>
-              </div>
-            </div>
-          </ScrollReveal>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function GridFeatures() {
-  const features = [
-    {
-      title: "Auto Telugu Captions",
-      desc: "Generate accurate Telugu subtitles in seconds with custom fonts and animated word highlights.",
-      icon: "M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z",
-    },
-    {
-      title: "AI Telugu Dubbing",
-      desc: "Translate your videos into Telugu or dub Telugu speech into 100+ global languages seamlessly.",
-      icon: "M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z",
-    },
-    {
-      title: "Telugu AI Presenters",
-      desc: "Create realistic digital avatars speaking Telugu fluently from text scripts.",
-      icon: "M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z",
-    },
-    {
-      title: "Eye Contact Correction",
-      desc: "Keep your gaze focused on your Telugu audience while reading script prompts.",
-      icon: "M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z",
-    },
-    {
-      title: "Noise Removal",
-      desc: "Strip background noise, fan hums, and room echo for crystal-clear Telugu speech.",
-      icon: "M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z",
-    },
-    {
-      title: "Telugu Teleprompter",
-      desc: "Read Telugu scripts smoothly off your screen while keeping eyes on the camera lens.",
-      icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
-    },
-    {
-      title: "AI Background Music",
-      desc: "Generate royalty-free background audio tracks tailored to your video mood.",
-      icon: "M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 .895-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 .895-2 3-2 3 .895 3 2zM9 10l12-3",
-    },
-    {
-      title: "Auto Punch Zoom",
-      desc: "Add dynamic zoom emphasis to key Telugu words and punchlines automatically.",
-      icon: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7",
-    },
-    {
-      title: "Viral Video Compressor",
-      desc: "Export crisp HD MP4 videos optimized for Instagram Reels, YouTube Shorts, and Moj.",
-      icon: "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4",
-    },
-  ];
-
-  return (
-    <section className="grid-features-section" id="features">
-      <div className="container">
-        <ScrollReveal delay={0}>
-          <h2 className="section-title center-title">
-            Everything you need to grow your Telugu audience.
-          </h2>
-        </ScrollReveal>
-
-        <div className="features-grid-3x3">
-          {features.map((item, index) => (
-            <ScrollReveal key={item.title} delay={(index % 3) * 0.1}>
-              <div className="grid-item">
-                <div className="grid-icon">
-                  <svg
-                    width="24"
-                    height="24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d={item.icon} />
-                  </svg>
-                </div>
-                <div className="grid-content">
-                  <h4>{item.title}</h4>
-                  <p>{item.desc}</p>
-                </div>
-              </div>
-            </ScrollReveal>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ActionSection() {
-  const cards = [
-    { label: "Fluency", delay: 0.1 },
-    { label: "Style", delay: 0.2 },
-    { label: "Pace", delay: 0.3 },
-  ];
-
-  return (
-    <section className="action-section">
-      <div className="container">
-        <ScrollReveal delay={0}>
-          <h2 className="section-title center-title">
-            See Telugu AI Captioning in action
-          </h2>
-          <p className="section-subtitle">
-            Watch how AI turns raw Telugu speech into high-engagement, captioned
-            video clips.
+          <p className="lp-lead">
+            Upload a Short, generate accurate Telugu captions, customize the style, and
+            export a post-ready video in minutes.
           </p>
-        </ScrollReveal>
-
-        <div className="video-triplet-grid">
-          {cards.map((item) => (
-            <ScrollReveal key={item.label} delay={item.delay} scale>
-              <div className="video-card-item">
-                <div className="blank-image-placeholder video-frame-placeholder" />
-                <span className="video-card-label">{item.label}</span>
-              </div>
-            </ScrollReveal>
-          ))}
         </div>
-      </div>
-    </section>
-  );
-}
 
-function BrandsSection() {
-  const brands = [
-    "Instagram Reels",
-    "YouTube Shorts",
-    "Moj",
-    "Josh",
-    "Facebook Reels",
-    "YouTube",
-    "Snapchat",
-    "MX TakaTak",
-  ];
-
-  return (
-    <section className="brands-section">
-      <div className="brands-marquee-wrapper">
-        <div className="brands-marquee-track">
-          <div className="brands-logo-row">
-            {brands.map((b) => (
-              <span key={b} className="brand-text">
-                {b}
+        <div className="lp-upload-card" id="upload">
+          <Uploader tone="light" canUpload={canStart} variant="landing" />
+          <div className="lp-upload-bar">
+            <div className="lp-upload-meta">
+              <span className="lp-upload-attach" aria-hidden>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                </svg>
               </span>
-            ))}
-          </div>
-          <div className="brands-logo-row" aria-hidden="true">
-            {brands.map((b) => (
-              <span key={`dup-${b}`} className="brand-text">
-                {b}
+              <span className="lp-style-chip">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M4 5h16v14H4z" />
+                  <path d="M8 9h5" />
+                  <path d="M8 13h8" />
+                </svg>
+                Classic
               </span>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function StatsSection() {
-  const stats = [
-    { num: "10M+", label: "Telugu Views Generated", delay: 0.1 },
-    { num: "2 Scripts", label: "Romanized & Native Telugu", delay: 0.2 },
-    { num: "100+", label: "Viral Caption Presets", delay: 0.3 },
-  ];
-
-  return (
-    <section className="stats-section">
-      <div className="container stats-grid">
-        {stats.map((st) => (
-          <ScrollReveal key={st.label} delay={st.delay}>
-            <div className="stat-box">
-              <div className="stat-number">{st.num}</div>
-              <div className="stat-label">{st.label}</div>
             </div>
-          </ScrollReveal>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function StyleRequestSection({ canStart }: { canStart: boolean }) {
-  const href = canStart
-    ? "/style-request"
-    : `/signin?next=${encodeURIComponent("/style-request")}`;
-  return (
-    <section className="style-request-section" id="custom-style">
-      <div className="container">
-        <ScrollReveal delay={0}>
-          <div className="style-request-panel">
-            <div className="style-request-copy">
-              <span className="style-request-badge">Beta</span>
-              <h2 className="section-title">
-                Seen a caption style you love? Get it in 24 hours.
-              </h2>
-              <p className="style-request-lead">
-                Creators chase looks across Reels and Shorts, then burn hours rebuilding them.
-                Tell us the style, upload a reference video (preferred) or screenshot, and
-                we&apos;ll craft it into your presets — usually within a day.
-              </p>
-              <Link href={href} className="btn-primary style-request-cta">
-                Request a style
+            {canStart ? (
+              <button
+                type="button"
+                className="lp-btn-dark"
+                onClick={() => {
+                  const drop = document.querySelector<HTMLElement>(".lp-uploader-drop");
+                  drop?.click();
+                }}
+              >
+                Upload Video
+                <ArrowIcon />
+              </button>
+            ) : (
+              <Link href={SIGN_IN_HREF} className="lp-btn-dark">
+                Upload Video
+                <ArrowIcon />
               </Link>
-            </div>
-            <ul className="style-request-steps" aria-label="How custom style requests work">
-              <li>
-                <strong>1. Sign in</strong>
-                <span>Only signed-in creators can submit a request.</span>
-              </li>
-              <li>
-                <strong>2. Upload a reference</strong>
-                <span>A short clip of the look works best; screenshots work too.</span>
-              </li>
-              <li>
-                <strong>3. Find it in presets</strong>
-                <span>We deliver to My Styles within about 24 hours.</span>
-              </li>
-            </ul>
+            )}
           </div>
-        </ScrollReveal>
+        </div>
+
+        <div className="lp-strip">
+          <button
+            type="button"
+            className="lp-strip-nav"
+            aria-label="Previous styles"
+            onClick={() => scrollStrip(-1)}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 6l-6 6 6 6" />
+            </svg>
+          </button>
+          <div className="lp-strip-track" ref={stripRef}>
+            {STRIP_STYLES.map((item) => (
+              <div key={item.name} className="lp-strip-card">
+                <div className={`lp-strip-preview ${item.className}`}>
+                  <div className="lp-hatch" aria-hidden />
+                  <span>{item.caption}</span>
+                </div>
+                <div className="lp-strip-label">{item.name}</div>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="lp-strip-nav"
+            aria-label="Next styles"
+            onClick={() => scrollStrip(1)}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 6l6 6-6 6" />
+            </svg>
+          </button>
+        </div>
       </div>
     </section>
   );
 }
 
-function CtaSection({ canStart, user }: { canStart: boolean; user: LandingUser | null }) {
-  return (
-    <section className="cta-section">
-      <div className="container cta-container">
-        <ScrollReveal delay={0}>
-          <h2 className="section-title center-title">
-            Start captioning your Telugu videos
-          </h2>
-          <p className="section-subtitle">
-            Join thousands of Telugu creators making faster, higher-retention
-            videos with AI.
-          </p>
+function StylesSection() {
+  const [showAll, setShowAll] = useState(false);
+  const visible = STYLE_PREVIEWS.filter((s) => showAll || !("extra" in s && s.extra));
 
-          <StartFreeLink
-            canStart={canStart}
-            className="btn-primary"
-            style={{ fontSize: 16, padding: "14px 32px" }}
+  return (
+    <section className="lp-section" id="styles">
+      <div className="lp-container">
+        <div className="lp-section-intro">
+          <span className="lp-eyebrow">Live, not screenshots</span>
+          <h2 className="lp-display-sm">20+ Caption Styles</h2>
+          <p className="lp-section-lead">
+            Modern caption styles designed for Reels, Shorts, and social video.
+          </p>
+        </div>
+
+        <div className="lp-styles-grid">
+          {visible.map((style, index) => (
+            <div
+              key={style.name}
+              className={`lp-style-card lp-style-card--${style.anim}`}
+              style={{ animationDelay: `${(index % 4) * 0.06}s` }}
+            >
+              <div className="lp-style-preview">{style.sample}</div>
+              <div className="lp-style-meta">
+                <span>{style.name}</span>
+                <span className="lp-mono-tag">{style.tag}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="lp-center">
+          <button
+            type="button"
+            className="lp-btn-outline"
+            onClick={() => setShowAll((v) => !v)}
           >
-            {user ? "Upload a video" : "Start for free"}
-          </StartFreeLink>
-        </ScrollReveal>
+            {showAll ? "View less" : "View more"}
+            <span
+              className="lp-chev"
+              style={{ transform: `rotate(${showAll ? 180 : 0}deg)` }}
+              aria-hidden
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </span>
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ReelsSection() {
+  return (
+    <section className="lp-section" id="reels">
+      <div className="lp-container">
+        <div className="lp-section-intro">
+          <span className="lp-eyebrow">In the wild</span>
+          <h2 className="lp-display-sm">See Reels in Action</h2>
+          <p className="lp-section-lead">
+            See how creators use our caption styles on real videos.
+          </p>
+        </div>
+
+        <div className="lp-reels-grid">
+          {REELS.map((reel) => (
+            <div key={reel.n} className="lp-reel-card">
+              <div className="lp-reel-preview">
+                <div className="lp-hatch" aria-hidden />
+                <span className="lp-reel-badge">
+                  reel {reel.n} · video
+                </span>
+                <span className="lp-reel-play" aria-hidden>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </span>
+                <span className="lp-reel-caption">{reel.caption}</span>
+              </div>
+              <div className="lp-reel-meta">
+                <span>{reel.creator}</span>
+                <span className="lp-mono-tag">{reel.style}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PricingSection({ canStart }: { canStart: boolean }) {
+  return (
+    <section className="lp-section lp-pricing" id="pricing">
+      <div className="lp-container">
+        <div className="lp-section-intro lp-center-copy">
+          <span className="lp-eyebrow">Pricing</span>
+          <h2 className="lp-display-sm">Simple Pricing</h2>
+          <p className="lp-section-lead">Choose the plan that fits your workflow.</p>
+        </div>
+
+        <div className="lp-pricing-grid">
+          <div className="lp-price-card">
+            <div className="lp-price-head">
+              <span className="lp-mono-tag">Monthly</span>
+              <p className="lp-price">
+                ₹299<span> / month</span>
+              </p>
+            </div>
+            <ul className="lp-price-features">
+              <li><CheckIcon /> Unlimited videos</li>
+              <li><CheckIcon /> All caption styles</li>
+              <li><CheckIcon /> Burned MP4 export</li>
+              <li><CheckIcon /> Romanized &amp; Telugu captions</li>
+            </ul>
+            <Link href="/billing" className="lp-btn-ghost">
+              Start Monthly
+            </Link>
+          </div>
+
+          <div className="lp-price-card">
+            <div className="lp-price-head">
+              <span className="lp-mono-tag">Weekly</span>
+              <p className="lp-price">
+                ₹59<span> / week</span>
+              </p>
+            </div>
+            <ul className="lp-price-features">
+              <li><CheckIcon /> 10 videos / day</li>
+              <li><CheckIcon /> All caption styles</li>
+              <li><CheckIcon /> Burned MP4 export</li>
+              <li><CheckIcon /> Romanized &amp; Telugu captions</li>
+            </ul>
+            <Link href="/billing" className="lp-btn-ghost">
+              Start Weekly
+            </Link>
+          </div>
+
+          <div className="lp-price-card lp-price-featured">
+            <div className="lp-price-head">
+              <span className="lp-best-badge">Best to start</span>
+              <span className="lp-mono-tag">Pay per video</span>
+              <p className="lp-price lp-price-light">
+                ₹9<span> / video</span>
+              </p>
+            </div>
+            <ul className="lp-price-features lp-price-features-light">
+              <li><CheckIcon light /> 1 video, no subscription</li>
+              <li><CheckIcon light /> All caption styles</li>
+              <li><CheckIcon light /> Burned MP4 export</li>
+              <li><CheckIcon light /> Romanized &amp; Telugu captions</li>
+            </ul>
+            <StartLink canStart={canStart} className="lp-btn-light">
+              Try One Video
+            </StartLink>
+          </div>
+        </div>
       </div>
     </section>
   );
 }
 
 function FaqSection() {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-
-  const faqs = [
-    {
-      q: "How accurate is the Telugu AI speech transcription?",
-      a: "Our speech recognition model is trained on diverse Telugu dialects and conversational speech. For any minor misinterpretations, our built-in editor lets you fix wording and timestamp alignment in seconds.",
-    },
-    {
-      q: "What is the difference between Romanized and Native Telugu captions?",
-      a: 'Romanized Telugu displays spoken Telugu in English letters (e.g. "Namaskaram andi!"), which gets 3x higher retention on Instagram Reels and YouTube Shorts. One click switches to native Telugu script (నమస్కారం అండి!) anytime.',
-    },
-    {
-      q: "Can I edit the Telugu captions before exporting?",
-      a: "Yes. Every generated transcript opens in our built-in visual editor. You can tweak individual words, fix timing, adjust positions, and change styling presets before exporting your final video.",
-    },
-    {
-      q: "What video export formats are supported?",
-      a: "You can export a burned-in HD MP4 video ready to upload to Instagram Reels, YouTube Shorts, or TikTok — as well as standalone subtitle files in SRT, VTT, and ASS formats.",
-    },
-    {
-      q: "Are my uploaded Telugu videos kept private?",
-      a: "Yes. Your uploads are processed strictly for your project. We never share your footage or use your private video data to train public AI models.",
-    },
-    {
-      q: "Do I need to install any software to use Telugu Captions?",
-      a: "No. Everything runs seamlessly in your web browser — video upload, transcription, visual styling, and video rendering happen in one unified web workflow.",
-    },
-    {
-      q: "Can I customize the Telugu caption fonts and colors?",
-      a: "Absolutely. You can choose from 100+ caption presets, or customize font family, font size, stroke color, active word highlight color, background box, and position.",
-    },
-    {
-      q: "What is the 24-hour Style (Beta) feature?",
-      a: "If you see a caption look on Instagram or YouTube that you want on your videos, sign in, open 24h Style, and upload a reference video or screenshot. We handcraft that style into your presets—usually within about 24 hours. For an instant match from a screenshot, use Style Analyzer.",
-    },
-  ];
+  const [openIndex, setOpenIndex] = useState(0);
 
   return (
-    <section className="faq-section" id="faq">
-      <div className="container faq-container">
-        <ScrollReveal delay={0}>
-          <h2 className="section-title center-title">Frequently asked questions</h2>
-        </ScrollReveal>
+    <section className="lp-section" id="faq">
+      <div className="lp-container lp-faq-grid">
+        <div className="lp-faq-intro">
+          <span className="lp-eyebrow">FAQ</span>
+          <h2 className="lp-display-sm">Frequently Asked Questions</h2>
+        </div>
 
-        <div className="faq-accordion">
-          {faqs.map((item, idx) => {
-            const isOpen = openIndex === idx;
+        <div className="lp-faq-list">
+          {FAQS.map((item, idx) => {
+            const open = openIndex === idx;
             return (
-              <ScrollReveal key={item.q} delay={idx * 0.05}>
-                <div className={`faq-item ${isOpen ? "active" : ""}`}>
-                  <button
-                    type="button"
-                    className="faq-trigger"
-                    onClick={() => setOpenIndex(isOpen ? null : idx)}
-                  >
-                    <span>{item.q}</span>
-                    <svg
-                      className="faq-chevron"
-                      width="16"
-                      height="16"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M19 9l-7 7-7-7" />
+              <div key={item.q} className={`lp-faq-item${open ? " is-open" : ""}`}>
+                <button
+                  type="button"
+                  className="lp-faq-trigger"
+                  aria-expanded={open}
+                  onClick={() => setOpenIndex(open ? -1 : idx)}
+                >
+                  <span>{item.q}</span>
+                  <span className="lp-faq-icon" aria-hidden>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                      <path d="M12 5v14" />
+                      <path d="M5 12h14" />
                     </svg>
-                  </button>
-                  <div className="faq-content">
-                    <p>{item.a}</p>
-                  </div>
-                </div>
-              </ScrollReveal>
+                  </span>
+                </button>
+                {open ? <p className="lp-faq-answer">{item.a}</p> : null}
+              </div>
             );
           })}
         </div>
@@ -656,79 +570,52 @@ function FaqSection() {
   );
 }
 
+function CtaSection({ canStart }: { canStart: boolean }) {
+  return (
+    <section className="lp-cta-wrap">
+      <div className="lp-container">
+        <div className="lp-cta-card">
+          <h2 className="lp-display-sm lp-cta-title">Caption your next Short in minutes.</h2>
+          <StartLink canStart={canStart} className="lp-btn-dark">
+            Upload Video
+            <ArrowIcon />
+          </StartLink>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function Footer() {
   return (
-    <footer className="footer">
-      <div className="container footer-container">
-        <div className="footer-top">
-          <div className="footer-brand">
-            <Link href="/" className="logo footer-logo">
-              <img src="/logo.png" alt="Caplio" className="nav-logo-img" />
-            </Link>
-            <div className="social-links">
-              <a href="#" aria-label="Twitter">
-                <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                </svg>
-              </a>
-              <a href="#" aria-label="Instagram">
-                <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                </svg>
-              </a>
-              <a href="#" aria-label="YouTube">
-                <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                </svg>
-              </a>
-            </div>
+    <footer className="lp-footer">
+      <div className="lp-container">
+        <div className="lp-footer-grid">
+          <div className="lp-footer-brand">
+            <BrandMark />
+            <p>AI captions for Telugu creators.</p>
           </div>
-
-          <div className="footer-columns">
-            <div className="footer-col">
-              <h5>Product</h5>
-              <a href="#features">Features</a>
-              <Link href="/billing">Pricing</Link>
-              <a href="#upload">Web Editor</a>
-              <a href="#upload">Desktop App</a>
-              <a href="#upload">Mobile App</a>
-            </div>
-
-            <div className="footer-col">
-              <h5>Use Cases</h5>
-              <a href="#product">Telugu Creators</a>
-              <a href="#product">Marketers</a>
-              <a href="#product">Businesses</a>
-              <a href="#product">Educators</a>
-              <a href="#product">Agencies</a>
-            </div>
-
-            <div className="footer-col">
-              <h5>AI Tools</h5>
-              <a href="#upload">Telugu Subtitle Generator</a>
-              <a href="#features">Telugu AI Dubbing</a>
-              <a href="#features">Voice Generator</a>
-              <a href="#features">Eye Contact</a>
-              <a href="#features">Noise Remover</a>
-            </div>
-
-            <div className="footer-col">
-              <h5>Resources</h5>
-              <a href="#faq">Help Center</a>
-              <a href="#faq">Telugu Guides</a>
-              <Link href="/style-analyzer">Style Analyzer</Link>
-              <Link href="/style-request">24h Style (Beta)</Link>
-              <Link href="/styles">My Styles</Link>
-            </div>
+          <div className="lp-footer-col">
+            <span className="lp-mono-tag">Product</span>
+            <a href="#styles">Styles</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#faq">FAQ</a>
+          </div>
+          <div className="lp-footer-col">
+            <span className="lp-mono-tag">Legal</span>
+            <a href="#faq">Privacy</a>
+            <a href="#faq">Terms</a>
+          </div>
+          <div className="lp-footer-col">
+            <span className="lp-mono-tag">Contact</span>
+            <a href="mailto:hello@telugucaptions.ai">hello@telugucaptions.ai</a>
+            <Link href="/style-request">24h Style</Link>
+            <Link href="/style-analyzer">Style Analyzer</Link>
           </div>
         </div>
-
-        <div className="footer-bottom">
-          <p>&copy; 2026 Telugu Captions, Inc. All rights reserved.</p>
-          <div className="footer-legal">
-            <a href="#">Privacy</a>
-            <a href="#">Terms</a>
-          </div>
+        <div className="lp-footer-bottom">
+          <span>© 2026 Telugu Captions</span>
+          <span>Made in India</span>
         </div>
       </div>
     </footer>
@@ -754,7 +641,6 @@ export function LandingPage({
         el.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
-    // Clean the query without a full reload.
     const url = new URL(window.location.href);
     url.searchParams.delete("start");
     window.history.replaceState({}, "", url.pathname + url.hash);
@@ -762,25 +648,13 @@ export function LandingPage({
 
   return (
     <div className="landing-page">
-      <div className="grain-texture" />
-      <div className="ambient-background">
-        <div className="glow glow-top-left" />
-        <div className="glow glow-top-right" />
-        <div className="glow glow-bottom" />
-        <div className="glow glow-bottom-right" />
-      </div>
-
       <LandingNavbar canStart={canStart} user={user} />
       <Hero canStart={canStart} />
-      <FeaturesSplit />
-      <TwoCardSection />
-      <GridFeatures />
-      <ActionSection />
-      <BrandsSection />
-      <StatsSection />
-      <StyleRequestSection canStart={canStart} />
-      <CtaSection canStart={canStart} user={user} />
+      <StylesSection />
+      <ReelsSection />
+      <PricingSection canStart={canStart} />
       <FaqSection />
+      <CtaSection canStart={canStart} />
       <Footer />
       {authEnabled && !canStart ? (
         <p className="sr-only">Sign in required to start uploading.</p>

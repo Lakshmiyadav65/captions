@@ -73,32 +73,44 @@ async function downloadFromUrl(url: string, filename: string) {
     /* keep raw */
   }
 
-  const res = await fetch(abs);
-  if (!res.ok) {
-    throw new Error(
-      res.status === 404
-        ? "Export finished but the file was lost. Click Export video again."
-        : `Download failed (${res.status}).`,
-    );
-  }
-  const blob = await res.blob();
-  if (!blob.size) {
-    throw new Error("Export file was empty. Click Export video again.");
-  }
-  const objectUrl = URL.createObjectURL(blob);
+  const safeName = filename.endsWith(".mp4") ? filename : `${filename}.mp4`;
+
+  // Fetch → blob download (best filename control). Fall back to opening the CDN URL
+  // when CORS / network blocks the fetch — public Blob URLs still download fine that way.
   try {
-    const a = document.createElement("a");
-    a.href = objectUrl;
-    a.download = filename.endsWith(".mp4") ? filename : `${filename}.mp4`;
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    // Keep the object URL briefly so the browser can start the download.
-    await new Promise((r) => setTimeout(r, 1500));
-  } finally {
-    URL.revokeObjectURL(objectUrl);
+    const res = await fetch(abs);
+    if (res.ok) {
+      const blob = await res.blob();
+      if (blob.size) {
+        const objectUrl = URL.createObjectURL(blob);
+        try {
+          const a = document.createElement("a");
+          a.href = objectUrl;
+          a.download = safeName;
+          a.style.display = "none";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          await new Promise((r) => setTimeout(r, 1500));
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+        }
+        return;
+      }
+    }
+  } catch {
+    /* fall through to direct link */
   }
+
+  const a = document.createElement("a");
+  a.href = abs;
+  a.download = safeName;
+  a.target = "_blank";
+  a.rel = "noopener";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 export function Editor({

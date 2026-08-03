@@ -16,7 +16,18 @@ import "@fontsource/poppins/700.css";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/700.css";
 import "@fontsource/manrope/400.css";
+import "@fontsource/manrope/500.css";
+import "@fontsource/manrope/600.css";
 import "@fontsource/manrope/700.css";
+import "@fontsource/jost/400.css";
+import "@fontsource/jost/500.css";
+import "@fontsource/jost/600.css";
+import "@fontsource/jost/700.css";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
+import "@fontsource/newsreader/400.css";
+import "@fontsource/newsreader/500.css";
+import "@fontsource/instrument-serif/400-italic.css";
 import "@fontsource/open-sans/400.css";
 import "@fontsource/open-sans/700.css";
 import "@fontsource/oswald/400.css";
@@ -57,7 +68,11 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: landingThemeInit }} />
       </head>
-      <body className="min-h-screen bg-neutral-950 text-neutral-100 antialiased">
+      <body
+        className="min-h-screen bg-neutral-950 text-neutral-100 antialiased"
+        // Extensions (e.g. ColorZilla) inject attrs like cz-shortcut-listen before hydrate.
+        suppressHydrationWarning
+      >
         {children}
       </body>
     </html>

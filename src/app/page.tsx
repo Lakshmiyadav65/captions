@@ -5,9 +5,9 @@ import { currentUser } from "@/lib/auth-helpers";
 import "./landing.css";
 
 export const metadata: Metadata = {
-  title: "Telugu Captions AI — Generate Viral Telugu Subtitles for Reels & Shorts",
+  title: "Telugu Captions — create Telugu captions in seconds",
   description:
-    "AI that captions Telugu videos like a native creator would. Romanized Telugu by default, native script switch, and burned-in MP4 export ready to post.",
+    "Upload a Short, generate accurate Telugu captions, customize the style, and export a post-ready video in minutes.",
 };
 
 export default async function Home() {

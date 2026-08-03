@@ -67,14 +67,35 @@ export async function POST(
       return NextResponse.json({ url: result.url, filename: result.filename });
     }
 
+    // Hobby serverless burns are fragile for long clips — fail fast with a clear tip.
+    if (process.env.VERCEL && (job.durationSec ?? 0) > 180) {
+      return NextResponse.json(
+        {
+          error:
+            "This clip is longer than ~3 minutes for Export video on the free host. Download SRT/VTT instead, or trim the video and retry.",
+        },
+        { status: 413 },
+      );
+    }
+
     const result = await burnCaptionedMp4(input);
     return NextResponse.json({ url: result.url, filename: result.filename });
   } catch (err) {
     const raw = err instanceof Error ? err.message : "Export failed";
-    const message =
-      /timeout|TIMED_OUT|FUNCTION_INVOCATION|canceled|AbortError/i.test(raw)
-        ? "Export timed out while burning captions. Try a shorter clip, or retry Export video."
-        : raw;
+    let message = raw;
+    if (/timeout|TIMED_OUT|FUNCTION_INVOCATION|canceled|AbortError|504|502/i.test(raw)) {
+      message =
+        "Export timed out while burning captions. Try a shorter clip (under ~2 min), or download SRT/VTT and burn elsewhere.";
+    } else if (/ENOENT|fonts|no such file/i.test(raw)) {
+      message =
+        "Export fonts/binary missing on the server. Redeploy, or download SRT/VTT as a backup.";
+    } else if (/ENOMEM|out of memory|killed|signal/i.test(raw)) {
+      message =
+        "Export ran out of memory on the free host. Try a shorter/lower-res clip, or download SRT/VTT.";
+    } else if (/spawn|EACCES|permission denied|ffmpeg/i.test(raw) && /error|fail|exit/i.test(raw)) {
+      message =
+        "Couldn't run the video encoder on the server. Retry once; if it keeps failing, download SRT/VTT.";
+    }
     await reportError("export.route_failed", err, { jobId: job.id, userId });
     return NextResponse.json({ error: message.slice(0, 500) }, { status: 500 });
   }
