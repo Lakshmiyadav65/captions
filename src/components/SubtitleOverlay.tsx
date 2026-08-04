@@ -340,39 +340,46 @@ export function SubtitleOverlay({
       );
     }
   } else if (useFlash) {
+    // Flash punches the whole caption frame (respects Caption density), not one spoken word.
     const tokens = tokenizeSegment(segment!);
     if (tokens.length) {
-      const focus = kineticFocusIndex(tokens.length, filled);
-      const tk = tokens[focus]!;
-      const word = applyTextCase(
-        tk.text,
-        caseMode === "sentence" && focus > 0 ? "lower" : caseMode,
-      );
-      const accent =
-        isEmphasisOn(style) && isEmphasizedWord(tk.text)
-          ? style.highlightColor
-          : style.color;
       const baseFs = px(style.fontSizePct);
+      const emphasize = isEmphasisOn(style);
       content = (
         <span
-          key={`${tk.start}-${focus}`}
+          key={`${segment!.start}-flash`}
           className="cap-flash cap-kinetic-word"
           style={{
             display: "inline-block",
             fontFamily: fontStack(style.fontFamily),
             fontSize: baseFs * FLASH_SCALE,
             fontWeight: style.fontWeight,
-            color: accent,
             letterSpacing: `${style.letterSpacingEm}em`,
-            lineHeight: 1,
-            whiteSpace: "nowrap",
+            lineHeight: 1.05,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
             textShadow: buildTextShadow(style, scale, false),
             WebkitTextStrokeWidth: stroke > 0 ? `${stroke}px` : undefined,
             WebkitTextStrokeColor: stroke > 0 ? style.outlineColor : undefined,
             paintOrder: "stroke fill",
           }}
         >
-          {word}
+          {tokens.map((tk, i) => {
+            const word = applyTextCase(
+              tk.text,
+              caseMode === "sentence" && i > 0 ? "lower" : caseMode,
+            );
+            const color =
+              emphasize && isEmphasizedWord(tk.text)
+                ? style.highlightColor
+                : style.color;
+            return (
+              <span key={`${tk.start}-${i}`} style={{ color }}>
+                {word}
+                {i < tokens.length - 1 ? " " : ""}
+              </span>
+            );
+          })}
         </span>
       );
     }
@@ -642,7 +649,7 @@ export function SubtitleOverlay({
       ? animationClass(style)
       : "";
   const animKey = hasText
-    ? `${segment!.start}-${style.animation}-${style.textEffect ?? "none"}-${useKinetic || useScatter || useHook || useFlash || useEditorial ? filled : 0}`
+    ? `${segment!.start}-${style.animation}-${style.textEffect ?? "none"}-${useKinetic || useScatter || useHook || useEditorial ? filled : 0}`
     : "ghost";
 
   const barHeight = px(

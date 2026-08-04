@@ -105,7 +105,7 @@ export const PRESETS: StylePreset[] = [
     id: "live-punchline",
     name: "Punchline",
     category: "live",
-    tag: "One word",
+    tag: "Punch",
     sample: "THIS",
     style: {
       ...DEFAULT_STYLE,

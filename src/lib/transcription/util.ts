@@ -156,8 +156,12 @@ export function splitSegmentsToMaxWords(
 
 /**
  * Re-apply a new words-per-frame density to an already-split transcript.
- * Flattens frames back to timed words, re-groups into natural lines, then splits
+ * Flattens frames back to timed words, re-groups into lines, then splits
  * to `maxWords` — so raising density from 2→5 actually merges short frames.
+ *
+ * Grouping uses a looser pause threshold than the initial ASR pass so short
+ * inter-word gaps don't defeat the user's density choice (otherwise many
+ * styles look stuck at 1–2 words even when density is 4–6).
  */
 export function rescaleSegmentsToMaxWords(
   segments: Segment[],
@@ -167,7 +171,11 @@ export function rescaleSegmentsToMaxWords(
   const n = clampWordsPerFrame(maxWords);
   const words = flattenSegmentWords(segments);
   if (!words.length) return segments;
-  const grouped = groupWordsIntoSegments(words);
+  const grouped = groupWordsIntoSegments(words, {
+    maxChars: Math.max(80, n * 28),
+    gapSec: 1.5,
+    maxDurationSec: Math.max(8, n * 2.5),
+  });
   return splitSegmentsToMaxWords(grouped, n);
 }
 

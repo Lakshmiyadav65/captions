@@ -1,7 +1,7 @@
 // Premium Style 1 = stacked "kinetic".
 // Premium Style 2 = scattered "scatter" (up/down + big/small).
 // Premium Style 3 = neon "hook" (support lines + glowing keyword).
-// Premium Style 4 = "flash" (one punch word at a time — fast Klickpin/Hormozi look).
+// Premium Style 4 = "flash" (punchy scale pop on each caption frame; density sets word count).
 // Premium Style 5 = "editorial" (blue sans focus + italic serif supports + accent ruler).
 
 export interface KineticWordPose {
@@ -125,12 +125,11 @@ export function isKineticMode(style: { animation?: string }): boolean {
     isKinetic(style) ||
     isScatter(style) ||
     isHook(style) ||
-    isFlash(style) ||
     isEditorial(style)
   );
 }
 
-/** Scale bump for the single on-screen flash word. */
+/** Scale bump for the flash caption punch. */
 export const FLASH_SCALE = 1.25;
 
 /**

@@ -122,7 +122,7 @@ function entranceTags(style: SubtitleStyle): string {
     case "hook":
       return "{\\fad(120,80)}";
     case "flash":
-      // Snappy scale pop — matches the fast one-word punch look.
+      // Snappy scale pop on each caption frame (density controls word count).
       return "{\\fscx80\\fscy80\\t(0,160,\\fscx100\\fscy100)}";
     case "editorial":
       return "{\\fad(140,100)}";
@@ -423,7 +423,8 @@ function editorialDialogues(
 }
 
 /**
- * Premium Style 4 burn: one Dialogue per spoken word (fast flash punch).
+ * Premium Style 4 burn: punchy scale pop on the full caption frame
+ * (word count comes from Caption density — same as preview).
  */
 function flashDialogues(
   seg: Segment,
@@ -432,39 +433,36 @@ function flashDialogues(
   playH: number,
 ): string[] {
   const tokens = tokenizeSegment(seg);
-  // Flash already encodes a scale pop in entranceTags — keep \\fs/\\c per word.
+  // Flash scale pop lives in entranceTags; bump \\fs to match preview FLASH_SCALE.
   const prefix = overrideBlock(style, playW, playH);
-  if (!tokens.length) {
-    const body = applyTextCase(seg.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
-    return [
-      `Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${body}`,
-    ];
-  }
-
   const caseMode = effectiveTextCase(style);
   const baseFs = Math.round((style.fontSizePct / 100) * playH);
   const fs = Math.max(10, Math.round(baseFs * FLASH_SCALE));
   const white = assColor(style.color, 0);
   const accent = assColor(style.highlightColor, 0);
   const useEmphasis = isEmphasisOn(style);
-  const lines: string[] = [];
 
-  tokens.forEach((tk, focus) => {
-    const t0 = tk.start;
-    const t1 = focus < tokens.length - 1 ? tokens[focus + 1]!.start : seg.end;
-    if (t1 <= t0) return;
+  if (!tokens.length) {
+    const body = applyTextCase(seg.text, caseMode).replace(/\r?\n/g, "\\N");
+    return [
+      `Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}{\\fs${fs}\\c${white}}${body}`,
+    ];
+  }
 
-    const word =
-      caseMode === "sentence" && focus > 0
-        ? tk.text.toLowerCase()
-        : applyTextCase(tk.text, caseMode);
-    const col = useEmphasis && isEmphasizedWord(tk.text) ? accent : white;
-    lines.push(
-      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${prefix}{\\fs${fs}\\c${col}}${word}`,
-    );
-  });
+  const body = tokens
+    .map((tk, i) => {
+      const word =
+        caseMode === "sentence" && i > 0
+          ? tk.text.toLowerCase()
+          : applyTextCase(tk.text, caseMode);
+      const col = useEmphasis && isEmphasizedWord(tk.text) ? accent : white;
+      return `{\\c${col}}${word}`;
+    })
+    .join(" ");
 
-  return lines;
+  return [
+    `Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}{\\fs${fs}}${body}`,
+  ];
 }
 
 /**

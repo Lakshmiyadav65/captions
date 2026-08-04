@@ -133,7 +133,6 @@ export function PreviewStage({
             style.animation === "kinetic" ||
             style.animation === "scatter" ||
             style.animation === "hook" ||
-            style.animation === "flash" ||
             style.animation === "editorial")
             ? filledCount(tokenizeSegment(seg), t)
             : 0;
