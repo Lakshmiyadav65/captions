@@ -156,51 +156,11 @@ export function SubtitleOverlay({
   const caseMode = effectiveTextCase(style);
   const casedText = applyTextCase(displayText, caseMode);
 
-  // Boxed captions: flex + slightly more top padding so glyphs sit optically centered
+  // Boxed captions: slightly more top padding so glyphs sit optically centered
   // in the white pill (Telugu/Latin fonts often sit high in the em box).
   const boxPadY = px(style.bgPaddingYPct);
   const boxPadX = px(style.bgPaddingXPct);
   const opticalNudge = showBox && !isBar ? Math.max(1, px(style.fontSizePct) * 0.08) : 0;
-
-  const spanStyle: CSSProperties = {
-    display: showBox && !isBar ? "inline-flex" : "inline-block",
-    alignItems: showBox && !isBar ? "center" : undefined,
-    justifyContent:
-      showBox && !isBar
-        ? style.align === "left"
-          ? "flex-start"
-          : style.align === "right"
-            ? "flex-end"
-            : "center"
-        : undefined,
-    maxWidth: "100%",
-    fontFamily: fontStack(style.fontFamily),
-    fontSize: px(style.fontSizePct),
-    fontWeight: style.fontWeight,
-    color: specialFill ? undefined : style.color,
-    lineHeight: showBox && !isBar ? 1 : style.lineHeight,
-    letterSpacing: `${style.letterSpacingEm}em`,
-    whiteSpace: "pre-wrap",
-    wordBreak: "break-word",
-    background: specialFill ? undefined : bg,
-    padding: showBox && !isBar
-      ? `${boxPadY + opticalNudge}px ${boxPadX}px ${Math.max(0, boxPadY - opticalNudge)}px`
-      : isBar
-        ? `${px(Math.max(style.bgPaddingYPct, 1.2))}px ${px(style.bgPaddingXPct)}px`
-        : "0",
-    borderRadius: radius,
-    boxDecorationBreak: "clone",
-    WebkitBoxDecorationBreak: "clone",
-    WebkitTextStrokeWidth: !specialFill && stroke > 0 ? `${stroke}px` : undefined,
-    WebkitTextStrokeColor: !specialFill && stroke > 0 ? style.outlineColor : undefined,
-    paintOrder: "stroke fill",
-    textShadow: buildTextShadow(style, scale, prism || ember),
-    mixBlendMode: negative ? "difference" : undefined,
-    opacity: isGhost ? 0.45 : 1,
-    cursor: onPositionChange ? "ns-resize" : undefined,
-    userSelect: "none",
-    touchAction: "none",
-  };
 
   let content: ReactNode = casedText;
   const useKinetic = hasText && isKinetic(style) && !specialFill;
@@ -226,6 +186,52 @@ export function SubtitleOverlay({
     !useHook &&
     !useFlash &&
     !useEditorial;
+  // Karaoke/emphasis emit one <span> per word. Those must stay normal inline text —
+  // inline-flex treats each span as a shrinkable flex item and word-break then drops
+  // the last letter of every word onto the next line (e.g. "unexpecte" / "d").
+  const useWordSpans = useKaraoke || useEmphasis;
+  const boxedInline = showBox && !isBar;
+
+  const spanStyle: CSSProperties = {
+    display: boxedInline && !useWordSpans ? "inline-flex" : "inline-block",
+    alignItems: boxedInline && !useWordSpans ? "center" : undefined,
+    justifyContent:
+      boxedInline && !useWordSpans
+        ? style.align === "left"
+          ? "flex-start"
+          : style.align === "right"
+            ? "flex-end"
+            : "center"
+        : undefined,
+    maxWidth: "100%",
+    fontFamily: fontStack(style.fontFamily),
+    fontSize: px(style.fontSizePct),
+    fontWeight: style.fontWeight,
+    color: specialFill ? undefined : style.color,
+    lineHeight: boxedInline ? 1.15 : style.lineHeight,
+    letterSpacing: `${style.letterSpacingEm}em`,
+    whiteSpace: "pre-wrap",
+    wordBreak: useWordSpans ? "normal" : "break-word",
+    overflowWrap: useWordSpans ? "normal" : "anywhere",
+    background: specialFill ? undefined : bg,
+    padding: boxedInline
+      ? `${boxPadY + opticalNudge}px ${boxPadX}px ${Math.max(0, boxPadY - opticalNudge)}px`
+      : isBar
+        ? `${px(Math.max(style.bgPaddingYPct, 1.2))}px ${px(style.bgPaddingXPct)}px`
+        : "0",
+    borderRadius: radius,
+    boxDecorationBreak: "clone",
+    WebkitBoxDecorationBreak: "clone",
+    WebkitTextStrokeWidth: !specialFill && stroke > 0 ? `${stroke}px` : undefined,
+    WebkitTextStrokeColor: !specialFill && stroke > 0 ? style.outlineColor : undefined,
+    paintOrder: "stroke fill",
+    textShadow: buildTextShadow(style, scale, prism || ember),
+    mixBlendMode: negative ? "difference" : undefined,
+    opacity: isGhost ? 0.45 : 1,
+    cursor: onPositionChange ? "ns-resize" : undefined,
+    userSelect: "none",
+    touchAction: "none",
+  };
 
   if (useEditorial) {
     const tokens = tokenizeSegment(segment!);
@@ -635,7 +641,16 @@ export function SubtitleOverlay({
         }
 
         return (
-          <span key={i} style={{ color, opacity }}>
+          <span
+            key={i}
+            style={{
+              color,
+              opacity,
+              // Keep each spoken word intact; wrap only between words.
+              display: "inline",
+              whiteSpace: "nowrap",
+            }}
+          >
             {word}
             {i < tokens.length - 1 ? " " : ""}
           </span>

@@ -32,8 +32,8 @@ async function update(jobId: string, data: Record<string, unknown>): Promise<voi
 
 /**
  * Optional Phase 7.1 pass: run OpenAI Whisper for word timestamps and align them onto
- * primary ASR display text. No-op when TIMING_PROVIDER=none or key missing.
- * Never replaces segment text.
+ * primary ASR display text (and rewrite segment start/end). No-op when
+ * TIMING_PROVIDER=none or key missing. Never replaces segment text.
  */
 async function maybeRefineTimings(
   segments: Segment[],
@@ -44,12 +44,20 @@ async function maybeRefineTimings(
 ): Promise<Segment[]> {
   if (config.timingProvider !== "openai") return segments;
   if (!process.env.OPENAI_API_KEY) {
-    log.warn("timing.skip_no_key", { jobId });
+    log.warn("timing.skip_no_key", {
+      jobId,
+      hint: "Set OPENAI_API_KEY to enable Whisper word-timing refine",
+    });
     return segments;
   }
   if (!segments.length) return segments;
 
   try {
+    log.info("timing.refine_start", {
+      jobId,
+      durationSec,
+      segments: segments.length,
+    });
     const openai = new OpenAIProvider();
     const maxChunk = openai.maxChunkSeconds ?? 600;
     const whisperWords: Word[] = [];
@@ -60,6 +68,8 @@ async function maybeRefineTimings(
         targetSec: Math.min(config.chunkSeconds, maxChunk),
         maxSec: maxChunk,
         searchSec: 1.5,
+        endMaxSec: Math.min(config.chunkSeconds, maxChunk),
+        tailTargetSec: Math.min(config.chunkTailSeconds, maxChunk),
       });
       for (const c of chunks) {
         const r = await openai.transcribe(c.path, {
@@ -171,19 +181,30 @@ export async function processJob(jobId: string): Promise<void> {
             maxChunkSec,
           )
         : 0;
+      const tailChunkSec = Math.min(
+        maxChunkSec || config.chunkTailSeconds,
+        Math.max(4, config.chunkTailSeconds),
+      );
       // Chunk when the audio is meaningfully longer than one target chunk (else transcribe in
-      // one shot). Energy-aware cuts land in relative pauses to avoid slicing mid-word.
-      if (targetChunkSec && duration > targetChunkSec * 1.5) {
+      // one shot). Energy-aware cuts land in relative pauses; tail chunks stay shorter so
+      // proportional timing drift can't cover the whole ending.
+      if (targetChunkSec && duration > targetChunkSec * 1.25) {
         const chunkDir = join(workDir, "chunks");
         const chunks = await chunkAudioByEnergy(audioPath, chunkDir, {
           targetSec: targetChunkSec,
           maxSec: maxChunkSec,
           searchSec: 1.5,
+          // Final chunk must stay on the short tail budget — never a 15–20s closing span.
+          endMaxSec: tailChunkSec,
+          tailSec: Math.max(targetChunkSec * 2, tailChunkSec * 3),
+          tailTargetSec: tailChunkSec,
         });
         log.info("job.chunking", {
           jobId,
           chunks: chunks.length,
           targetChunkSec,
+          tailChunkSec,
+          chunkDurations: chunks.map((c) => c.durationSec),
           durationSec: duration,
         });
         for (let i = 0; i < chunks.length; i++) {
@@ -213,9 +234,10 @@ export async function processJob(jobId: string): Promise<void> {
         await update(jobId, { progress: 90 });
       }
 
-      // Phase 7.1: optional Whisper word-timestamp refine. Keeps primary ASR text.
+      // Phase 7.1: Whisper word-timestamp refine. Keeps primary ASR text; rewrites timings.
       // Skip when OpenAI was already the primary ASR (it already requested word times).
       if (provider.name !== "openai") {
+        await update(jobId, { progress: 92 });
         segments = await maybeRefineTimings(
           segments,
           audioPath,

@@ -39,7 +39,9 @@ local storage; switch to S3/R2 for multi-host.
 | `ASR_PROVIDER` | `auto` | `sarvam` \| `openai` \| `mock` |
 | `ASR_LANGUAGE` | `te` | or `auto` to detect |
 | `SARVAM_API_KEY` / `OPENAI_API_KEY` | — | transcription |
-| `TIMING_PROVIDER` | `none` | `openai` = Whisper word times on top of primary ASR text (needs `OPENAI_API_KEY`; extra $/min) |
+| `TIMING_PROVIDER` | `openai` | Whisper word times on top of primary ASR text (needs `OPENAI_API_KEY`; extra $/min). Set `none` to skip. |
+| `ASR_CHUNK_SECONDS` | `12` | Energy-aware ASR chunk target length |
+| `ASR_CHUNK_TAIL_SECONDS` | `6` | Shorter chunks near the end of a clip (bounds timing drift) |
 | `STORAGE_DRIVER` | `local` | `s3` for production |
 | `S3_BUCKET` / `S3_REGION` / `S3_ENDPOINT` | — | R2/MinIO need `S3_ENDPOINT` |
 | `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | — | omit to use IAM role |

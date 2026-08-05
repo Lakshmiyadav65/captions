@@ -2,17 +2,18 @@ import type { Segment, Word } from "./types";
 
 // Attach Whisper (or any) word timestamps onto ASR text segments WITHOUT replacing the
 // display text. Used when Sarvam owns code-mix spelling and OpenAI only supplies timings.
-
-const PAD_SEC = 0.12;
+//
+// Important: we remap onto the *global* Whisper timeline by token index, then rewrite each
+// segment's start/end from its words. Window-only alignment cannot fix end-of-video lag when
+// Sarvam's coarse spans were already wrong — karaoke would still light up late phrases late.
 
 function displayTokens(text: string): string[] {
   return text.split(/\s+/).filter(Boolean);
 }
 
 /**
- * For each text segment, pick Whisper words whose midpoint falls in the segment window,
- * then map those timings onto the *display* tokens (Sarvam/romanized text).
- * Never replaces `seg.text`.
+ * For each text segment, map Whisper word times onto the *display* tokens
+ * (Sarvam/romanized text). Never replaces `seg.text`. Updates `start`/`end` to match.
  */
 export function alignWordTimings(
   segments: Segment[],
@@ -20,77 +21,61 @@ export function alignWordTimings(
 ): Segment[] {
   if (!segments.length || !whisperWords.length) return segments;
 
-  const sorted = [...whisperWords].sort((a, b) => a.start - b.start);
+  const sorted = [...whisperWords]
+    .filter((w) => w.end > w.start)
+    .sort((a, b) => a.start - b.start);
+  if (!sorted.length) return segments;
 
-  return segments.map((seg) => {
-    const tokens = displayTokens(seg.text);
-    if (!tokens.length) return { ...seg, words: undefined };
+  type Tok = { segIndex: number; text: string };
+  const tokens: Tok[] = [];
+  segments.forEach((seg, segIndex) => {
+    for (const text of displayTokens(seg.text)) {
+      tokens.push({ segIndex, text });
+    }
+  });
+  if (!tokens.length) return segments;
 
-    const winStart = seg.start - PAD_SEC;
-    const winEnd = seg.end + PAD_SEC;
-    const inWindow = sorted.filter((w) => {
-      const mid = (w.start + w.end) / 2;
-      return mid >= winStart && mid <= winEnd;
+  const n = tokens.length;
+  const m = sorted.length;
+  const wordsBySeg: Word[][] = segments.map(() => []);
+
+  for (let i = 0; i < n; i++) {
+    const tok = tokens[i]!;
+    // Map display token i onto the Whisper word span covering the same fraction of the clip.
+    const startIdx = Math.min(m - 1, Math.floor((i * m) / n));
+    const endIdx = Math.min(m - 1, Math.max(startIdx, Math.floor(((i + 1) * m) / n) - 1));
+    const w0 = sorted[startIdx]!;
+    const w1 = sorted[endIdx]!;
+    wordsBySeg[tok.segIndex]!.push({
+      text: tok.text,
+      start: w0.start,
+      end: Math.max(w1.end, w0.start + 0.05),
     });
+  }
 
-    if (inWindow.length === tokens.length) {
-      return {
-        ...seg,
-        words: tokens.map((text, i) => ({
-          text,
-          start: inWindow[i].start,
-          end: Math.max(inWindow[i].end, inWindow[i].start + 0.05),
-        })),
-      };
-    }
-
-    if (inWindow.length > 0) {
-      return redistributeByRelativeDurations(seg, tokens, inWindow);
-    }
-
-    // No overlapping Whisper words — even split (same as karaoke fallback).
-    return evenSplitWords(seg, tokens);
+  return segments.map((seg, i) => {
+    const words = enforceMonotonic(wordsBySeg[i]!);
+    if (!words.length) return { ...seg, words: undefined };
+    return {
+      ...seg,
+      start: words[0]!.start,
+      end: Math.max(words[words.length - 1]!.end, words[0]!.start + 0.05),
+      words,
+    };
   });
 }
 
-function evenSplitWords(seg: Segment, tokens: string[]): Segment {
-  const span = Math.max(0.001, seg.end - seg.start);
-  const step = span / tokens.length;
-  return {
-    ...seg,
-    words: tokens.map((text, i) => ({
-      text,
-      start: seg.start + i * step,
-      end: seg.start + (i + 1) * step,
-    })),
-  };
-}
-
-/** Map display tokens onto the segment span using Whisper word duration ratios. */
-function redistributeByRelativeDurations(
-  seg: Segment,
-  tokens: string[],
-  whisperInWindow: Word[],
-): Segment {
-  const n = tokens.length;
-  const m = whisperInWindow.length;
-  const span = Math.max(0.05, seg.end - seg.start);
-
-  const weights: number[] = [];
-  for (let i = 0; i < n; i++) {
-    const src = whisperInWindow[Math.min(Math.floor((i * m) / n), m - 1)];
-    weights.push(Math.max(0.05, src.end - src.start));
+/** Ensure word times inside a segment don't go backwards after coarse index mapping. */
+function enforceMonotonic(words: Word[]): Word[] {
+  if (words.length <= 1) return words;
+  const out: Word[] = [{ ...words[0]! }];
+  for (let i = 1; i < words.length; i++) {
+    const prev = out[i - 1]!;
+    let start = words[i]!.start;
+    let end = words[i]!.end;
+    if (start < prev.end) start = prev.end;
+    if (end <= start) end = start + 0.05;
+    out.push({ text: words[i]!.text, start, end });
   }
-  const sum = weights.reduce((a, b) => a + b, 0) || 1;
-
-  const words: Word[] = [];
-  let t = seg.start;
-  for (let i = 0; i < n; i++) {
-    const end =
-      i === n - 1 ? seg.end : Math.min(seg.end, t + (weights[i] / sum) * span);
-    words.push({ text: tokens[i], start: t, end: Math.max(end, t + 0.05) });
-    t = words[i].end;
-  }
-  if (words.length) words[words.length - 1].end = seg.end;
-  return { ...seg, words };
+  return out;
 }

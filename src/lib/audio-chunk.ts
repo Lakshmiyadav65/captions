@@ -19,6 +19,18 @@ export interface ChunkPlanOptions {
   maxSec: number;
   /** Half-width of the search window (seconds) used to snap a cut to the quietest point. */
   searchSec?: number;
+  /**
+   * Maximum length of the final chunk. Defaults to `targetSec` so a long proportional
+   * tail (old behavior allowed up to ~1.5× target) can't absorb the whole ending.
+   */
+  endMaxSec?: number;
+  /**
+   * When the remaining audio is within this many seconds of the end, switch to
+   * `tailTargetSec` for tighter cuts. Defaults to `max(targetSec * 2, endMaxSec * 2)`.
+   */
+  tailSec?: number;
+  /** Preferred chunk length near the end. Defaults to `max(5, min(endMaxSec, targetSec / 2))`. */
+  tailTargetSec?: number;
 }
 
 export interface Pcm {
@@ -96,16 +108,32 @@ function encodeWav(samples: Int16Array, from: number, to: number, sampleRate: nu
 
 /**
  * Compute chunk boundary times (seconds), including 0 and total duration. Each interior cut
- * is placed at the lowest-RMS frame within ±searchSec of the target, never past maxSec, and
- * never leaving a final chunk longer than 1.5×target.
+ * is placed at the lowest-RMS frame within ±searchSec of the target, never past maxSec.
+ *
+ * Near the end of the file we switch to shorter targets (`tailTargetSec`) and never leave a
+ * final chunk longer than `endMaxSec` — that bounds proportional ASR drift on the closing lines.
  */
 export function planBoundaries(
   samples: Int16Array,
   sampleRate: number,
-  { targetSec, maxSec, searchSec = 1.5 }: ChunkPlanOptions,
+  {
+    targetSec,
+    maxSec,
+    searchSec = 1.5,
+    endMaxSec,
+    tailSec,
+    tailTargetSec,
+  }: ChunkPlanOptions,
 ): number[] {
   const total = samples.length / sampleRate;
-  if (total <= targetSec * 1.5) return [0, round3(total)];
+  const endCap = Math.max(3, Math.min(maxSec, endMaxSec ?? targetSec));
+  const tailWindow = Math.max(endCap * 2, tailSec ?? targetSec * 2);
+  const tailTarget = Math.max(
+    4,
+    Math.min(endCap, tailTargetSec ?? Math.max(5, targetSec * 0.5)),
+  );
+
+  if (total <= endCap * 1.25) return [0, round3(total)];
 
   const frameLen = Math.max(1, Math.round(0.03 * sampleRate)); // 30 ms frames
   const nFrames = Math.floor(samples.length / frameLen);
@@ -131,11 +159,31 @@ export function planBoundaries(
 
   const boundaries = [0];
   let start = 0;
-  while (total - start > targetSec * 1.5) {
-    const target = start + targetSec;
-    const lo = Math.max(start + targetSec * 0.5, target - searchSec);
-    const hi = Math.min(target + searchSec, start + maxSec, total - targetSec * 0.5);
-    let cut = Math.min(target, start + maxSec);
+  // Keep cutting while the remainder would exceed the final-chunk cap.
+  while (total - start > endCap + 0.05) {
+    const remaining = total - start;
+    const nearEnd = remaining <= tailWindow;
+    const effectiveTarget = Math.min(
+      maxSec,
+      nearEnd ? tailTarget : targetSec,
+    );
+    let ideal = start + effectiveTarget;
+    // Prefer not to leave a stub shorter than ~half the end cap — pull the cut so the
+    // final piece lands near endCap instead.
+    const afterIdeal = total - ideal;
+    if (afterIdeal > 0.05 && afterIdeal < endCap * 0.45) {
+      ideal = total - endCap;
+    }
+    ideal = Math.min(ideal, start + maxSec, total - 0.05);
+    ideal = Math.max(ideal, start + Math.min(effectiveTarget, endCap) * 0.4);
+
+    const lo = Math.max(start + effectiveTarget * 0.4, ideal - searchSec);
+    const hi = Math.min(
+      ideal + searchSec,
+      start + maxSec,
+      total - Math.min(endCap * 0.35, remaining * 0.25),
+    );
+    let cut = Math.min(ideal, start + maxSec, total);
     if (hi > lo) {
       const fLo = Math.max(0, Math.floor(lo / frameSec));
       const fHi = Math.min(nFrames - 1, Math.ceil(hi / frameSec));
@@ -149,8 +197,11 @@ export function planBoundaries(
       }
       if (bestF >= 0) cut = (bestF + 0.5) * frameSec;
     }
-    cut = Math.min(cut, start + maxSec, total);
-    if (cut <= start + 0.05) break; // safety: no forward progress
+    cut = Math.min(cut, start + maxSec, total - 0.05);
+    if (cut <= start + 0.05) {
+      cut = Math.min(start + effectiveTarget, start + maxSec, total - 0.05);
+    }
+    if (cut <= start + 0.05 || cut >= total - 0.05) break;
     boundaries.push(round3(cut));
     start = cut;
   }

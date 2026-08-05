@@ -19,13 +19,16 @@ const schema = z.object({
   // Target chunk length (seconds) for long audio. Smaller = tighter subtitle timing but more
   // API calls / boundary cuts. Clamped to the provider's per-request cap at runtime.
   ASR_CHUNK_SECONDS: z.coerce.number().default(12),
+  // Near the end of a clip, use shorter energy chunks so proportional ASR drift can't
+  // stretch across a long final tail (e.g. a 20s last chunk).
+  ASR_CHUNK_TAIL_SECONDS: z.coerce.number().default(6),
   // Subtitle output: transcribe = Telugu script; translit = romanized (Telugu in Latin letters)
   OUTPUT_MODE: z.enum(["transcribe", "translit"]).default("translit"),
   // Max words per on-screen caption frame; long lines are split into clean short frames. 0 = off.
   SUBTITLE_MAX_WORDS: z.coerce.number().default(2),
-  // Optional second pass: OpenAI whisper word timestamps aligned onto primary ASR text.
-  // none = unchanged karaoke (even split). openai = needs OPENAI_API_KEY (~$/min extra).
-  TIMING_PROVIDER: z.enum(["none", "openai"]).default("none"),
+  // Second pass: OpenAI whisper word timestamps aligned onto primary ASR text (Sarvam kept).
+  // openai = needs OPENAI_API_KEY (~$/min extra). none = skip refine.
+  TIMING_PROVIDER: z.enum(["none", "openai"]).default("openai"),
 
   // Storage
   STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
@@ -121,6 +124,7 @@ if (env.STRICT_PROD_AUTH && env.AUTH_ENABLED) {
 export const config = {
   outputMode: env.OUTPUT_MODE,
   chunkSeconds: env.ASR_CHUNK_SECONDS,
+  chunkTailSeconds: env.ASR_CHUNK_TAIL_SECONDS,
   maxWordsPerLine: env.SUBTITLE_MAX_WORDS,
   timingProvider: env.TIMING_PROVIDER,
   storageDriver: env.STORAGE_DRIVER,

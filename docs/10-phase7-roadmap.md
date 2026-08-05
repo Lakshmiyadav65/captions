@@ -18,17 +18,20 @@ Priority order from the implementation plan. This doc tracks status.
 **Solution:** Keep Sarvam (or primary ASR) for **text**. Optionally refine with OpenAI whisper-1 **word timestamps** and align onto display tokens.
 
 ```
-TIMING_PROVIDER=none     # default — unchanged
-TIMING_PROVIDER=openai   # requires OPENAI_API_KEY; ~Whisper $/min extra
+TIMING_PROVIDER=openai   # default — Whisper word times; needs OPENAI_API_KEY
+TIMING_PROVIDER=none     # skip refine (Sarvam proportional timings only)
+ASR_CHUNK_SECONDS=12
+ASR_CHUNK_TAIL_SECONDS=6 # shorter energy chunks near the end
 ```
 
 | Piece | Location |
 |-------|----------|
 | Word-capable OpenAI provider | `src/lib/transcription/openai.ts` |
-| Align helper | `src/lib/transcription/align-timings.ts` |
+| Align helper (global remap) | `src/lib/transcription/align-timings.ts` |
 | Processor hook | `src/lib/processor.ts` |
+| Tail energy chunking | `src/lib/audio-chunk.ts` |
 
-**Done when:** With both keys + `TIMING_PROVIDER=openai`, karaoke fill tracks speech better on a short Telugu clip; Export MP4 `{\k}` tags use refined word times. With `none`, transcripts unchanged.
+**Done when:** With both keys + `TIMING_PROVIDER=openai`, karaoke fill tracks speech better on a short Telugu clip; Export MP4 `{\k}` tags use refined word times. With `none`, transcripts unchanged. Final energy chunks stay ≤ ~tail target so end-of-video drift is bounded.
 
 Research background: [session-sarvam-accuracy-timing.md](./session-sarvam-accuracy-timing.md).
 

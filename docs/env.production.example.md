@@ -38,7 +38,7 @@ SARVAM_API_KEY=
 SARVAM_MODE=codemix
 OUTPUT_MODE=translit
 SUBTITLE_MAX_WORDS=2
-TIMING_PROVIDER=none
+TIMING_PROVIDER=openai
 
 # --- Launch quotas (tight for magazine day) ---
 MAX_UPLOAD_MB=100
