@@ -114,8 +114,7 @@ export function LandingNavbar({
           <a href={uploadHref === "#upload" ? "#upload" : "/#upload"}>Product</a>
           <a href={uploadHref === "#upload" ? "#styles" : "/#styles"}>Styles</a>
           <Link href="/billing">Pricing</Link>
-          <Link href="/style-analyzer">Analyzer</Link>
-          <Link href="/style-request">24h Style</Link>
+          <Link href="/style-request">Custom Style</Link>
         </nav>
 
         <div className="nav-actions">

@@ -37,7 +37,7 @@ export default async function StyleRequestPage() {
       <main className="style-request-main">
         <div className="container">
           <div className="style-request-hero">
-            <span className="style-request-badge">Beta · 24-hour style</span>
+            <span className="style-request-badge">Beta · Custom Style</span>
             <h1 className="style-request-title">Get the caption style you want</h1>
             <p className="style-request-subtitle">
               Creators spend hours copying looks from Instagram and YouTube. Tell us the style,

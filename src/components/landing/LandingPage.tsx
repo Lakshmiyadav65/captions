@@ -190,8 +190,8 @@ const FAQS = [
     a: "Every style is adjustable — font, size, colour, highlight, outline, position and animation. Save your set as a preset for next time.",
   },
   {
-    q: "What is the 24-hour Style (Beta) feature?",
-    a: "Send us a reference reel or describe the look you want. We build that caption style and add it to your account within 24 hours.",
+    q: "What is the Custom Style feature?",
+    a: "Send us a reference reel or describe the look you want. We build that caption style and add it to your account — usually within 24 hours.",
   },
 ] as const;
 
@@ -609,8 +609,7 @@ function Footer() {
           <div className="lp-footer-col">
             <span className="lp-mono-tag">Contact</span>
             <a href="mailto:hello@telugucaptions.ai">hello@telugucaptions.ai</a>
-            <Link href="/style-request">24h Style</Link>
-            <Link href="/style-analyzer">Style Analyzer</Link>
+            <Link href="/style-request">Custom Style</Link>
           </div>
         </div>
         <div className="lp-footer-bottom">

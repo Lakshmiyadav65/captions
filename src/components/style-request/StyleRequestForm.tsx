@@ -249,9 +249,8 @@ export function StyleRequestForm() {
             </li>
           </ol>
           <p className="sr-aside-note">
-            Prefer the instant{" "}
-            <Link href="/style-analyzer">Style Analyzer</Link> if a single screenshot is enough —
-            use this form when you need a handcrafted match.
+            Use this form when you want a handcrafted match from a reel or Short —
+            we&apos;ll add the finished look to your presets.
           </p>
         </div>
 
