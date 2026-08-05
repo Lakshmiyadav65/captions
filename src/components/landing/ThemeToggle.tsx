@@ -1,33 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  applyAppTheme,
+  persistTheme,
+  readStoredTheme,
+  systemTheme,
+  type AppTheme,
+} from "@/lib/theme";
 
-export type LandingTheme = "light" | "dark";
-
-const STORAGE_KEY = "caplio-landing-theme";
-
-function applyTheme(theme: LandingTheme) {
-  if (typeof document === "undefined") return;
-  document.documentElement.setAttribute("data-landing-theme", theme);
-  document.querySelectorAll(".landing-page").forEach((el) => {
-    el.setAttribute("data-theme", theme);
-  });
-}
-
-function readStoredTheme(): LandingTheme | null {
-  try {
-    const v = localStorage.getItem(STORAGE_KEY);
-    if (v === "dark" || v === "light") return v;
-  } catch {
-    // ignore
-  }
-  return null;
-}
-
-function systemTheme(): LandingTheme {
-  if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
+export type LandingTheme = AppTheme;
 
 /** Sync theme onto landing roots + persist. Returns current theme + toggle. */
 export function useLandingTheme() {
@@ -37,19 +19,15 @@ export function useLandingTheme() {
   useEffect(() => {
     const initial = readStoredTheme() ?? systemTheme();
     setTheme(initial);
-    applyTheme(initial);
+    applyAppTheme(initial);
     setReady(true);
   }, []);
 
   const toggle = () => {
     const next: LandingTheme = theme === "dark" ? "light" : "dark";
     setTheme(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      // ignore
-    }
-    applyTheme(next);
+    persistTheme(next);
+    applyAppTheme(next);
   };
 
   return { theme, toggle, ready };

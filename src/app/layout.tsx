@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     "AI that captions Telugu videos like a native creator would. Upload a Telugu video, get timed romanized captions, style them live, and export a publish-ready burned MP4.",
 };
 
-const landingThemeInit = `(function(){try{var t=localStorage.getItem('caplio-landing-theme');if(t!=='dark'&&t!=='light'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-landing-theme',t)}catch(e){}})();`;
+const landingThemeInit = `(function(){try{var t=localStorage.getItem('caplio-landing-theme');if(t!=='dark'&&t!=='light'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-landing-theme',t);document.documentElement.setAttribute('data-console-theme',t)}catch(e){}})();`;
 
 export default function RootLayout({
   children,

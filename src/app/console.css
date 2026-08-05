@@ -72,6 +72,11 @@
   font: 500 var(--t-base) / 1.5 var(--ui);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
+  color-scheme: dark;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .console ::selection {
@@ -306,6 +311,34 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.console .tc-theme-toggle {
+  appearance: none;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: var(--r-full);
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--ink-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    opacity var(--dur-1) var(--ease);
+}
+.console .tc-theme-toggle:hover {
+  background: var(--hover);
+  color: var(--ink);
+  border-color: var(--ink-4);
+}
+.console .tc-theme-toggle[data-ready="false"] {
+  opacity: 0.55;
 }
 
 .console .tc-body {
@@ -693,6 +726,143 @@
 }
 .console .tc-editor .tc-ink-2 {
   color: var(--ink-2);
+}
+
+/* —— Light theme (shared with landing via data-console-theme on html) —— */
+html[data-console-theme="light"] .console {
+  color-scheme: light;
+
+  --bg: #f6f4f2;
+  --surface: #ffffff;
+  --surface-2: #faf8f6;
+  --raised: #f0ece8;
+  --hover: #ebe6e1;
+
+  --line: #e8e2dc;
+  --line-2: #d4ccc4;
+
+  --ink: #17171a;
+  --ink-2: #4a4542;
+  --ink-3: #6e6560;
+  --ink-4: #9a918a;
+
+  --accent-wash: rgba(222, 82, 39, 0.1);
+  --accent-line: rgba(222, 82, 39, 0.28);
+
+  --ok-wash: rgba(47, 158, 88, 0.1);
+  --warn-wash: rgba(200, 140, 20, 0.1);
+  --danger-wash: rgba(220, 70, 55, 0.1);
+
+  --e1: 0 1px 2px rgba(23, 23, 26, 0.06);
+  --e2: 0 4px 12px -2px rgba(23, 23, 26, 0.1);
+  --e3: 0 16px 40px -8px rgba(23, 23, 26, 0.14);
+}
+
+html[data-console-theme="light"] .console .tc-btn:hover {
+  --bbd: #c9c0b8;
+}
+
+html[data-console-theme="light"] .console .tc-item .th {
+  background: linear-gradient(160deg, #e8e4e0, #d4cec8);
+}
+
+html[data-console-theme="light"] .console .tc-item:hover {
+  background: var(--raised);
+}
+
+/* Editor panels still use Tailwind neutrals — remap under light console */
+html[data-console-theme="light"] .console .tc-editor .text-neutral-100 {
+  color: var(--ink) !important;
+}
+html[data-console-theme="light"] .console .tc-editor .text-neutral-200 {
+  color: var(--ink) !important;
+}
+html[data-console-theme="light"] .console .tc-editor .text-neutral-300 {
+  color: var(--ink-2) !important;
+}
+html[data-console-theme="light"] .console .tc-editor .text-neutral-400 {
+  color: var(--ink-3) !important;
+}
+html[data-console-theme="light"] .console .tc-editor .text-neutral-500 {
+  color: var(--ink-3) !important;
+}
+html[data-console-theme="light"] .console .tc-editor .text-neutral-600 {
+  color: var(--ink-4) !important;
+}
+html[data-console-theme="light"] .console .tc-editor .text-sky-300,
+html[data-console-theme="light"] .console .tc-editor .text-sky-400 {
+  color: var(--accent) !important;
+}
+html[data-console-theme="light"] .console .tc-editor .text-sky-100\/90 {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+html[data-console-theme="light"] .console .tc-editor .bg-neutral-800,
+html[data-console-theme="light"] .console .tc-editor .bg-neutral-800\/60,
+html[data-console-theme="light"] .console .tc-editor .bg-neutral-900,
+html[data-console-theme="light"] .console .tc-editor .bg-neutral-900\/40,
+html[data-console-theme="light"] .console .tc-editor .bg-neutral-900\/80 {
+  background-color: var(--surface-2) !important;
+}
+html[data-console-theme="light"] .console .tc-editor .hover\:bg-neutral-700:hover,
+html[data-console-theme="light"] .console .tc-editor .hover\:bg-neutral-800:hover {
+  background-color: var(--hover) !important;
+}
+html[data-console-theme="light"] .console .tc-editor .border-white\/5,
+html[data-console-theme="light"] .console .tc-editor .border-white\/10,
+html[data-console-theme="light"] .console .tc-editor .border-white\/15,
+html[data-console-theme="light"] .console .tc-editor .border-white\/25 {
+  border-color: var(--line) !important;
+}
+html[data-console-theme="light"] .console .tc-editor .hover\:border-white\/15:hover,
+html[data-console-theme="light"] .console .tc-editor .hover\:border-white\/20:hover,
+html[data-console-theme="light"] .console .tc-editor .hover\:border-white\/25:hover {
+  border-color: var(--line-2) !important;
+}
+html[data-console-theme="light"] .console .tc-editor .bg-sky-500\/10,
+html[data-console-theme="light"] .console .tc-editor .border-sky-500\/60 {
+  background-color: var(--accent-wash) !important;
+  border-color: var(--accent-line) !important;
+}
+html[data-console-theme="light"] .console .tc-editor .bg-sky-600,
+html[data-console-theme="light"] .console .tc-editor .bg-sky-600.text-white {
+  background-color: var(--accent-deep) !important;
+  color: #fff !important;
+}
+html[data-console-theme="light"] .console .tc-editor .border-sky-400,
+html[data-console-theme="light"] .console .tc-editor .border-sky-500,
+html[data-console-theme="light"] .console .tc-editor .ring-sky-400\/50,
+html[data-console-theme="light"] .console .tc-editor .ring-sky-500\/60 {
+  border-color: var(--accent) !important;
+  --tw-ring-color: var(--accent-line) !important;
+}
+html[data-console-theme="light"] .console .tc-editor .accent-sky-500 {
+  accent-color: var(--accent-deep);
+}
+html[data-console-theme="light"] .console .tc-editor .focus\:bg-neutral-800\/60:focus {
+  background-color: var(--hover) !important;
+}
+html[data-console-theme="light"] .console .tc-editor .focus\:ring-sky-500:focus {
+  --tw-ring-color: var(--accent-line) !important;
+}
+
+/* Styles page gallery (MyStylesGallery uses neutral Tailwind) */
+html[data-console-theme="light"] .console .tc-pane-scroll .text-white {
+  color: var(--ink) !important;
+}
+html[data-console-theme="light"] .console .tc-pane-scroll .text-neutral-200,
+html[data-console-theme="light"] .console .tc-pane-scroll .text-neutral-300 {
+  color: var(--ink-2) !important;
+}
+html[data-console-theme="light"] .console .tc-pane-scroll .text-neutral-400,
+html[data-console-theme="light"] .console .tc-pane-scroll .text-neutral-500 {
+  color: var(--ink-3) !important;
+}
+html[data-console-theme="light"] .console .tc-pane-scroll .bg-neutral-900,
+html[data-console-theme="light"] .console .tc-pane-scroll .bg-neutral-800 {
+  background-color: var(--surface) !important;
+}
+html[data-console-theme="light"] .console .tc-pane-scroll .border-white\/10 {
+  border-color: var(--line) !important;
 }
 
 @media (max-width: 1000px) {

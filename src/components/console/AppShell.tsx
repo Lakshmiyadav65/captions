@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ConsoleThemeToggle } from "@/components/console/ConsoleThemeToggle";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -99,6 +100,7 @@ export function AppShell({
           </Link>
         </nav>
         <span className="tc-sp" />
+        <ConsoleThemeToggle />
         <Link href="/#upload" className="tc-btn tc-btn--primary tc-btn--sm">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
             <path d="M12 5v14M5 12h14" />
