@@ -34,17 +34,30 @@ export function QuotaBadge() {
 
   return (
     <span
-      className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-neutral-900 px-2.5 py-1.5 text-[11px] text-neutral-300"
+      className="inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px]"
+      style={{
+        border: "1px solid var(--line)",
+        background: "var(--surface)",
+        color: "var(--ink-2)",
+      }}
       title="Minutes used this month"
     >
-      <span className="font-medium text-neutral-200">{usage.planLabel}</span>
-      <span className="tabular-nums text-neutral-500">
+      <span className="font-medium" style={{ color: "var(--ink)" }}>
+        {usage.planLabel}
+      </span>
+      <span className="tabular-nums" style={{ color: "var(--ink-3)" }}>
         {usage.usedMinutes}/{usage.monthlyMinutes} min
       </span>
-      <span className="h-1.5 w-12 overflow-hidden rounded-full bg-neutral-800">
+      <span
+        className="h-1.5 w-12 overflow-hidden rounded-full"
+        style={{ background: "var(--bg)" }}
+      >
         <span
-          className={`block h-full rounded-full ${pct >= 90 ? "bg-amber-500" : "bg-sky-500"}`}
-          style={{ width: `${pct}%` }}
+          className="block h-full rounded-full"
+          style={{
+            width: `${pct}%`,
+            background: pct >= 90 ? "var(--warn)" : "var(--accent)",
+          }}
         />
       </span>
     </span>

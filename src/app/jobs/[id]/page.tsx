@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { config } from "@/lib/config";
 import { prisma } from "@/lib/db";
-import { requireUserId } from "@/lib/auth-helpers";
+import { currentUser, requireUserId } from "@/lib/auth-helpers";
 import { resolveVideoUrl } from "@/lib/storage/resolve";
 import { Editor } from "@/components/Editor";
 
@@ -23,6 +23,7 @@ export default async function JobPage({
   }
 
   const videoUrl = await resolveVideoUrl(job.videoKey);
+  const user = await currentUser();
 
   return (
     <Editor
@@ -32,6 +33,7 @@ export default async function JobPage({
       initialStatus={job.status}
       width={job.width}
       height={job.height}
+      user={user}
     />
   );
 }

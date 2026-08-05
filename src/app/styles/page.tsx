@@ -1,16 +1,17 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireUserId } from "@/lib/auth-helpers";
+import { currentUser, requireUserId } from "@/lib/auth-helpers";
 import { getStorage } from "@/lib/storage";
-import { UserMenu } from "@/components/UserMenu";
+import { AppShell } from "@/components/console/AppShell";
 import { MyStylesGallery } from "@/components/style-analyzer/MyStylesGallery";
 import type { SavedStyleDTO, StyleProfile } from "@/lib/vision/types";
 import type { SubtitleStyle } from "@/lib/subtitles/style";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "My Styles — Telugu Captions",
+  title: "Styles — Telugu Captions",
 };
 
 export default async function StylesPage() {
@@ -18,6 +19,7 @@ export default async function StylesPage() {
   if (userId === null) redirect("/signin");
 
   const storage = getStorage();
+  const user = await currentUser();
   const rows = await prisma.savedStyle.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
@@ -36,21 +38,20 @@ export default async function StylesPage() {
   );
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
-      <header className="mb-8 flex flex-wrap items-center justify-between gap-3">
-        <nav className="flex items-center gap-4 text-sm">
-          <a href="/#upload" className="text-sky-400 hover:text-sky-300">
-            ← Create
-          </a>
-          <a href="/style-analyzer" className="text-neutral-400 hover:text-neutral-200">
-            Analyze a style
-          </a>
-        </nav>
-        <UserMenu />
-      </header>
-
-      <h1 className="mb-6 text-2xl font-bold tracking-tight text-white sm:text-3xl">My Styles</h1>
-      <MyStylesGallery initial={styles} />
-    </main>
+    <AppShell
+      section="styles"
+      user={user}
+      title="Caption styles"
+      titleExtra={<span className="count">{styles.length} saved</span>}
+      headActions={
+        <Link href="/style-analyzer" className="tc-btn tc-btn--sm">
+          Analyze a style
+        </Link>
+      }
+    >
+      <div className="tc-pane-scroll" style={{ padding: "20px 24px" }}>
+        <MyStylesGallery initial={styles} />
+      </div>
+    </AppShell>
   );
 }

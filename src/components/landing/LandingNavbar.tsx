@@ -81,6 +81,12 @@ function ProfileMenu({ user }: { user: LandingUser }) {
       {open ? (
         <div className="nav-profile-menu" id={menuId} role="menu">
           {user.email ? <p className="nav-profile-email">{user.email}</p> : null}
+          <Link href="/library" className="nav-profile-signout" role="menuitem" onClick={() => setOpen(false)}>
+            Library
+          </Link>
+          <Link href="/billing" className="nav-profile-signout" role="menuitem" onClick={() => setOpen(false)}>
+            Settings
+          </Link>
           <form action={signOutAction}>
             <button type="submit" className="nav-profile-signout" role="menuitem">
               Sign out
@@ -113,6 +119,7 @@ export function LandingNavbar({
         <nav className="nav-links">
           <a href={uploadHref === "#upload" ? "#upload" : "/#upload"}>Product</a>
           <a href={uploadHref === "#upload" ? "#styles" : "/#styles"}>Styles</a>
+          {user ? <Link href="/library">Library</Link> : null}
           <Link href="/billing">Pricing</Link>
           <Link href="/style-request">Custom Style</Link>
         </nav>

@@ -29,6 +29,7 @@ import { StylePanel } from "./StylePanel";
 import { SubtitleList } from "./SubtitleList";
 import { DictionaryPanel } from "./DictionaryPanel";
 import { QuotaBadge } from "./QuotaBadge";
+import { AppShell, type ConsoleUser } from "@/components/console/AppShell";
 
 interface Progress {
   status: string;
@@ -120,6 +121,7 @@ export function Editor({
   initialStatus,
   width,
   height,
+  user = null,
 }: {
   jobId: string;
   videoUrl: string;
@@ -128,6 +130,7 @@ export function Editor({
   /** Real video pixel dimensions (detected at upload) so the preview opens at the right ratio. */
   width?: number | null;
   height?: number | null;
+  user?: ConsoleUser | null;
 }) {
   const [progress, setProgress] = useState<Progress>({
     status: initialStatus,
@@ -408,107 +411,95 @@ export function Editor({
   const isMock = progress.provider === "mock";
 
   return (
-    <div
-      className={`mx-auto flex max-w-7xl flex-col px-4 ${
-        progress.status === "done"
-          ? "h-dvh overflow-hidden py-4"
-          : "py-6"
-      }`}
-    >
-      <header className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
-        <div>
-          <a href="/" className="text-sm text-sky-400 hover:text-sky-300">
-            ← New video
-          </a>
-          <h1 className="mt-1 text-xl font-semibold text-white">
-            {originalName ?? "Telugu captions"}
-          </h1>
-        </div>
-        <div className="flex flex-col items-end gap-1.5">
+    <AppShell
+      section="editor"
+      user={user}
+      showSidebar={false}
+      title={originalName ?? "Telugu captions"}
+      titleExtra={
+        progress.status === "done" ? (
+          <span className="tc-tag tc-tag--work">editing</span>
+        ) : progress.status === "failed" ? (
+          <span className="tc-tag tc-tag--fail">failed</span>
+        ) : (
+          <span className="tc-tag tc-tag--draft">{STATUS_LABEL[progress.status] ?? progress.status}</span>
+        )
+      }
+      headActions={
+        progress.status === "done" ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <QuotaBadge />
+            <button
+              type="button"
+              onClick={exportMp4}
+              disabled={exportState === "exporting"}
+              className="tc-btn tc-btn--primary tc-btn--sm"
+            >
+              {exportState === "exporting" ? "Rendering…" : "Export MP4"}
+            </button>
+            {EXPORT_FORMATS.map((f) => (
+              <button
+                key={f.ext}
+                type="button"
+                onClick={() => doExport(f.ext, f.mime)}
+                className="tc-btn tc-btn--sm"
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        ) : (
           <QuotaBadge />
-          {progress.status === "done" && (
-            <>
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={exportMp4}
-                  disabled={exportState === "exporting"}
-                  className="group relative inline-flex items-center gap-2.5 overflow-hidden rounded-xl bg-gradient-to-b from-sky-400 to-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_1px_0_rgba(255,255,255,0.25)_inset,0_8px_24px_-6px_rgba(14,165,233,0.55)] ring-1 ring-sky-300/40 transition hover:from-sky-300 hover:to-sky-500 hover:shadow-[0_1px_0_rgba(255,255,255,0.3)_inset,0_10px_28px_-4px_rgba(14,165,233,0.65)] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
-                >
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 transition group-hover:opacity-100"
-                  />
-                  {exportState === "exporting" ? (
-                    <>
-                      <span
-                        aria-hidden
-                        className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
-                      />
-                      <span className="relative">Rendering video…</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        aria-hidden
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        className="relative h-4 w-4 shrink-0"
-                      >
-                        <path d="M10.75 2.75a.75.75 0 0 0-1.5 0v8.69L6.03 8.22a.75.75 0 0 0-1.06 1.06l4.5 4.5a.75.75 0 0 0 1.06 0l4.5-4.5a.75.75 0 1 0-1.06-1.06l-3.22 3.22V2.75Z" />
-                        <path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z" />
-                      </svg>
-                      <span className="relative flex flex-col items-start leading-tight">
-                        <span>Export video</span>
-                        <span className="text-[10px] font-medium text-sky-100/90">
-                          MP4 with burned captions
-                        </span>
-                      </span>
-                    </>
-                  )}
-                </button>
-                <span className="mx-0.5 hidden h-8 w-px bg-white/10 sm:block" aria-hidden />
-                {EXPORT_FORMATS.map((f) => (
-                  <button
-                    key={f.ext}
-                    type="button"
-                    onClick={() => doExport(f.ext, f.mime)}
-                    className="rounded-lg border border-white/10 bg-neutral-900/80 px-3 py-2 text-xs font-medium text-neutral-300 transition hover:border-white/20 hover:bg-neutral-800 hover:text-white"
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-              {exportState === "exporting" && (
-                <span className="text-xs text-neutral-500">
-                  Burning captions, then saving the MP4 to your device…
-                </span>
-              )}
-              {exportState === "error" && exportError && (
-                <span className="text-xs text-red-400">{exportError}</span>
-              )}
-            </>
+        )
+      }
+    >
+      <div
+        className={`tc-editor flex min-h-0 flex-1 flex-col px-4 ${
+          progress.status === "done" ? "overflow-hidden py-3" : "overflow-y-auto py-4"
+        }`}
+      >
+        <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
+          <a href="/library" className="text-sm" style={{ color: "var(--accent)" }}>
+            ← Library
+          </a>
+          {exportState === "exporting" && (
+            <span className="text-xs" style={{ color: "var(--ink-3)" }}>
+              Burning captions, then saving the MP4…
+            </span>
+          )}
+          {exportState === "error" && exportError && (
+            <span className="text-xs" style={{ color: "var(--danger)" }}>
+              {exportError}
+            </span>
           )}
         </div>
-      </header>
 
       {isProcessing && (
-        <div className="mb-6 rounded-xl border border-white/10 bg-neutral-900 p-6">
+        <div
+          className="mb-6 rounded-xl p-6"
+          style={{ background: "var(--surface)", border: "1px solid var(--line)" }}
+        >
           <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="font-medium text-neutral-200">
+            <span className="font-medium" style={{ color: "var(--ink)" }}>
               {STATUS_LABEL[progress.status] ?? progress.status}
             </span>
-            <span className="tabular-nums text-neutral-400">
+            <span className="tabular-nums" style={{ color: "var(--ink-3)" }}>
               {progress.progress}%
             </span>
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-800">
+          <div
+            className="h-2 w-full overflow-hidden rounded-full"
+            style={{ background: "var(--bg)" }}
+          >
             <div
-              className="h-full rounded-full bg-sky-500 transition-all duration-500"
-              style={{ width: `${progress.progress}%` }}
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${progress.progress}%`,
+                background: "var(--accent)",
+              }}
             />
           </div>
-          <p className="mt-3 text-xs text-neutral-500">
+          <p className="mt-3 text-xs" style={{ color: "var(--ink-3)" }}>
             {progress.provider && progress.provider !== "mock"
               ? "Transcribing your audio. Longer clips can take several minutes — audio is sent in short pieces."
               : "Using the built-in sample transcript (no API key set)."}
@@ -517,9 +508,16 @@ export function Editor({
       )}
 
       {progress.status === "failed" && (
-        <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-200">
+        <div
+          className="mb-6 rounded-xl p-6 text-sm"
+          style={{
+            border: "1px solid rgba(240,112,95,.3)",
+            background: "var(--danger-wash)",
+            color: "var(--danger)",
+          }}
+        >
           <p className="font-medium">Processing failed</p>
-          <p className="mt-1 text-red-300/80">
+          <p className="mt-1" style={{ opacity: 0.85 }}>
             {friendlyJobError(progress.error)}
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -527,16 +525,18 @@ export function Editor({
               type="button"
               onClick={() => void retryJob()}
               disabled={retrying}
-              className="rounded-lg bg-red-500/20 px-3.5 py-2 text-sm font-medium text-red-100 ring-1 ring-red-400/40 transition hover:bg-red-500/30 disabled:opacity-60"
+              className="tc-btn tc-btn--sm"
             >
               {retrying ? "Retrying…" : "Try again"}
             </button>
-            <a href="/#upload" className="text-sm text-sky-400 hover:text-sky-300">
+            <a href="/#upload" className="text-sm">
               Upload a different video
             </a>
           </div>
           {retryError && (
-            <p className="mt-2 text-xs text-amber-200/90">{retryError}</p>
+            <p className="mt-2 text-xs" style={{ color: "var(--warn)" }}>
+              {retryError}
+            </p>
           )}
         </div>
       )}
@@ -546,7 +546,14 @@ export function Editor({
           {/* Left: video preview */}
           <section className="order-1 flex min-h-0 flex-col gap-3 lg:overflow-hidden">
             {isMock && (
-              <div className="shrink-0 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-200">
+              <div
+                className="shrink-0 rounded-lg px-4 py-2.5 text-xs"
+                style={{
+                  border: "1px solid rgba(232,179,65,.3)",
+                  background: "var(--warn-wash)",
+                  color: "var(--warn)",
+                }}
+              >
                 Showing a <strong>sample</strong> Telugu transcript. Add a transcription
                 API key (see README) to transcribe your real audio.
               </div>
@@ -566,21 +573,28 @@ export function Editor({
 
           {/* Center: transcript and timings */}
           <section className="order-2 flex min-h-0 flex-col gap-3 lg:overflow-hidden">
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-neutral-900/40 p-3">
+            <div
+              className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl p-3"
+              style={{ background: "var(--surface)", border: "1px solid var(--line)" }}
+            >
               <div className="flex flex-wrap items-center gap-3">
-                <p className="text-xs text-neutral-500">
+                <p className="text-xs" style={{ color: "var(--ink-3)" }}>
                   Detected language:{" "}
-                  <span className="text-neutral-300">
+                  <span style={{ color: "var(--ink-2)" }}>
                     {progress.language ?? "te"}
                   </span>
                   {saveState === "saving" && (
-                    <span className="ml-2 text-neutral-500">· Saving…</span>
+                    <span className="ml-2" style={{ color: "var(--ink-3)" }}>
+                      · Saving…
+                    </span>
                   )}
                   {saveState === "saved" && (
-                    <span className="ml-2 text-emerald-400/80">· Saved</span>
+                    <span className="ml-2" style={{ color: "var(--ok)" }}>
+                      · Saved
+                    </span>
                   )}
                 </p>
-                <div className="inline-flex rounded-lg bg-neutral-800 p-0.5">
+                <div className="tc-seg">
                   {(
                     [
                       { id: "roman" as const, label: "Roman" },
@@ -591,11 +605,7 @@ export function Editor({
                       key={opt.id}
                       type="button"
                       onClick={() => setScriptMode(opt.id)}
-                      className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
-                        scriptMode === opt.id
-                          ? "bg-sky-600 text-white"
-                          : "text-neutral-400 hover:text-neutral-200"
-                      }`}
+                      aria-pressed={scriptMode === opt.id}
                     >
                       {opt.label}
                     </button>
@@ -606,20 +616,30 @@ export function Editor({
                 type="button"
                 onClick={saveEdits}
                 disabled={saveState === "saving"}
-                className="rounded-lg border border-white/10 bg-neutral-800 px-3 py-1.5 text-xs text-neutral-200 hover:bg-neutral-700 disabled:opacity-50"
+                className="tc-btn tc-btn--sm"
               >
                 Save timings
               </button>
             </div>
             {learned && learned.length > 0 && (
-              <div className="shrink-0 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+              <div
+                className="shrink-0 rounded-lg px-3 py-2 text-xs"
+                style={{
+                  border: "1px solid rgba(95,208,138,.3)",
+                  background: "var(--ok-wash)",
+                  color: "var(--ok)",
+                }}
+              >
                 Remembered{" "}
                 {learned.map((r) => `${r.from} → ${r.to}`).join(" · ")} — will use
                 next time
               </div>
             )}
             {segments && (
-              <div className="min-h-[320px] flex-1 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-neutral-900/40 p-3">
+              <div
+                className="min-h-[320px] flex-1 overflow-y-auto overscroll-contain rounded-xl p-3"
+                style={{ background: "var(--surface)", border: "1px solid var(--line)" }}
+              >
                 <SubtitleList
                   segments={segments}
                   onChange={onSegmentsChange}
@@ -634,7 +654,10 @@ export function Editor({
           </section>
 
           {/* Right: style / editor settings */}
-          <aside className="order-3 min-h-0 max-h-[70vh] overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-neutral-900 p-4 lg:max-h-none">
+          <aside
+            className="order-3 min-h-0 max-h-[70vh] overflow-y-auto overscroll-contain rounded-xl p-4 lg:max-h-none"
+            style={{ background: "var(--surface)", border: "1px solid var(--line)" }}
+          >
             <StylePanel
               style={style}
               onChange={patchStyle}
@@ -654,6 +677,7 @@ export function Editor({
           </aside>
         </div>
       )}
-    </div>
+      </div>
+    </AppShell>
   );
 }
