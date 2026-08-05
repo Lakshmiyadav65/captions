@@ -695,7 +695,7 @@ html[data-landing-theme="dark"] .landing-page .lp-hero {
   font-weight: 600;
 }
 
-/* —— Style strip —— */
+/* —— Style strip (video demos) —— */
 .lp-strip {
   margin-top: clamp(36px, 5vh, 56px);
   display: flex;
@@ -715,6 +715,12 @@ html[data-landing-theme="dark"] .landing-page .lp-hero {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.lp-strip-nav:hover {
+  background: #f7f7f7;
+  border-color: #d4d4d4;
 }
 
 .lp-strip-track {
@@ -725,7 +731,7 @@ html[data-landing-theme="dark"] .landing-page .lp-hero {
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
-  padding-bottom: 6px;
+  padding: 4px 2px 10px;
   scrollbar-width: none;
 }
 
@@ -734,14 +740,34 @@ html[data-landing-theme="dark"] .landing-page .lp-hero {
 }
 
 .lp-strip-card {
-  flex: 1 1 0;
-  min-width: 120px;
+  flex: 0 0 auto;
+  width: clamp(118px, 14vw, 168px);
+  padding: 0;
+  margin: 0;
   scroll-snap-align: start;
   border-radius: 18px;
   overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  box-shadow: 0 1px 2px rgba(23, 23, 26, 0.04);
+  border: 3px solid transparent;
+  background: #111;
+  box-shadow: 0 1px 2px rgba(23, 23, 26, 0.06);
+  cursor: pointer;
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.lp-strip-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(23, 23, 26, 0.12);
+}
+
+.lp-strip-card.is-selected {
+  border-color: #17171a;
+  box-shadow:
+    0 0 0 2px #fff,
+    0 10px 28px rgba(23, 23, 26, 0.18);
+  transform: translateY(-2px);
 }
 
 .lp-strip-preview {
@@ -750,96 +776,46 @@ html[data-landing-theme="dark"] .landing-page .lp-hero {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 16px 12px 34px;
   color: #fff;
   text-align: center;
+  overflow: hidden;
+  background: #1a1a1a;
 }
 
-.lp-hatch {
+.lp-strip-preview--video {
+  padding: 0;
+}
+
+.lp-strip-preview--video video {
   position: absolute;
   inset: 0;
-  background: repeating-linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.1) 0 8px,
-    rgba(255, 255, 255, 0) 8px 16px
-  );
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   pointer-events: none;
 }
 
-.lp-strip-preview > span {
-  position: relative;
-  font-family: var(--font-brand);
-  font-weight: 700;
-  font-size: 1.02rem;
-  line-height: 1.2;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
-  animation: lp-strip-caption 2.8s ease-in-out infinite;
-}
-
-@keyframes lp-strip-caption {
-  0%, 100% { transform: translateY(0); opacity: 0.92; }
-  50% { transform: translateY(-3px); opacity: 1; }
-}
-
-.lp-strip-classic {
-  background: linear-gradient(165deg, #d5d6d8, #a6a7ab);
-}
-
-.lp-strip-bold {
-  background: linear-gradient(200deg, #cbcccf, #94959a);
-}
-
-.lp-strip-bold > span {
-  font-size: 1.24rem;
-  line-height: 1.02;
-  letter-spacing: -0.03em;
-  text-transform: uppercase;
-}
-
-.lp-strip-minimal {
-  background: linear-gradient(150deg, #dcdddf, #b1b2b6);
-}
-
-.lp-strip-minimal > span {
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: 0.78rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  text-shadow: none;
-}
-
-.lp-strip-highlight {
-  background: linear-gradient(185deg, #d0d1d4, #9d9ea3);
-}
-
-.lp-strip-hl {
-  background: var(--accent);
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-
-.lp-strip-punch {
-  background: linear-gradient(210deg, #cdced1, #909196);
-  align-items: center;
-  padding: 16px 10px;
-}
-
-.lp-strip-punch > span {
-  font-size: 2rem;
-  line-height: 0.95;
-  letter-spacing: -0.05em;
-  text-transform: uppercase;
-  color: var(--accent);
-  -webkit-text-stroke: 1.5px #fff;
-  text-shadow: none;
+.lp-strip-preview--video::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 42%;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), transparent);
+  pointer-events: none;
 }
 
 .lp-strip-label {
-  padding: 11px 13px;
-  font-size: 0.86rem;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 12px 10px 14px;
+  font-size: 0.78rem;
   font-weight: 600;
-  color: var(--text-dark);
+  letter-spacing: 0.01em;
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
 }
 
 /* —— Styles grid —— */
@@ -1158,8 +1134,25 @@ html[data-landing-theme="dark"] .landing-page .lp-hero {
   .lp-anim span,
   .lp-type-text,
   .lp-type-cursor,
-  .lp-strip-preview > span {
+  .lp-strip-preview > span,
+  .lp-strip-card,
+  .lp-strip-card:hover,
+  .lp-strip-card.is-selected {
     animation: none !important;
+    transition: none !important;
+  }
+
+  .lp-strip-card:hover,
+  .lp-strip-card.is-selected {
+    transform: none;
+  }
+
+  .lp-strip-preview--video video {
+    display: none;
+  }
+
+  .lp-strip-preview--video {
+    background: linear-gradient(165deg, #3a3a3c, #1c1c1e);
   }
 
   .lp-style-card:hover {

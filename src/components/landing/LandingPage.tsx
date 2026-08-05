@@ -5,10 +5,61 @@ import Link from "next/link";
 import { Uploader } from "@/components/Uploader";
 import { LandingNavbar } from "@/components/landing/LandingNavbar";
 import type { LandingUser } from "@/components/landing/types";
+import { PRESETS } from "@/components/presets";
 
 export type { LandingUser };
 
 const SIGN_IN_HREF = `/signin?next=${encodeURIComponent("/?start=1")}`;
+
+/** Hero style demos — videos in /public/styles, mapped to real presets. */
+const STRIP_STYLES = [
+  {
+    id: "live-cinetop",
+    name: "Cinetop",
+    src: "/styles/cinetop.mp4",
+  },
+  {
+    id: "live-karaoke",
+    name: "Karaoke",
+    src: "/styles/karaoke.mp4",
+  },
+  {
+    id: "live-negative",
+    name: "Negative",
+    src: "/styles/negative.mp4",
+  },
+  {
+    id: "live-negative-style",
+    name: "Negative Style",
+    /** Same preset as Negative — longer demo clip. */
+    presetId: "live-negative",
+    src: "/styles/negative-style.mp4",
+  },
+  {
+    id: "premium-5",
+    name: "Premium Style 5",
+    src: "/styles/premium-style-5.mp4",
+  },
+] as const;
+
+function applyPendingStyle(presetId: string) {
+  const preset = PRESETS.find((p) => p.id === presetId);
+  if (!preset || typeof sessionStorage === "undefined") return;
+  sessionStorage.setItem("pendingStyle", JSON.stringify(preset.style));
+}
+
+function resolvePresetId(item: (typeof STRIP_STYLES)[number]): string {
+  return "presetId" in item && item.presetId ? item.presetId : item.id;
+}
+
+const STRIP_STYLE_STORAGE_KEY = "landingSelectedStyle";
+
+function readStoredStyleId(): string {
+  if (typeof sessionStorage === "undefined") return STRIP_STYLES[0].id;
+  const stored = sessionStorage.getItem(STRIP_STYLE_STORAGE_KEY);
+  if (stored && STRIP_STYLES.some((s) => s.id === stored)) return stored;
+  return STRIP_STYLES[0].id;
+}
 
 const STYLE_PREVIEWS = [
   {
@@ -116,38 +167,6 @@ const STYLE_PREVIEWS = [
       </span>
     ),
     extra: true,
-  },
-] as const;
-
-const STRIP_STYLES = [
-  {
-    name: "Classic",
-    caption: "namaskaram andi",
-    className: "lp-strip-classic",
-  },
-  {
-    name: "Bold",
-    caption: "ee tip meeku telusa",
-    className: "lp-strip-bold",
-  },
-  {
-    name: "Minimal",
-    caption: "chala bagundi",
-    className: "lp-strip-minimal",
-  },
-  {
-    name: "Highlight",
-    caption: (
-      <>
-        idi <span className="lp-strip-hl">super</span> idea
-      </>
-    ),
-    className: "lp-strip-highlight",
-  },
-  {
-    name: "Punch",
-    caption: "arey",
-    className: "lp-strip-punch",
   },
 ] as const;
 
@@ -266,6 +285,26 @@ function BrandMark() {
 
 function Hero({ canStart }: { canStart: boolean }) {
   const stripRef = useRef<HTMLDivElement>(null);
+  const [selectedId, setSelectedId] = useState<string>(STRIP_STYLES[0].id);
+  const selected = STRIP_STYLES.find((s) => s.id === selectedId) ?? STRIP_STYLES[0];
+
+  useEffect(() => {
+    setSelectedId(readStoredStyleId());
+  }, []);
+
+  useEffect(() => {
+    const presetId = resolvePresetId(selected);
+    applyPendingStyle(presetId);
+    try {
+      sessionStorage.setItem(STRIP_STYLE_STORAGE_KEY, selected.id);
+    } catch {
+      /* private mode */
+    }
+  }, [selected]);
+
+  const selectStyle = (id: string) => {
+    setSelectedId(id);
+  };
 
   const scrollStrip = (dir: number) => {
     const el = stripRef.current;
@@ -304,7 +343,7 @@ function Hero({ canStart }: { canStart: boolean }) {
                   <path d="M8 9h5" />
                   <path d="M8 13h8" />
                 </svg>
-                Classic
+                {selected.name}
               </span>
             </div>
             {canStart ? (
@@ -339,16 +378,33 @@ function Hero({ canStart }: { canStart: boolean }) {
               <path d="M14 6l-6 6 6 6" />
             </svg>
           </button>
-          <div className="lp-strip-track" ref={stripRef}>
-            {STRIP_STYLES.map((item) => (
-              <div key={item.name} className="lp-strip-card">
-                <div className={`lp-strip-preview ${item.className}`}>
-                  <div className="lp-hatch" aria-hidden />
-                  <span>{item.caption}</span>
-                </div>
-                <div className="lp-strip-label">{item.name}</div>
-              </div>
-            ))}
+          <div className="lp-strip-track" ref={stripRef} role="listbox" aria-label="Caption styles">
+            {STRIP_STYLES.map((item) => {
+              const isSelected = item.id === selectedId;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  className={`lp-strip-card${isSelected ? " is-selected" : ""}`}
+                  onClick={() => selectStyle(item.id)}
+                >
+                  <div className="lp-strip-preview lp-strip-preview--video">
+                    <video
+                      src={item.src}
+                      muted
+                      loop
+                      playsInline
+                      autoPlay
+                      preload="metadata"
+                      aria-hidden
+                    />
+                    <span className="lp-strip-label">{item.name}</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
           <button
             type="button"
