@@ -31,6 +31,10 @@ export default async function JobPage({
       videoUrl={videoUrl}
       originalName={job.originalName}
       initialStatus={job.status}
+      initialProgress={job.progress}
+      initialProvider={job.provider}
+      initialLanguage={job.language}
+      initialError={job.error}
       width={job.width}
       height={job.height}
       user={user}

@@ -16,7 +16,7 @@ export function friendlyJobError(raw: string | null | undefined): string {
       return "Transcription rate limit hit. Wait a minute and try again.";
     }
     if (m.includes("30") && (m.includes("second") || m.includes("duration"))) {
-      return "An audio chunk was too long for the transcription service. Try a shorter video, or retry.";
+      return "This clip is a bit long for a single transcription pass. Click Try again — we’ll split the audio automatically.";
     }
     // Surface a short slice of the provider body so soft-launch debugging isn’t blind.
     const short = raw.length > 160 ? raw.slice(0, 157) + "…" : raw;

@@ -185,10 +185,13 @@ export async function processJob(jobId: string): Promise<void> {
         maxChunkSec || config.chunkTailSeconds,
         Math.max(4, config.chunkTailSeconds),
       );
-      // Chunk when the audio is meaningfully longer than one target chunk (else transcribe in
-      // one shot). Energy-aware cuts land in relative pauses; tail chunks stay shorter so
-      // proportional timing drift can't cover the whole ending.
-      if (targetChunkSec && duration > targetChunkSec * 1.25) {
+      // Chunk whenever we'd exceed the provider hard limit (Sarvam = 30s). Also chunk a bit
+      // earlier locally for energy cuts — but never wait until 1.25×max, which left 30–35s
+      // clips unchunked on Vercel and failed with Sarvam's 30s cap.
+      const chunkThreshold = maxChunkSec
+        ? Math.min(maxChunkSec, targetChunkSec > 0 ? targetChunkSec * 1.25 : maxChunkSec)
+        : targetChunkSec * 1.25;
+      if (targetChunkSec && duration > chunkThreshold) {
         const chunkDir = join(workDir, "chunks");
         const chunks = await chunkAudioByEnergy(audioPath, chunkDir, {
           targetSec: targetChunkSec,
@@ -204,6 +207,7 @@ export async function processJob(jobId: string): Promise<void> {
           chunks: chunks.length,
           targetChunkSec,
           tailChunkSec,
+          chunkThreshold,
           chunkDurations: chunks.map((c) => c.durationSec),
           durationSec: duration,
         });

@@ -119,6 +119,10 @@ export function Editor({
   videoUrl,
   originalName,
   initialStatus,
+  initialProgress = 0,
+  initialProvider = null,
+  initialLanguage = null,
+  initialError = null,
   width,
   height,
   user = null,
@@ -127,6 +131,10 @@ export function Editor({
   videoUrl: string;
   originalName: string | null;
   initialStatus: string;
+  initialProgress?: number;
+  initialProvider?: string | null;
+  initialLanguage?: string | null;
+  initialError?: string | null;
   /** Real video pixel dimensions (detected at upload) so the preview opens at the right ratio. */
   width?: number | null;
   height?: number | null;
@@ -134,7 +142,15 @@ export function Editor({
 }) {
   const [progress, setProgress] = useState<Progress>({
     status: initialStatus,
-    progress: initialStatus === "done" ? 100 : 0,
+    progress:
+      initialStatus === "done"
+        ? 100
+        : initialStatus === "failed"
+          ? initialProgress
+          : Math.max(0, initialProgress),
+    provider: initialProvider ?? undefined,
+    language: initialLanguage,
+    error: initialError,
   });
   const [segments, setSegments] = useState<Segment[] | null>(null);
   const [style, setStyle] = useState<SubtitleStyle>({ ...DEFAULT_STYLE });
@@ -219,27 +235,88 @@ export function Editor({
   );
 
   // Follow job progress until it finishes, then load the transcript.
+  // Prefer SSE; if the stream drops, fall back to polling so we never sit on a stale "Extracting…".
   useEffect(() => {
-    if (progress.status === "done") {
-      void loadTranscript();
-      return;
-    }
-    if (progress.status === "failed") return;
+    let cancelled = false;
+    let es: EventSource | null = null;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let finished = initialStatus === "done" || initialStatus === "failed";
 
-    const es = new EventSource(`/api/jobs/${jobId}/stream`);
-    es.onmessage = (e) => {
-      const data = JSON.parse(e.data) as Progress;
-      setProgress(data);
-      if (data.status === "done") {
-        es.close();
-        void loadTranscript();
-      } else if (data.status === "failed") {
-        es.close();
+    if (initialStatus === "done") {
+      void loadTranscript();
+    }
+
+    const stop = () => {
+      es?.close();
+      es = null;
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
       }
     };
-    es.onerror = () => es.close();
-    return () => es.close();
-    // streamEpoch re-opens the stream after Retry.
+
+    const apply = (data: Progress) => {
+      if (cancelled) return;
+      setProgress(data);
+      if (data.status === "done") {
+        if (!finished) void loadTranscript();
+        finished = true;
+        stop();
+      } else if (data.status === "failed") {
+        finished = true;
+        stop();
+      }
+    };
+
+    const pollOnce = async (): Promise<Progress | null> => {
+      try {
+        const res = await fetch(`/api/jobs/${jobId}`, { cache: "no-store" });
+        if (!res.ok) return null;
+        const data = (await res.json()) as Progress;
+        apply(data);
+        return data;
+      } catch {
+        return null;
+      }
+    };
+
+    const startPolling = () => {
+      if (pollTimer || cancelled || finished) return;
+      pollTimer = setInterval(() => void pollOnce(), 1500);
+    };
+
+    if (finished) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void (async () => {
+      // Always re-read DB first (covers refresh after processing finished).
+      const latest = await pollOnce();
+      if (cancelled || finished) return;
+      if (latest && (latest.status === "done" || latest.status === "failed")) return;
+
+      es = new EventSource(`/api/jobs/${jobId}/stream`);
+      es.onmessage = (e) => {
+        try {
+          apply(JSON.parse(e.data) as Progress);
+        } catch {
+          /* ignore bad frames */
+        }
+      };
+      es.onerror = () => {
+        es?.close();
+        es = null;
+        startPolling();
+      };
+    })();
+
+    return () => {
+      cancelled = true;
+      stop();
+    };
+    // streamEpoch re-opens after Retry.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId, streamEpoch]);
 
@@ -500,9 +577,13 @@ export function Editor({
             />
           </div>
           <p className="mt-3 text-xs" style={{ color: "var(--ink-3)" }}>
-            {progress.provider && progress.provider !== "mock"
-              ? "Transcribing your audio. Longer clips can take several minutes — audio is sent in short pieces."
-              : "Using the built-in sample transcript (no API key set)."}
+            {progress.provider === "mock"
+              ? "Using the built-in sample transcript (no ASR API key set)."
+              : progress.status === "extracting"
+                ? "Pulling audio from your video — this usually takes a few seconds."
+                : progress.status === "transcribing"
+                  ? "Transcribing Telugu. Longer clips can take a few minutes — audio is sent in short pieces."
+                  : "Preparing your captions…"}
           </p>
         </div>
       )}
