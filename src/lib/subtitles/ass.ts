@@ -34,6 +34,54 @@ import {
 const DEFAULT_PLAY_W = 1920;
 const DEFAULT_PLAY_H = 1080;
 
+/**
+ * CSS `font-size` is the em-square; libass ASS `Fontsize` is OS/2 win ascent+descent.
+ * Same numeric value therefore burns smaller than the preview. Multiply CSS px by this
+ * per-family factor (measured from assets/fonts TTFs) so export matches the editor.
+ * See https://github.com/libass/libass/issues/644
+ */
+const ASS_FS_FACTOR: Record<string, number> = {
+  Anton: 1.733,
+  Arimo: 1.432,
+  "Bebas Neue": 1.3,
+  Dhurjati: 1.851,
+  Geist: 1.35,
+  Gidugu: 1.854,
+  "Instrument Serif": 1.3,
+  Inter: 1.43,
+  Mallanna: 1.849,
+  Mandali: 1.977,
+  Manrope: 1.366,
+  Montserrat: 1.562,
+  "Noto Sans Telugu": 1.478,
+  NTR: 2.12,
+  "Open Sans": 1.442,
+  Oswald: 1.702,
+  Outfit: 1.26,
+  Poppins: 1.762,
+  Ramaraja: 1.713,
+  Roboto: 1.319,
+  Suranna: 2.19,
+};
+
+const DEFAULT_ASS_FS_FACTOR = 1.45;
+
+/** CSS px (em-square) → ASS Fontsize for the given family. */
+function assFontSizePx(cssPx: number, family: string): number {
+  const factor = ASS_FS_FACTOR[family] ?? DEFAULT_ASS_FS_FACTOR;
+  return Math.max(8, Math.round(cssPx * factor));
+}
+
+/** Preview-equivalent CSS size for `fontSizePct` at a given PlayRes height. */
+function cssFontPx(style: SubtitleStyle, playH: number): number {
+  return (style.fontSizePct / 100) * playH;
+}
+
+/** ASS Fontsize matching the live preview for this style + frame height. */
+function styleAssFontSize(style: SubtitleStyle, playH: number): number {
+  return assFontSizePx(cssFontPx(style, playH), style.fontFamily);
+}
+
 function pad2(n: number): string {
   return String(Math.floor(n)).padStart(2, "0");
 }
@@ -138,7 +186,8 @@ export function toASS(
 ): string {
   const PLAY_W = dims?.width ?? DEFAULT_PLAY_W;
   const PLAY_H = dims?.height ?? DEFAULT_PLAY_H;
-  const fontSize = Math.round((style.fontSizePct / 100) * PLAY_H);
+  const cssPx = cssFontPx(style, PLAY_H);
+  const fontSize = styleAssFontSize(style, PLAY_H);
   const boxMode = effectiveBoxMode(style);
   const showBox = hasBackgroundBox(style);
   const isBar = boxMode === "bar" && showBox;
@@ -218,7 +267,7 @@ export function toASS(
   const maxW = isBar ? Math.max(style.maxWidthPct, 96) : style.maxWidthPct;
   const marginLR = Math.round(((100 - maxW) / 2 / 100) * PLAY_W);
   const bold = style.fontWeight >= 600 ? -1 : 0;
-  const spacing = Math.round(style.letterSpacingEm * fontSize);
+  const spacing = Math.round(style.letterSpacingEm * cssPx);
 
   const header = `[Script Info]
 Title: Telugu Captions
@@ -289,7 +338,7 @@ function kineticDialogues(
   }
 
   const caseMode = effectiveTextCase(style);
-  const baseFs = Math.round((style.fontSizePct / 100) * playH);
+  const baseFs = styleAssFontSize(style, playH);
   const lines: string[] = [];
 
   tokens.forEach((tk, focus) => {
@@ -335,7 +384,7 @@ function scatterDialogues(
   }
 
   const caseMode = effectiveTextCase(style);
-  const baseFs = Math.round((style.fontSizePct / 100) * playH);
+  const baseFs = styleAssFontSize(style, playH);
   const anchorY = (style.positionYPct / 100) * playH;
   const lines: string[] = [];
 
@@ -381,7 +430,7 @@ function editorialDialogues(
   }
 
   const caseMode = effectiveTextCase(style);
-  const baseFs = Math.round((style.fontSizePct / 100) * playH);
+  const baseFs = styleAssFontSize(style, playH);
   const satFs = Math.max(8, Math.round(baseFs * EDITORIAL_SATELLITE_SCALE));
   const focusFs = Math.max(10, Math.round(baseFs * EDITORIAL_FOCUS_SCALE));
   const white = assColor(style.color, 0);
@@ -436,7 +485,7 @@ function flashDialogues(
   // Flash scale pop lives in entranceTags; bump \\fs to match preview FLASH_SCALE.
   const prefix = overrideBlock(style, playW, playH);
   const caseMode = effectiveTextCase(style);
-  const baseFs = Math.round((style.fontSizePct / 100) * playH);
+  const baseFs = styleAssFontSize(style, playH);
   const fs = Math.max(10, Math.round(baseFs * FLASH_SCALE));
   const white = assColor(style.color, 0);
   const accent = assColor(style.highlightColor, 0);
@@ -482,7 +531,7 @@ function hookDialogues(
   }
 
   const caseMode = effectiveTextCase(style);
-  const baseFs = Math.round((style.fontSizePct / 100) * playH);
+  const baseFs = styleAssFontSize(style, playH);
   const satFs = Math.max(8, Math.round(baseFs * HOOK_SATELLITE_SCALE));
   const focusFs = Math.max(10, Math.round(baseFs * HOOK_FOCUS_SCALE));
   const white = assColor(style.color, 0);
