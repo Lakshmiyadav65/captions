@@ -171,12 +171,49 @@ const STYLE_PREVIEWS = [
 ] as const;
 
 const REELS = [
-  { n: 1, caption: "ee tip meeku telusa", creator: "@ravi.cooks", style: "Classic" },
-  { n: 2, caption: "idi try cheyyandi", creator: "@teluguhacks", style: "Bold" },
-  { n: 3, caption: "chala bagundi kada", creator: "@sirichats", style: "Highlight" },
-  { n: 4, caption: "last varaku chudandi", creator: "@filmnotes.te", style: "Cinema" },
-  { n: 5, caption: "ee mistake cheyyakandi", creator: "@moneytelugu", style: "Punch" },
-  { n: 6, caption: "save cheskondi", creator: "@dailytelugu", style: "Karaoke" },
+  {
+    n: 1,
+    src: "/styles/cinetop.mp4",
+    creator: "@ravi.cooks",
+    style: "Cinetop",
+    presetId: "live-cinetop",
+  },
+  {
+    n: 2,
+    src: "/styles/karaoke.mp4",
+    creator: "@teluguhacks",
+    style: "Karaoke",
+    presetId: "live-karaoke",
+  },
+  {
+    n: 3,
+    src: "/styles/negative.mp4",
+    creator: "@sirichats",
+    style: "Negative",
+    presetId: "live-negative",
+  },
+  {
+    n: 4,
+    src: "/styles/negative-style.mp4",
+    creator: "@filmnotes.te",
+    style: "Negative Style",
+    presetId: "live-negative",
+  },
+  {
+    n: 5,
+    src: "/styles/premium-style-5.mp4",
+    creator: "@moneytelugu",
+    style: "Premium Style 5",
+    presetId: "premium-5",
+  },
+  /** Duplicate of Karaoke so the grid shows 6 reels. */
+  {
+    n: 6,
+    src: "/styles/karaoke.mp4",
+    creator: "@dailytelugu",
+    style: "Karaoke",
+    presetId: "live-karaoke",
+  },
 ] as const;
 
 const FAQS = [
@@ -477,6 +514,39 @@ function StylesSection() {
 }
 
 function ReelsSection() {
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+  const [playing, setPlaying] = useState<number | null>(null);
+
+  const togglePlay = (index: number) => {
+    const video = videoRefs.current[index];
+    if (!video) return;
+
+    if (playing === index && !video.paused) {
+      video.pause();
+      setPlaying(null);
+      return;
+    }
+
+    videoRefs.current.forEach((v, i) => {
+      if (v && i !== index) v.pause();
+    });
+    void video.play();
+    setPlaying(index);
+  };
+
+  const useReelStyle = (presetId: string) => {
+    applyPendingStyle(presetId);
+    try {
+      const match = STRIP_STYLES.find(
+        (s) => s.id === presetId || ("presetId" in s && s.presetId === presetId),
+      );
+      if (match) sessionStorage.setItem(STRIP_STYLE_STORAGE_KEY, match.id);
+    } catch {
+      /* private mode */
+    }
+    document.getElementById("upload")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <section className="lp-section" id="reels">
       <div className="lp-container">
@@ -489,26 +559,65 @@ function ReelsSection() {
         </div>
 
         <div className="lp-reels-grid">
-          {REELS.map((reel) => (
-            <div key={reel.n} className="lp-reel-card">
-              <div className="lp-reel-preview">
-                <div className="lp-hatch" aria-hidden />
-                <span className="lp-reel-badge">
-                  reel {reel.n} · video
-                </span>
-                <span className="lp-reel-play" aria-hidden>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </span>
-                <span className="lp-reel-caption">{reel.caption}</span>
+          {REELS.map((reel, index) => {
+            const isPlaying = playing === index;
+            return (
+              <div key={`${reel.n}-${reel.style}`} className="lp-reel-card">
+                <div
+                  className="lp-reel-preview lp-reel-preview--video"
+                  onClick={() => togglePlay(index)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      togglePlay(index);
+                    }
+                  }}
+                  aria-label={`${isPlaying ? "Pause" : "Play"} ${reel.style} reel`}
+                >
+                  <video
+                    ref={(el) => {
+                      videoRefs.current[index] = el;
+                    }}
+                    src={reel.src}
+                    muted
+                    loop
+                    playsInline
+                    preload="metadata"
+                    onEnded={() => setPlaying(null)}
+                    onPause={() => {
+                      if (playing === index) setPlaying(null);
+                    }}
+                  />
+                  <span className="lp-reel-badge">
+                    reel {reel.n} · {reel.style}
+                  </span>
+                  <span className={`lp-reel-play${isPlaying ? " is-playing" : ""}`} aria-hidden>
+                    {isPlaying ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
+                      </svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    )}
+                  </span>
+                </div>
+                <div className="lp-reel-meta">
+                  <span>{reel.creator}</span>
+                  <button
+                    type="button"
+                    className="lp-mono-tag lp-reel-style-btn"
+                    onClick={() => useReelStyle(reel.presetId)}
+                  >
+                    {reel.style}
+                  </button>
+                </div>
               </div>
-              <div className="lp-reel-meta">
-                <span>{reel.creator}</span>
-                <span className="lp-mono-tag">{reel.style}</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
