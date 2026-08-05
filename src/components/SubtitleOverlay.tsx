@@ -186,17 +186,22 @@ export function SubtitleOverlay({
     !useHook &&
     !useFlash &&
     !useEditorial;
-  // Karaoke/emphasis emit one <span> per word. Those must stay normal inline text —
-  // inline-flex treats each span as a shrinkable flex item and word-break then drops
-  // the last letter of every word onto the next line (e.g. "unexpecte" / "d").
+  // Karaoke/emphasis emit one <span> per word. Use a wrapping flex row with
+  // flex: 0 0 auto on each word so they never shrink mid-glyph, and justify
+  // center so multi-word phrases stay in the middle of the frame.
   const useWordSpans = useKaraoke || useEmphasis;
   const boxedInline = showBox && !isBar;
 
   const spanStyle: CSSProperties = {
-    display: boxedInline && !useWordSpans ? "inline-flex" : "inline-block",
-    alignItems: boxedInline && !useWordSpans ? "center" : undefined,
+    // Karaoke/emphasis: inline-flex + wrap + non-shrinking words keeps phrases centered
+    // and intact. Plain boxed text still uses inline-flex for optical vertical centering.
+    display: boxedInline || useWordSpans ? "inline-flex" : "inline-block",
+    flexWrap: useWordSpans ? "wrap" : undefined,
+    columnGap: useWordSpans ? "0.3em" : undefined,
+    rowGap: useWordSpans ? "0.05em" : undefined,
+    alignItems: boxedInline || useWordSpans ? "center" : undefined,
     justifyContent:
-      boxedInline && !useWordSpans
+      boxedInline || useWordSpans
         ? style.align === "left"
           ? "flex-start"
           : style.align === "right"
@@ -204,15 +209,18 @@ export function SubtitleOverlay({
             : "center"
         : undefined,
     maxWidth: "100%",
+    // Shrink-wrap to the phrase so parent text-align / justify can center the box.
+    width: useWordSpans ? "fit-content" : undefined,
     fontFamily: fontStack(style.fontFamily),
     fontSize: px(style.fontSizePct),
     fontWeight: style.fontWeight,
     color: specialFill ? undefined : style.color,
-    lineHeight: boxedInline ? 1.15 : style.lineHeight,
+    lineHeight: boxedInline || useWordSpans ? 1.15 : style.lineHeight,
     letterSpacing: `${style.letterSpacingEm}em`,
-    whiteSpace: "pre-wrap",
+    whiteSpace: useWordSpans ? "normal" : "pre-wrap",
     wordBreak: useWordSpans ? "normal" : "break-word",
     overflowWrap: useWordSpans ? "normal" : "anywhere",
+    textAlign: style.align,
     background: specialFill ? undefined : bg,
     padding: boxedInline
       ? `${boxPadY + opticalNudge}px ${boxPadX}px ${Math.max(0, boxPadY - opticalNudge)}px`
@@ -646,13 +654,13 @@ export function SubtitleOverlay({
             style={{
               color,
               opacity,
-              // Keep each spoken word intact; wrap only between words.
-              display: "inline",
+              // Intact word chip — gap between words comes from parent columnGap.
+              display: "inline-block",
+              flex: "0 0 auto",
               whiteSpace: "nowrap",
             }}
           >
             {word}
-            {i < tokens.length - 1 ? " " : ""}
           </span>
         );
       });
