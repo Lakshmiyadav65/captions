@@ -12,7 +12,8 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
     "db:generate": "prisma generate",
-    "db:postgres": "node scripts/use-postgres.mjs"
+    "db:postgres": "node scripts/use-postgres.mjs",
+    "blob:cleanup": "node scripts/cleanup-vercel-blob.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",

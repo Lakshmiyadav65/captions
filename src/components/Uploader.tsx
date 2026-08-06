@@ -185,7 +185,9 @@ export function Uploader({ tone = "dark", canUpload = true, variant = "default" 
       setError(
         /Failed to retrieve the client token/i.test(msg)
           ? "Sign in with Google to upload a video."
-          : msg,
+          : /Storage quota exceeded|Hobby plan \(1GB/i.test(msg)
+            ? "Storage is full on the free plan. Old uploads were cleaned — please try again in a minute."
+            : msg,
       );
       setUploading(false);
     }
