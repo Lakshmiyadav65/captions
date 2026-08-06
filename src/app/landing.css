@@ -749,7 +749,7 @@ html[data-landing-theme="dark"] .landing-page .lp-hero {
   border-radius: 18px;
   overflow: hidden;
   border: 2px solid transparent;
-  background: #111;
+  background: transparent;
   outline: none;
   cursor: pointer;
   opacity: 1;
