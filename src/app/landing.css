@@ -750,16 +750,11 @@ html[data-landing-theme="dark"] .landing-page .lp-hero {
   overflow: hidden;
   border: 2px solid transparent;
   background: #111;
-  box-shadow: none;
   outline: none;
   cursor: pointer;
-  opacity: 0.72;
-  transform: scale(0.97);
-  transition:
-    border-color 0.18s ease,
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
-    opacity 0.18s ease;
+  opacity: 1;
+  transform: none;
+  transition: border-color 150ms ease;
   font: inherit;
   color: inherit;
   text-align: left;
@@ -767,8 +762,8 @@ html[data-landing-theme="dark"] .landing-page .lp-hero {
 }
 
 .lp-strip-card:hover {
-  opacity: 0.9;
-  transform: scale(0.98);
+  opacity: 1;
+  transform: none;
 }
 
 .lp-strip-card:focus-visible {
@@ -778,11 +773,8 @@ html[data-landing-theme="dark"] .landing-page .lp-hero {
 
 .lp-strip-card.is-selected {
   opacity: 1;
-  transform: scale(1);
-  border-color: #17171a;
-  box-shadow:
-    0 0 0 3px #fff,
-    0 8px 22px rgba(23, 23, 26, 0.2);
+  transform: none;
+  border-color: #f97316;
 }
 
 .lp-strip-card.is-selected:hover {
