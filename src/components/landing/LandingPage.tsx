@@ -766,10 +766,10 @@ function Footer() {
       <div className="lp-container">
         <div className="lp-footer-grid">
           <div className="lp-footer-brand">
-            <span className="lp-brand">
-              <span className="lp-brand-dot" aria-hidden />
-              <span className="lp-brand-text">caplio</span>
-            </span>
+            <Link href="/" className="logo">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="Caplio" className="nav-logo-img" />
+            </Link>
             <p>AI captions for Telugu creators.</p>
           </div>
           <div className="lp-footer-col">
