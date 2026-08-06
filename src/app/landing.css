@@ -282,7 +282,7 @@ html[data-landing-theme="dark"] .landing-page .nav-logo-img {
   -webkit-backdrop-filter: blur(8px);
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid var(--border-light);
+  border: none;
 }
 
 .nav-links a {
