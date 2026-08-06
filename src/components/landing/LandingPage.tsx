@@ -757,7 +757,10 @@ function Footer() {
       <div className="lp-container">
         <div className="lp-footer-grid">
           <div className="lp-footer-brand">
-            <BrandMark />
+            <span className="lp-brand">
+              <span className="lp-brand-dot" aria-hidden />
+              <span className="lp-brand-text">caplio</span>
+            </span>
             <p>AI captions for Telugu creators.</p>
           </div>
           <div className="lp-footer-col">
