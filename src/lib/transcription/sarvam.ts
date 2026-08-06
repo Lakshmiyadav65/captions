@@ -27,22 +27,63 @@ function toSarvamLang(code?: string): string {
   return `${c}-IN`;
 }
 
-function zipWords(timestamps: unknown): Word[] {
+function asNumArray(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((n) => (typeof n === "number" ? n : Number(n)))
+    .filter((n) => Number.isFinite(n));
+}
+
+/**
+ * Sarvam shape has varied across models/modes:
+ * - start_time_seconds/end_time_seconds (seconds)
+ * - start_time/end_time (often milliseconds)
+ * - start/end (provider-dependent units)
+ */
+function zipWords(timestamps: unknown, durationSec?: number): Word[] {
   const t = timestamps as
     | {
         words?: string[];
-        start_time_seconds?: number[];
-        end_time_seconds?: number[];
+        start_time_seconds?: unknown;
+        end_time_seconds?: unknown;
+        start_time?: unknown;
+        end_time?: unknown;
+        start?: unknown;
+        end?: unknown;
       }
     | undefined;
   if (!t?.words?.length) return [];
-  const starts = t.start_time_seconds ?? [];
-  const ends = t.end_time_seconds ?? [];
-  return t.words.map((word, i) => ({
+
+  const startsSec = asNumArray(t.start_time_seconds);
+  const endsSec = asNumArray(t.end_time_seconds);
+  const startsGeneric = asNumArray(t.start_time);
+  const endsGeneric = asNumArray(t.end_time);
+  const startsBare = asNumArray(t.start);
+  const endsBare = asNumArray(t.end);
+
+  let starts = startsSec.length ? startsSec : startsGeneric.length ? startsGeneric : startsBare;
+  let ends = endsSec.length ? endsSec : endsGeneric.length ? endsGeneric : endsBare;
+
+  const maxTs = Math.max(0, ...starts, ...ends);
+  const dur = durationSec && durationSec > 0 ? durationSec : undefined;
+  const probablyMillis =
+    maxTs > 200 ||
+    (dur !== undefined && maxTs > dur * 2.5);
+  if (probablyMillis) {
+    starts = starts.map((v) => v / 1000);
+    ends = ends.map((v) => v / 1000);
+  }
+
+  // Ensure sane, non-negative, forward ranges.
+  return t.words.map((word, i) => {
+    const start = Math.max(0, starts[i] ?? 0);
+    const end = Math.max(start, ends[i] ?? start);
+    return {
     text: word,
-    start: starts[i] ?? 0,
-    end: ends[i] ?? starts[i] ?? 0,
-  }));
+    start,
+    end,
+  };
+  });
 }
 
 function sleep(ms: number): Promise<void> {
@@ -104,7 +145,7 @@ export class SarvamProvider implements TranscriptionProvider {
           timestamps?: unknown;
         };
 
-        const words = zipWords(json.timestamps);
+        const words = zipWords(json.timestamps, opts.durationSec);
         let segments: Segment[];
         if (words.length) {
           segments = groupWordsIntoSegments(words);

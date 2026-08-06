@@ -21,6 +21,12 @@ import { reportError } from "./sentry";
 // standalone BullMQ worker. Pulls the video from storage to a local temp file, extracts
 // + chunks audio, transcribes, stitches segments, persists, and cleans up temp files.
 
+function isLikelyEnglish(lang: string | null | undefined): boolean {
+  if (!lang) return false;
+  const l = lang.toLowerCase();
+  return l === "en" || l.startsWith("en-") || l === "english";
+}
+
 function languageHint(): string | undefined {
   const raw = process.env.ASR_LANGUAGE ?? "te";
   return raw === "auto" || raw === "unknown" ? undefined : raw;
@@ -238,9 +244,59 @@ export async function processJob(jobId: string): Promise<void> {
         await update(jobId, { progress: 90 });
       }
 
+      // English uploads can mis-time under Telugu-tuned configs. When the primary auto/Sarvam
+      // pass detects English and OpenAI is available, re-transcribe with OpenAI so timing/text
+      // quality matches what we already rely on for timing refine.
+      if (
+        provider.name === "sarvam" &&
+        isLikelyEnglish(detected) &&
+        Boolean(process.env.OPENAI_API_KEY)
+      ) {
+        await update(jobId, { progress: 90 });
+        log.info("job.english_fallback_openai", {
+          jobId,
+          detected,
+          reason: "sarvam_primary_detected_english",
+        });
+
+        const openai = new OpenAIProvider();
+        const openaiSegments: Segment[] = [];
+        const maxChunk = openai.maxChunkSeconds ?? 600;
+        const openaiThreshold = maxChunk * 1.5;
+
+        if (duration > openaiThreshold) {
+          const chunkDir = join(workDir, "openai-chunks");
+          const chunks = await chunkAudioByEnergy(audioPath, chunkDir, {
+            targetSec: Math.min(config.chunkSeconds, maxChunk),
+            maxSec: maxChunk,
+            searchSec: 1.5,
+            endMaxSec: Math.min(config.chunkSeconds, maxChunk),
+            tailTargetSec: Math.min(config.chunkTailSeconds, maxChunk),
+          });
+          for (const c of chunks) {
+            const r = await openai.transcribe(c.path, {
+              language: "en",
+              durationSec: c.durationSec,
+            });
+            openaiSegments.push(...offsetSegments(r.segments, c.offsetSec));
+          }
+        } else {
+          const r = await openai.transcribe(audioPath, {
+            language: "en",
+            durationSec: duration,
+          });
+          openaiSegments.push(...r.segments);
+        }
+
+        if (openaiSegments.length > 0) {
+          segments = openaiSegments;
+          detected = "en";
+        }
+      }
+
       // Phase 7.1: Whisper word-timestamp refine. Keeps primary ASR text; rewrites timings.
       // Skip when OpenAI was already the primary ASR (it already requested word times).
-      if (provider.name !== "openai") {
+      if (provider.name !== "openai" && !isLikelyEnglish(detected)) {
         await update(jobId, { progress: 92 });
         segments = await maybeRefineTimings(
           segments,
