@@ -740,11 +740,20 @@ function CtaSection({ canStart }: { canStart: boolean }) {
     <section className="lp-cta-wrap">
       <div className="lp-container">
         <div className="lp-cta-card">
+          <span className="lp-eyebrow lp-cta-eyebrow">Ready to publish?</span>
           <h2 className="lp-display-sm lp-cta-title">Caption your next Short in minutes.</h2>
-          <StartLink canStart={canStart} className="lp-btn-dark">
+          <p className="lp-cta-subtitle">
+            Upload once, style instantly, and export a creator-ready video in one flow.
+          </p>
+          <StartLink canStart={canStart} className="lp-btn-dark lp-cta-btn">
             Upload Video
             <ArrowIcon />
           </StartLink>
+          <div className="lp-cta-points" aria-label="Caplio benefits">
+            <span>Telugu + Romanized</span>
+            <span>Style presets</span>
+            <span>Burned MP4 export</span>
+          </div>
         </div>
       </div>
     </section>
