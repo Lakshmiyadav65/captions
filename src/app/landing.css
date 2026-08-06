@@ -1141,6 +1141,11 @@ html[data-landing-theme="dark"] .landing-page .lp-hero {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .lp-cta-card,
+  .lp-cta-card::before {
+    animation: none !important;
+  }
+
   .lp-style-card,
   .lp-anim,
   .lp-anim span,
@@ -1482,26 +1487,31 @@ html[data-landing-theme="dark"] .landing-page .lp-pricing {
 
 /* —— CTA / Footer —— */
 .lp-cta-wrap {
-  padding: clamp(20px, 4vw, 40px) 0 clamp(40px, 6vw, 64px);
+  padding: clamp(12px, 2.6vw, 24px) 0 clamp(24px, 4.2vw, 40px);
 }
 
 .lp-cta-card {
   position: relative;
   isolation: isolate;
   overflow: hidden;
+  max-width: 920px;
+  margin: 0 auto;
   background:
     radial-gradient(120% 120% at 12% -8%, rgba(222, 82, 39, 0.14), transparent 52%),
     radial-gradient(120% 120% at 92% 110%, rgba(222, 82, 39, 0.1), transparent 55%),
     var(--surface);
+  background-size: 140% 140%, 130% 130%, auto;
+  background-position: 0% 0%, 100% 100%, center;
   border: 1px solid color-mix(in srgb, var(--border) 82%, var(--accent) 18%);
   border-radius: 32px;
-  padding: clamp(40px, 7vw, 86px) clamp(24px, 5vw, 64px);
+  padding: clamp(28px, 4.8vw, 52px) clamp(20px, 3.6vw, 42px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
   text-align: center;
   box-shadow: 0 20px 54px -30px rgba(23, 23, 26, 0.35);
+  animation: lp-cta-flow 14s ease-in-out infinite alternate;
 }
 
 .lp-cta-card::before {
@@ -1515,6 +1525,7 @@ html[data-landing-theme="dark"] .landing-page .lp-pricing {
   background: radial-gradient(circle, rgba(222, 82, 39, 0.24) 0%, rgba(222, 82, 39, 0) 68%);
   pointer-events: none;
   z-index: -1;
+  animation: lp-cta-orb-drift 11s ease-in-out infinite alternate;
 }
 
 .lp-cta-eyebrow {
@@ -1525,13 +1536,15 @@ html[data-landing-theme="dark"] .landing-page .lp-pricing {
 .lp-cta-title {
   max-width: 14ch;
   text-wrap: balance;
+  font-size: clamp(2rem, 4.2vw, 2.9rem);
+  line-height: 1.08;
 }
 
 .lp-cta-subtitle {
   margin: 0;
   max-width: 52ch;
-  font-size: 1rem;
-  line-height: 1.65;
+  font-size: 0.96rem;
+  line-height: 1.58;
   color: var(--text-muted);
   text-wrap: pretty;
 }
@@ -1571,12 +1584,40 @@ html[data-landing-theme="dark"] .landing-page .lp-pricing {
   flex: none;
 }
 
+@keyframes lp-cta-flow {
+  0% {
+    background-position: 0% 0%, 100% 100%, center;
+  }
+  50% {
+    background-position: 30% 18%, 70% 78%, center;
+  }
+  100% {
+    background-position: 58% 34%, 42% 62%, center;
+  }
+}
+
+@keyframes lp-cta-orb-drift {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translate(-10px, 8px) scale(1.04);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-18px, 14px) scale(1.06);
+    opacity: 0.86;
+  }
+}
+
 .landing-page[data-theme="dark"] .lp-cta-card,
 html[data-landing-theme="dark"] .landing-page .lp-cta-card {
   background:
     radial-gradient(120% 120% at 10% -10%, rgba(255, 122, 79, 0.16), transparent 50%),
     radial-gradient(120% 120% at 92% 110%, rgba(255, 122, 79, 0.12), transparent 58%),
     color-mix(in srgb, var(--surface) 85%, #1a120f 15%);
+  background-size: 145% 145%, 132% 132%, auto;
   border-color: color-mix(in srgb, var(--border) 72%, var(--accent) 28%);
 }
 
