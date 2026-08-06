@@ -1609,6 +1609,210 @@ html[data-landing-theme="dark"] .landing-page .lp-footer-col a {
   }
 }
 
+@media (max-width: 768px) {
+  .lp-container {
+    padding: 0 16px;
+  }
+
+  .lp-hero {
+    padding: 104px 0 56px;
+  }
+
+  .lp-hero-copy {
+    gap: 18px;
+  }
+
+  .lp-upload-card {
+    border-radius: 20px;
+    padding: 10px;
+  }
+
+  .lp-uploader-drop {
+    min-height: 188px;
+    padding: 24px 16px;
+  }
+
+  .lp-upload-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 4px 2px;
+  }
+
+  .lp-upload-meta {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .lp-style-chip {
+    max-width: 100%;
+  }
+
+  .lp-btn-dark {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .lp-strip {
+    gap: 8px;
+  }
+
+  .lp-strip-nav {
+    width: 34px;
+    height: 34px;
+  }
+
+  .lp-strip-track {
+    gap: 10px;
+    padding: 4px 2px 10px;
+  }
+
+  .lp-strip-card {
+    width: clamp(108px, 34vw, 136px);
+    border-radius: 16px;
+  }
+
+  .lp-styles-grid,
+  .lp-reels-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .lp-style-meta,
+  .lp-reel-meta {
+    padding: 10px 12px;
+  }
+
+  .lp-pricing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lp-footer-bottom {
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+@media (max-width: 520px) {
+  .lp-display {
+    font-size: clamp(2rem, 10vw, 2.45rem);
+  }
+
+  .lp-display-sm {
+    font-size: clamp(1.65rem, 8.2vw, 2rem);
+  }
+
+  .lp-lead,
+  .lp-section-lead {
+    font-size: 0.97rem;
+    line-height: 1.55;
+  }
+
+  .lp-upload-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .lp-strip-card {
+    width: clamp(104px, 42vw, 132px);
+  }
+
+  .lp-styles-grid,
+  .lp-reels-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 360px) {
+  .navbar {
+    top: 10px;
+    width: calc(100% - 12px);
+    padding: 6px 8px;
+  }
+
+  .nav-container {
+    padding: 0 2px;
+    gap: 6px;
+  }
+
+  .lp-brand-text {
+    font-size: 0.92rem;
+  }
+
+  .theme-toggle {
+    width: 32px;
+    height: 32px;
+  }
+
+  .nav-user-avatar {
+    width: 24px;
+    height: 24px;
+  }
+
+  .lp-hero {
+    padding: 92px 0 44px;
+  }
+
+  .lp-display {
+    font-size: 1.82rem;
+    line-height: 1.08;
+  }
+
+  .lp-lead {
+    font-size: 0.9rem;
+  }
+
+  .lp-upload-card {
+    margin-top: 28px;
+    border-radius: 16px;
+    padding: 8px;
+  }
+
+  .lp-uploader-drop {
+    min-height: 168px;
+    border-radius: 14px;
+    padding: 18px 12px;
+  }
+
+  .lp-uploader-title {
+    font-size: 0.94rem;
+  }
+
+  .lp-uploader-sub {
+    font-size: 0.82rem;
+  }
+
+  .lp-upload-attach {
+    width: 32px;
+    height: 32px;
+  }
+
+  .lp-style-chip {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+  }
+
+  .lp-btn-dark {
+    padding: 10px 14px;
+    font-size: 0.86rem;
+  }
+
+  .lp-strip-nav {
+    width: 30px;
+    height: 30px;
+  }
+
+  .lp-strip-track {
+    gap: 8px;
+  }
+
+  .lp-strip-card {
+    width: 104px;
+    border-radius: 14px;
+  }
+}
+
 
 
 /* —— Style request page (preserved) —— */
