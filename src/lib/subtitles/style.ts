@@ -122,9 +122,9 @@ export function applyTextCase(text: string, mode: TextCase): string {
 }
 
 /**
- * Default look — extracted from Video-24275.mp4 ("Tharun Speaks"):
+ * Default look — Caplio Styles 2.0 "Classic":
  * bold white kinetic captions mid-frame, neon-yellow emphasis, soft bloom
- * (no hard outline), pop-in. Same as the "Tharun Speaks" preset.
+ * (no hard outline), pop-in. Same as the Classic preset.
  */
 export const DEFAULT_STYLE: SubtitleStyle = {
   fontFamily: "NTR",

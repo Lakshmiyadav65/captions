@@ -11,33 +11,33 @@ export type { LandingUser };
 
 const SIGN_IN_HREF = `/signin?next=${encodeURIComponent("/?start=1")}`;
 
-/** Hero style demos — videos in /public/styles, mapped to real presets. */
+/** Hero style demos — videos in /public/styles, mapped to Styles 2.0 preset IDs. */
 const STRIP_STYLES = [
   {
-    id: "live-cinetop",
-    name: "Cinetop",
+    id: "cinema",
+    name: "Cinema",
     src: "/styles/cinetop.mp4",
   },
   {
-    id: "live-karaoke",
+    id: "karaoke",
     name: "Karaoke",
     src: "/styles/karaoke.mp4",
   },
   {
-    id: "live-negative",
+    id: "negative",
     name: "Negative",
     src: "/styles/negative.mp4",
   },
   {
-    id: "live-negative-style",
-    name: "Negative Style",
-    /** Same preset as Negative — longer demo clip. */
-    presetId: "live-negative",
+    id: "negative-long",
+    name: "Negative",
+    /** Same Styles 2.0 preset — longer demo clip. */
+    presetId: "negative",
     src: "/styles/negative-style.mp4",
   },
   {
-    id: "premium-5",
-    name: "Premium Style 5",
+    id: "glow",
+    name: "Glow",
     src: "/styles/premium-style-5.mp4",
   },
 ] as const;
@@ -58,161 +58,123 @@ function readStoredStyleId(): string {
   if (typeof sessionStorage === "undefined") return STRIP_STYLES[0].id;
   const stored = sessionStorage.getItem(STRIP_STYLE_STORAGE_KEY);
   if (stored && STRIP_STYLES.some((s) => s.id === stored)) return stored;
+  // Migrate older strip IDs from pre–Styles 2.0.
+  const legacy: Record<string, string> = {
+    "live-cinetop": "cinema",
+    "live-karaoke": "karaoke",
+    "live-negative": "negative",
+    "live-negative-style": "negative-long",
+    "premium-5": "glow",
+  };
+  if (stored && legacy[stored] && STRIP_STYLES.some((s) => s.id === legacy[stored])) {
+    return legacy[stored]!;
+  }
   return STRIP_STYLES[0].id;
 }
 
-const STYLE_PREVIEWS = [
-  {
-    name: "Classic",
-    tag: "Default",
-    anim: "classic",
-    sample: (
-      <span className="lp-anim lp-anim-classic">
-        <span>this</span> <span>is</span> <span>how</span> <span>you</span> <span>go</span>
+/** Landing CSS demos keyed by Styles 2.0 `landingAnim` / id. */
+const LANDING_SAMPLES: Record<string, ReactNode> = {
+  classic: (
+    <span className="lp-anim lp-anim-classic">
+      <span>this</span> <span>is</span> <span>how</span> <span>you</span> <span>go</span>
+    </span>
+  ),
+  bold: <span className="lp-anim lp-anim-bold lp-style-bold">this is how you</span>,
+  minimal: <span className="lp-anim lp-anim-minimal lp-style-minimal">this is how you</span>,
+  highlight: (
+    <span className="lp-anim lp-anim-highlight">
+      <span>this</span> <span>is</span> <span>how</span> <span>you</span>
+    </span>
+  ),
+  punch: <span className="lp-anim lp-anim-punch lp-style-punch">you</span>,
+  glow: <span className="lp-anim lp-anim-glow lp-style-glow">this is how you</span>,
+  outline: <span className="lp-anim lp-anim-outline lp-style-outline">you</span>,
+  type: (
+    <span className="lp-anim lp-anim-type lp-style-type">
+      <span className="lp-type-text">this is how you</span>
+      <span className="lp-type-cursor" aria-hidden>
+        |
       </span>
+    </span>
+  ),
+  cinema: <span className="lp-anim lp-anim-cinema lp-style-cinema">this is how you</span>,
+  karaoke: (
+    <span className="lp-anim lp-anim-karaoke">
+      <span>this</span> <span>is</span> <span>how</span> <span>you</span> <span>go</span>
+    </span>
+  ),
+  blur: (
+    <span className="lp-anim lp-anim-blur">
+      <span>this</span> <span>is</span> <span>how</span> <span>you</span>
+    </span>
+  ),
+  motion: (
+    <span className="lp-anim lp-anim-motion lp-style-motion">
+      <span>this</span>
+      <span>is</span>
+      <span>how</span>
+      <span>you</span>
+    </span>
+  ),
+};
+
+/** Styles 2.0 catalog → landing cards (same source of truth as the editor). */
+const STYLE_PREVIEWS = PRESETS.map((p) => {
+  const anim = p.landingAnim ?? "classic";
+  return {
+    id: p.id,
+    name: p.name,
+    tag: p.tag ?? p.category,
+    anim,
+    sample: LANDING_SAMPLES[anim] ?? LANDING_SAMPLES.classic,
+    extra: !["classic", "bold", "minimal", "highlight", "punch", "glow", "outline", "typewriter"].includes(
+      p.id,
     ),
-  },
-  {
-    name: "Bold",
-    tag: "Impact",
-    anim: "bold",
-    sample: <span className="lp-anim lp-anim-bold lp-style-bold">this is how you</span>,
-  },
-  {
-    name: "Minimal",
-    tag: "Quiet",
-    anim: "minimal",
-    sample: <span className="lp-anim lp-anim-minimal lp-style-minimal">this is how you</span>,
-  },
-  {
-    name: "Highlight",
-    tag: "Aesthetic",
-    anim: "highlight",
-    sample: (
-      <span className="lp-anim lp-anim-highlight">
-        <span>this</span> <span>is</span> <span>how</span> <span>you</span>
-      </span>
-    ),
-  },
-  {
-    name: "Punch",
-    tag: "One word",
-    anim: "punch",
-    sample: <span className="lp-anim lp-anim-punch lp-style-punch">you</span>,
-  },
-  {
-    name: "Glow",
-    tag: "Aesthetic",
-    anim: "glow",
-    sample: <span className="lp-anim lp-anim-glow lp-style-glow">this is how you</span>,
-  },
-  {
-    name: "Outline",
-    tag: "Editorial",
-    anim: "outline",
-    sample: <span className="lp-anim lp-anim-outline lp-style-outline">you</span>,
-  },
-  {
-    name: "Typewriter",
-    tag: "Build",
-    anim: "type",
-    sample: (
-      <span className="lp-anim lp-anim-type lp-style-type">
-        <span className="lp-type-text">this is how you</span>
-        <span className="lp-type-cursor" aria-hidden>
-          |
-        </span>
-      </span>
-    ),
-  },
-  {
-    name: "Cinema",
-    tag: "Cinematic",
-    anim: "cinema",
-    sample: <span className="lp-anim lp-anim-cinema lp-style-cinema">this is how you</span>,
-    extra: true,
-  },
-  {
-    name: "Karaoke",
-    tag: "Sync",
-    anim: "karaoke",
-    sample: (
-      <span className="lp-anim lp-anim-karaoke">
-        <span>this</span> <span>is</span> <span>how</span> <span>you</span> <span>go</span>
-      </span>
-    ),
-    extra: true,
-  },
-  {
-    name: "Blur",
-    tag: "Soft focus",
-    anim: "blur",
-    sample: (
-      <span className="lp-anim lp-anim-blur">
-        <span>this</span> <span>is</span> <span>how</span> <span>you</span>
-      </span>
-    ),
-    extra: true,
-  },
-  {
-    name: "Motion",
-    tag: "Cinematic",
-    anim: "motion",
-    sample: (
-      <span className="lp-anim lp-anim-motion lp-style-motion">
-        <span>this</span>
-        <span>is</span>
-        <span>how</span>
-        <span>you</span>
-      </span>
-    ),
-    extra: true,
-  },
-] as const;
+  };
+});
 
 const REELS = [
   {
     n: 1,
     src: "/styles/cinetop.mp4",
     creator: "@ravi.cooks",
-    style: "Cinetop",
-    presetId: "live-cinetop",
+    style: "Cinema",
+    presetId: "cinema",
   },
   {
     n: 2,
     src: "/styles/karaoke.mp4",
     creator: "@teluguhacks",
     style: "Karaoke",
-    presetId: "live-karaoke",
+    presetId: "karaoke",
   },
   {
     n: 3,
     src: "/styles/negative.mp4",
     creator: "@sirichats",
     style: "Negative",
-    presetId: "live-negative",
+    presetId: "negative",
   },
   {
     n: 4,
     src: "/styles/negative-style.mp4",
     creator: "@filmnotes.te",
-    style: "Negative Style",
-    presetId: "live-negative",
+    style: "Negative",
+    presetId: "negative",
   },
   {
     n: 5,
     src: "/styles/premium-style-5.mp4",
     creator: "@moneytelugu",
-    style: "Premium Style 5",
-    presetId: "premium-5",
+    style: "Glow",
+    presetId: "glow",
   },
-  /** Duplicate of Karaoke so the grid shows 6 reels. */
   {
     n: 6,
     src: "/styles/karaoke.mp4",
     creator: "@dailytelugu",
     style: "Karaoke",
-    presetId: "live-karaoke",
+    presetId: "karaoke",
   },
 ] as const;
 
@@ -461,32 +423,40 @@ function Hero({ canStart }: { canStart: boolean }) {
 
 function StylesSection() {
   const [showAll, setShowAll] = useState(false);
-  const visible = STYLE_PREVIEWS.filter((s) => showAll || !("extra" in s && s.extra));
+  const visible = STYLE_PREVIEWS.filter((s) => showAll || !s.extra);
 
   return (
     <section className="lp-section" id="styles">
       <div className="lp-container">
         <div className="lp-section-intro">
-          <span className="lp-eyebrow">Live, not screenshots</span>
-          <h2 className="lp-display-sm">20+ Caption Styles</h2>
+          <span className="lp-eyebrow">Styles 2.0</span>
+          <h2 className="lp-display-sm">14 Caption Styles</h2>
           <p className="lp-section-lead">
-            Modern caption styles designed for Reels, Shorts, and social video.
+            Curated caption styles for Reels, Shorts, and social video — same set in the editor.
           </p>
         </div>
 
         <div className="lp-styles-grid">
           {visible.map((style, index) => (
-            <div
-              key={style.name}
+            <button
+              key={style.id}
+              type="button"
               className={`lp-style-card lp-style-card--${style.anim}`}
               style={{ animationDelay: `${(index % 4) * 0.06}s` }}
+              onClick={() => {
+                applyPendingStyle(style.id);
+                document.getElementById("upload")?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
+              }}
             >
               <div className="lp-style-preview">{style.sample}</div>
               <div className="lp-style-meta">
                 <span>{style.name}</span>
                 <span className="lp-mono-tag">{style.tag}</span>
               </div>
-            </div>
+            </button>
           ))}
         </div>
 
@@ -537,9 +507,7 @@ function ReelsSection() {
   const useReelStyle = (presetId: string) => {
     applyPendingStyle(presetId);
     try {
-      const match = STRIP_STYLES.find(
-        (s) => s.id === presetId || ("presetId" in s && s.presetId === presetId),
-      );
+      const match = STRIP_STYLES.find((s) => s.id === presetId);
       if (match) sessionStorage.setItem(STRIP_STYLE_STORAGE_KEY, match.id);
     } catch {
       /* private mode */

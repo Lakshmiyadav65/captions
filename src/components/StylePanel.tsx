@@ -299,7 +299,7 @@ export function StylePanel({
   wordsPerFrame?: number;
   onWordsPerFrameChange?: (n: number) => void;
 }) {
-  const [category, setCategory] = useState<PresetCategory | "all">("live");
+  const [category, setCategory] = useState<PresetCategory | "all">("all");
   const activeId = matchingPresetId(style);
 
   const filtered = useMemo(
@@ -340,7 +340,7 @@ export function StylePanel({
       {/* Presets */}
       <section className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-          Style presets
+          Styles 2.0
         </h3>
         <div className="flex flex-wrap gap-1">
           {PRESET_CATEGORIES.map((c) => (
