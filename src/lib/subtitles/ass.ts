@@ -9,6 +9,11 @@ import {
 import { isEmphasisOn, isEmphasizedWord } from "./emphasis";
 import { tokenizeSegment } from "./karaoke";
 import {
+  ATELIER_FOCUS_SCALE,
+  ATELIER_ROLL_SCALE,
+  ATELIER_SATELLITE_SCALE,
+  atelierLayout,
+  atelierVariant,
   EDITORIAL_FOCUS_SCALE,
   EDITORIAL_SATELLITE_SCALE,
   editorialLayout,
@@ -16,6 +21,7 @@ import {
   HOOK_FOCUS_SCALE,
   HOOK_SATELLITE_SCALE,
   hookLayout,
+  isAtelier,
   isEditorial,
   isFlash,
   isHook,
@@ -174,6 +180,8 @@ function entranceTags(style: SubtitleStyle): string {
       return "{\\fscx80\\fscy80\\t(0,160,\\fscx100\\fscy100)}";
     case "editorial":
       return "{\\fad(140,100)}";
+    case "atelier":
+      return "{\\fad(120,90)\\fscx92\\fscy92\\t(0,220,\\fscx100\\fscy100)}";
     default:
       return "";
   }
@@ -288,6 +296,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
   const events = segments
     .flatMap((s) => {
       const plainFx = !prism && !ember && !negative;
+      if (isAtelier(style) && plainFx) {
+        return atelierDialogues(s, style, PLAY_W, PLAY_H);
+      }
       if (isEditorial(style) && plainFx) {
         return editorialDialogues(s, style, PLAY_W, PLAY_H);
       }
@@ -408,6 +419,84 @@ function scatterDialogues(
         `Dialogue: ${i},${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${tags}${word}`,
       );
     });
+  });
+
+  return lines;
+}
+
+/**
+ * Styles 3.0 Atelier burn — blue/white mixed hierarchy approximating the Klickpin look.
+ */
+function atelierDialogues(
+  seg: Segment,
+  style: SubtitleStyle,
+  playW: number,
+  playH: number,
+): string[] {
+  const tokens = tokenizeSegment(seg);
+  const prefix = overrideBlock(style, playW, playH);
+  if (!tokens.length) {
+    const body = applyTextCase(seg.text, "lower").replace(/\r?\n/g, "\\N");
+    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${body}`];
+  }
+
+  const baseFs = styleAssFontSize(style, playH);
+  const satFs = Math.max(8, Math.round(baseFs * ATELIER_SATELLITE_SCALE));
+  const focusFs = Math.max(10, Math.round(baseFs * ATELIER_FOCUS_SCALE));
+  const rollFs = Math.max(8, Math.round(baseFs * ATELIER_ROLL_SCALE));
+  const white = assColor(style.color, 0);
+  const blue = assColor(style.highlightColor, 0);
+  const lines: string[] = [];
+
+  const wordAt = (i: number) => applyTextCase(tokens[i]!.text, "lower");
+
+  tokens.forEach((tk, focus) => {
+    const layout = atelierLayout(tokens.length, focus);
+    const variant = atelierVariant(tokens.length, focus);
+    const t0 = tk.start;
+    const t1 = focus < tokens.length - 1 ? tokens[focus + 1]!.start : seg.end;
+    if (t1 <= t0) return;
+
+    const parts: string[] = [];
+    if (variant === "roll") {
+      const active = layout.before.concat(layout.focus);
+      parts.push(`{\\c${white}\\fs${rollFs}\\b1}${active.map(wordAt).join(" ")}{\\b0}`);
+      if (layout.after.length) {
+        parts.push(`{\\c${white}\\fs${Math.round(rollFs * 0.9)}\\alpha&H80&}${layout.after.map(wordAt).join(" ")}`);
+      }
+    } else if (variant === "pill") {
+      if (layout.before.length) {
+        parts.push(`{\\c${white}\\fs${satFs}\\i1}${layout.before.map(wordAt).join(" ")}{\\i0}`);
+      }
+      parts.push(`{\\c${blue}\\fs${focusFs}\\b1}${wordAt(layout.focus)}{\\b0}`);
+    } else if (variant === "cascade") {
+      parts.push(`{\\c${blue}\\fs${focusFs}\\b1}${wordAt(layout.focus)}{\\b0}`);
+      const trail = layout.after.length ? layout.after : [];
+      if (trail.length) {
+        parts.push(`{\\c${white}\\fs${satFs}\\i1}${trail.map(wordAt).join(" ")}{\\i0}`);
+      }
+    } else if (variant === "overlap") {
+      if (layout.focus > 0) {
+        parts.push(`{\\c${white}\\fs${Math.round(baseFs)}\\alpha&H90&}${wordAt(layout.focus - 1)}`);
+      }
+      parts.push(`{\\c${white}\\fs${focusFs}\\b1}${wordAt(layout.focus)}{\\b0}`);
+      if (layout.focus < tokens.length - 1) {
+        parts.push(`{\\c${blue}\\fs${Math.round(baseFs * 1.1)}\\b1}${wordAt(layout.focus + 1)}{\\b0}`);
+      }
+    } else {
+      if (layout.before.length) {
+        parts.push(`{\\c${white}\\fs${satFs}\\i1}${layout.before.map(wordAt).join(" ")}{\\i0}`);
+      }
+      const focusCol = focus % 2 === 0 ? white : blue;
+      parts.push(`{\\c${focusCol}\\fs${focusFs}\\b1}${wordAt(layout.focus)}{\\b0}`);
+      if (layout.after.length) {
+        parts.push(`{\\c${white}\\fs${Math.round(satFs * 1.2)}\\i1}${layout.after.map(wordAt).join(" ")}{\\i0}`);
+      }
+    }
+
+    lines.push(
+      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${prefix}${parts.join("\\N")}`,
+    );
   });
 
   return lines;

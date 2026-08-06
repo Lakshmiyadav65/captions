@@ -12,6 +12,12 @@ import {
 import { isEmphasisOn, isEmphasizedWord } from "@/lib/subtitles/emphasis";
 import { tokenizeSegment } from "@/lib/subtitles/karaoke";
 import {
+  ATELIER_FOCUS_SCALE,
+  ATELIER_ROLL_SCALE,
+  ATELIER_SATELLITE_FONT,
+  ATELIER_SATELLITE_SCALE,
+  atelierLayout,
+  atelierVariant,
   EDITORIAL_FOCUS_SCALE,
   EDITORIAL_SATELLITE_FONT,
   EDITORIAL_SATELLITE_SCALE,
@@ -21,6 +27,7 @@ import {
   HOOK_SATELLITE_FONT,
   HOOK_SATELLITE_SCALE,
   hookLayout,
+  isAtelier,
   isEditorial,
   isFlash,
   isHook,
@@ -92,6 +99,8 @@ function animationClass(style: SubtitleStyle): string {
       return "cap-anim-pop";
     case "editorial":
       return "cap-anim-fade";
+    case "atelier":
+      return "cap-anim-kinetic";
     case "typewriter":
       return "cap-anim-typewriter";
     default:
@@ -168,6 +177,7 @@ export function SubtitleOverlay({
   const useHook = hasText && isHook(style) && !specialFill;
   const useFlash = hasText && isFlash(style) && !specialFill;
   const useEditorial = hasText && isEditorial(style) && !specialFill;
+  const useAtelier = hasText && isAtelier(style) && !specialFill;
   const useKaraoke =
     hasText &&
     style.karaoke &&
@@ -176,7 +186,8 @@ export function SubtitleOverlay({
     !useScatter &&
     !useHook &&
     !useFlash &&
-    !useEditorial;
+    !useEditorial &&
+    !useAtelier;
   const useEmphasis =
     hasText &&
     isEmphasisOn(style) &&
@@ -185,7 +196,8 @@ export function SubtitleOverlay({
     !useScatter &&
     !useHook &&
     !useFlash &&
-    !useEditorial;
+    !useEditorial &&
+    !useAtelier;
   // Karaoke/emphasis emit one <span> per word. Use a wrapping flex row with
   // flex: 0 0 auto on each word so they never shrink mid-glyph, and justify
   // center so multi-word phrases stay in the middle of the frame.
@@ -241,7 +253,388 @@ export function SubtitleOverlay({
     touchAction: "none",
   };
 
-  if (useEditorial) {
+  if (useAtelier) {
+    const tokens = tokenizeSegment(segment!);
+    if (tokens.length) {
+      const focus = kineticFocusIndex(tokens.length, filled);
+      const layout = atelierLayout(tokens.length, focus);
+      const variant = atelierVariant(tokens.length, focus);
+      const baseFs = px(style.fontSizePct);
+      const gap = px(kineticGapPct(style.fontSizePct) * 0.65);
+      const accent = style.highlightColor || "#2E90FF";
+      const softWhite = hexToRgba(style.color, 0.72);
+      const wordAt = (i: number) => applyTextCase(tokens[i]!.text, "lower");
+
+      const softShadow = style.shadow
+        ? `0 ${2 * scale}px ${8 * scale}px rgba(0,0,0,0.55), 0 ${1 * scale}px ${2 * scale}px rgba(0,0,0,0.4)`
+        : "none";
+
+      const serifLine = (
+        indices: number[],
+        key: string,
+        opts: {
+          alignSelf?: "flex-start" | "center" | "flex-end";
+          xEm?: number;
+          color?: string;
+          scaleMul?: number;
+          italic?: boolean;
+        } = {},
+      ) =>
+        indices.length === 0 ? null : (
+          <span
+            key={key}
+            className="cap-kinetic-word"
+            style={{
+              display: "block",
+              alignSelf: opts.alignSelf ?? "center",
+              fontFamily: fontStack(ATELIER_SATELLITE_FONT),
+              fontStyle: opts.italic === false ? "normal" : "italic",
+              fontSize: baseFs * (opts.scaleMul ?? ATELIER_SATELLITE_SCALE),
+              fontWeight: 400,
+              color: opts.color ?? style.color,
+              letterSpacing: "0.03em",
+              lineHeight: 1.05,
+              whiteSpace: "nowrap",
+              transform: opts.xEm ? `translateX(${opts.xEm}em)` : undefined,
+              textShadow: softShadow,
+            }}
+          >
+            {indices.map((i) => wordAt(i)).join(" ")}
+          </span>
+        );
+
+      const focusWord = (
+        opts: {
+          color?: string;
+          scaleMul?: number;
+          inPill?: boolean;
+        } = {},
+      ) => {
+        const text = wordAt(layout.focus);
+        const fs = baseFs * (opts.scaleMul ?? ATELIER_FOCUS_SCALE);
+        const color = opts.color ?? accent;
+
+        if (opts.inPill) {
+          // Mixed type inside white rounded card + tilted grid sticker (Klickpin signature).
+          const midStart = Math.max(1, Math.floor(text.length * 0.28));
+          const midEnd = Math.min(text.length - 1, Math.ceil(text.length * 0.72));
+          const left = text.slice(0, midStart);
+          const mid = text.slice(midStart, midEnd);
+          const right = text.slice(midEnd);
+          const gridSize = Math.max(18, fs * 0.85);
+          return (
+            <span
+              key={`pill-${focus}`}
+              className="cap-atelier-pill cap-kinetic-word"
+              style={{
+                position: "relative",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 0,
+                padding: `${px(0.55)}px ${px(1.4)}px`,
+                borderRadius: Math.max(10, px(1.6)),
+                background: "#FFFFFF",
+                boxShadow: `0 ${3 * scale}px ${14 * scale}px rgba(0,0,0,0.28)`,
+                lineHeight: 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  width: gridSize,
+                  height: gridSize,
+                  left: "50%",
+                  top: "50%",
+                  transform: "translate(-50%, -50%) rotate(-28deg)",
+                  borderRadius: 4,
+                  backgroundImage:
+                    "linear-gradient(rgba(255,255,255,0.22) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.22) 1px, transparent 1px)",
+                  backgroundSize: `${Math.max(4, 5 * scale)}px ${Math.max(4, 5 * scale)}px`,
+                  backgroundColor: "#111111",
+                  zIndex: 0,
+                  pointerEvents: "none",
+                }}
+              />
+              <span style={{ position: "relative", zIndex: 1, display: "inline-flex", alignItems: "baseline" }}>
+                <span
+                  style={{
+                    fontFamily: fontStack(style.fontFamily),
+                    fontWeight: 700,
+                    fontSize: fs * 0.92,
+                    color: accent,
+                    letterSpacing: "-0.03em",
+                  }}
+                >
+                  {left}
+                </span>
+                <span
+                  style={{
+                    fontFamily: fontStack(ATELIER_SATELLITE_FONT),
+                    fontStyle: "italic",
+                    fontWeight: 400,
+                    fontSize: fs * 0.95,
+                    color: "#111111",
+                    letterSpacing: "0.01em",
+                    margin: "0 0.02em",
+                  }}
+                >
+                  {mid}
+                </span>
+                <span
+                  style={{
+                    fontFamily: fontStack(style.fontFamily),
+                    fontWeight: 700,
+                    fontSize: fs * 0.92,
+                    color: accent,
+                    letterSpacing: "-0.03em",
+                  }}
+                >
+                  {right}
+                </span>
+              </span>
+            </span>
+          );
+        }
+
+        return (
+          <span
+            key={`focus-${focus}`}
+            className="cap-kinetic-word"
+            style={{
+              display: "inline-block",
+              fontFamily: fontStack(style.fontFamily),
+              fontSize: fs,
+              fontWeight: Math.max(700, style.fontWeight),
+              color,
+              letterSpacing: `${style.letterSpacingEm}em`,
+              lineHeight: 0.95,
+              whiteSpace: "nowrap",
+              textShadow: softShadow,
+              transition: "font-size 0.2s cubic-bezier(0.22, 1.15, 0.36, 1), color 0.15s ease",
+            }}
+          >
+            {text}
+          </span>
+        );
+      };
+
+      const ruler = (
+        <span
+          key="ruler"
+          aria-hidden
+          className="cap-atelier-ruler"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            alignSelf: layout.before.length ? "flex-start" : "center",
+            width: "52%",
+            maxWidth: px(style.maxWidthPct) * 0.5,
+            marginBottom: gap * 0.4,
+            transform: layout.before.length ? "translateX(0.2em)" : undefined,
+          }}
+        >
+          <span
+            style={{
+              width: Math.max(5, 6 * scale),
+              height: Math.max(5, 6 * scale),
+              borderRadius: "50%",
+              border: `${Math.max(1, 1.5 * scale)}px solid ${style.color}`,
+              boxSizing: "border-box",
+              position: "relative",
+              flexShrink: 0,
+            }}
+          >
+            <span
+              style={{
+                position: "absolute",
+                inset: "22%",
+                borderRadius: "50%",
+                background: style.color,
+              }}
+            />
+          </span>
+          <span
+            style={{
+              flex: 1,
+              height: Math.max(1, 1.4 * scale),
+              marginLeft: 5 * scale,
+              background: hexToRgba(style.color, 0.9),
+              borderRadius: 1,
+              transformOrigin: "left center",
+              animation: "capAtelierDraw 0.45s ease-out both",
+            }}
+          />
+        </span>
+      );
+
+      let body: ReactNode = null;
+
+      if (variant === "pill") {
+        body = (
+          <>
+            {layout.before.length > 0 &&
+              serifLine(layout.before, "before", { alignSelf: "center", scaleMul: 0.5 })}
+            {focusWord({ inPill: true })}
+          </>
+        );
+      } else if (variant === "cascade") {
+        body = (
+          <>
+            {ruler}
+            {focusWord({ scaleMul: ATELIER_FOCUS_SCALE })}
+            {serifLine(layout.after.length ? layout.after : layout.before, "trail", {
+              alignSelf: "flex-end",
+              xEm: 0.55,
+              color: softWhite,
+              scaleMul: ATELIER_SATELLITE_SCALE,
+            })}
+          </>
+        );
+      } else if (variant === "overlap") {
+        const prev = layout.focus > 0 ? layout.focus - 1 : null;
+        const next = layout.focus < tokens.length - 1 ? layout.focus + 1 : null;
+        body = (
+          <span
+            style={{
+              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              width: "100%",
+              minHeight: baseFs * 2.2,
+            }}
+          >
+            {layout.before.length > 1 &&
+              serifLine(layout.before.slice(0, -1), "lead", {
+                alignSelf: "center",
+                scaleMul: 0.38,
+                color: softWhite,
+              })}
+            <span style={{ position: "relative", display: "grid", placeItems: "center" }}>
+              {prev !== null && (
+                <span
+                  className="cap-kinetic-word"
+                  style={{
+                    position: "absolute",
+                    fontFamily: fontStack(style.fontFamily),
+                    fontWeight: 700,
+                    fontSize: baseFs * 1.05,
+                    color: hexToRgba(style.color, 0.28),
+                    letterSpacing: "-0.04em",
+                    transform: "translate(-0.35em, -0.15em)",
+                    whiteSpace: "nowrap",
+                    zIndex: 0,
+                  }}
+                >
+                  {wordAt(prev)}
+                </span>
+              )}
+              {focusWord({ color: style.color, scaleMul: 1.35 })}
+              {next !== null && (
+                <span
+                  className="cap-kinetic-word"
+                  style={{
+                    marginTop: -baseFs * 0.35,
+                    fontFamily: fontStack(style.fontFamily),
+                    fontWeight: 700,
+                    fontSize: baseFs * 1.15,
+                    color: accent,
+                    letterSpacing: "-0.03em",
+                    whiteSpace: "nowrap",
+                    zIndex: 0,
+                    textShadow: softShadow,
+                  }}
+                >
+                  {wordAt(next)}
+                </span>
+              )}
+            </span>
+          </span>
+        );
+      } else if (variant === "roll") {
+        const active = layout.before.concat(layout.focus);
+        const upcoming = layout.after;
+        body = (
+          <>
+            <span
+              className="cap-kinetic-word"
+              style={{
+                display: "block",
+                fontFamily: fontStack(style.fontFamily),
+                fontWeight: 700,
+                fontSize: baseFs * ATELIER_ROLL_SCALE,
+                color: style.color,
+                letterSpacing: "0.12em",
+                wordSpacing: "0.35em",
+                lineHeight: 1.15,
+                textShadow: softShadow,
+              }}
+            >
+              {active.map((i) => wordAt(i)).join(" ")}
+            </span>
+            {upcoming.length > 0 && (
+              <span
+                className="cap-kinetic-word"
+                style={{
+                  display: "block",
+                  marginTop: gap * 0.5,
+                  fontFamily: fontStack(style.fontFamily),
+                  fontWeight: 700,
+                  fontSize: baseFs * ATELIER_ROLL_SCALE * 0.92,
+                  color: hexToRgba(style.color, 0.45),
+                  letterSpacing: "-0.02em",
+                  lineHeight: 1.1,
+                }}
+              >
+                {upcoming.map((i) => wordAt(i)).join(" ")}
+              </span>
+            )}
+          </>
+        );
+      } else {
+        // stack — bold focus + italic support (infatuated / With)
+        const showRuler = tokens.length >= 3;
+        body = (
+          <>
+            {showRuler && ruler}
+            {serifLine(layout.before, "before", {
+              alignSelf: "flex-start",
+              xEm: -0.25,
+              color: softWhite,
+            })}
+            {focusWord({
+              color: focus % 2 === 0 ? style.color : accent,
+              scaleMul: ATELIER_FOCUS_SCALE,
+            })}
+            {serifLine(layout.after, "after", {
+              alignSelf: "center",
+              scaleMul: 0.55,
+            })}
+          </>
+        );
+      }
+
+      content = (
+        <span
+          className="cap-atelier"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap,
+            width: "100%",
+            pointerEvents: "none",
+          }}
+        >
+          {body}
+        </span>
+      );
+    }
+  } else if (useEditorial) {
     const tokens = tokenizeSegment(segment!);
     if (tokens.length) {
       const focus = kineticFocusIndex(tokens.length, filled);
@@ -668,11 +1061,11 @@ export function SubtitleOverlay({
   }
 
   const anim =
-    hasText && !dragging.current && !useKinetic && !useScatter && !useHook
+    hasText && !dragging.current && !useKinetic && !useScatter && !useHook && !useAtelier
       ? animationClass(style)
       : "";
   const animKey = hasText
-    ? `${segment!.start}-${style.animation}-${style.textEffect ?? "none"}-${useKinetic || useScatter || useHook || useEditorial ? filled : 0}`
+    ? `${segment!.start}-${style.animation}-${style.textEffect ?? "none"}-${useKinetic || useScatter || useHook || useEditorial || useAtelier ? filled : 0}`
     : "ghost";
 
   const barHeight = px(
@@ -798,6 +1191,13 @@ export function SubtitleOverlay({
         }
         .cap-kinetic-word {
           animation: capKineticIn 0.28s cubic-bezier(0.22, 1.15, 0.36, 1) both;
+        }
+        @keyframes capAtelierDraw {
+          from { transform: scaleX(0); opacity: 0.4; }
+          to { transform: scaleX(1); opacity: 1; }
+        }
+        .cap-atelier-pill {
+          animation: capPopIn 0.34s cubic-bezier(0.22, 1.2, 0.36, 1) both;
         }
         .cap-prism {
           background-image: linear-gradient(

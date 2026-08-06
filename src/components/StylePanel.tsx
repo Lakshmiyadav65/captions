@@ -16,6 +16,7 @@ import {
   matchingPresetId,
   PRESET_CATEGORIES,
   PRESETS,
+  PRESETS_V3,
   type PresetCategory,
   type StylePreset,
 } from "./presets";
@@ -302,15 +303,32 @@ export function StylePanel({
   const [category, setCategory] = useState<PresetCategory | "all">("all");
   const activeId = matchingPresetId(style);
 
-  const filtered = useMemo(
+  const filteredV2 = useMemo(
     () =>
-      category === "all"
-        ? PRESETS
+      category === "all" || category === "premium"
+        ? category === "premium"
+          ? []
+          : PRESETS
         : PRESETS.filter((p) => p.category === category),
     [category],
   );
 
+  const filteredV3 = useMemo(
+    () =>
+      category === "all" || category === "premium"
+        ? PRESETS_V3
+        : PRESETS_V3.filter((p) => p.category === category),
+    [category],
+  );
+
   const boxMode = effectiveBoxMode(style);
+
+  const applyPreset = (p: StylePreset) => {
+    onApplyPreset({ ...p.style });
+    if (p.generation === "3.0" && onWordsPerFrameChange) {
+      onWordsPerFrameChange(3);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -337,13 +355,10 @@ export function StylePanel({
         </section>
       )}
 
-      {/* Presets */}
+      {/* Preset filters */}
       <section className="space-y-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-          Styles 2.0
-        </h3>
         <div className="flex flex-wrap gap-1">
-          {PRESET_CATEGORIES.map((c) => (
+          {PRESET_CATEGORIES.filter((c) => c.id !== "premium").map((c) => (
             <button
               key={c.id}
               type="button"
@@ -357,18 +372,61 @@ export function StylePanel({
               {c.label}
             </button>
           ))}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {filtered.map((p: StylePreset) => (
-            <PresetCard
-              key={p.id}
-              preset={p}
-              active={activeId === p.id}
-              onSelect={() => onApplyPreset({ ...p.style })}
-            />
-          ))}
+          <button
+            type="button"
+            onClick={() => setCategory("premium")}
+            className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+              category === "premium"
+                ? "bg-amber-600 text-white"
+                : "bg-neutral-800 text-amber-500/90 hover:text-amber-300"
+            }`}
+          >
+            3.0
+          </button>
         </div>
       </section>
+
+      {/* Presets — Styles 2.0 */}
+      {filteredV2.length > 0 && (
+        <section className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            Styles 2.0
+          </h3>
+          <div className="grid grid-cols-2 gap-2">
+            {filteredV2.map((p: StylePreset) => (
+              <PresetCard
+                key={p.id}
+                preset={p}
+                active={activeId === p.id}
+                onSelect={() => applyPreset(p)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Presets — Styles 3.0 Premium */}
+      {filteredV3.length > 0 && (
+        <section className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-500/90">
+            Styles 3.0 · Premium
+          </h3>
+          <p className="text-[10px] leading-relaxed text-neutral-600">
+            Elegant mixed-type captions — blue focus word, italic serif supports, and
+            automatic layout shifts as speech advances.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {filteredV3.map((p: StylePreset) => (
+              <PresetCard
+                key={p.id}
+                preset={p}
+                active={activeId === p.id}
+                onSelect={() => applyPreset(p)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Caption position — prominent so users can place top / middle / bottom / anywhere */}
       <section className="space-y-2">
@@ -522,7 +580,7 @@ export function StylePanel({
           />
         </Field>
         <p className="text-[10px] leading-relaxed text-neutral-600">
-          Hook keyword color (Premium Style 3), karaoke fill, and auto emphasis. Pick a
+          Hook / Atelier accent, karaoke fill, and auto emphasis. Pick a
           swatch or any custom color.
         </p>
         <Field label="Outline color">
@@ -632,6 +690,7 @@ export function StylePanel({
               { label: "Hook", value: "hook" },
               { label: "Flash", value: "flash" },
               { label: "Editorial", value: "editorial" },
+              { label: "Atelier (3.0)", value: "atelier" },
               { label: "Typewriter", value: "typewriter" },
             ]}
           />

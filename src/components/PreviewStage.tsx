@@ -133,7 +133,8 @@ export function PreviewStage({
             style.animation === "kinetic" ||
             style.animation === "scatter" ||
             style.animation === "hook" ||
-            style.animation === "editorial")
+            style.animation === "editorial" ||
+            style.animation === "atelier")
             ? filledCount(tokenizeSegment(seg), t)
             : 0;
         // Only re-render when the active line or the filled-word count actually changes.

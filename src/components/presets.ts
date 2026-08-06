@@ -9,7 +9,8 @@ export type PresetCategory =
   | "sync"
   | "cinematic"
   | "build"
-  | "quiet";
+  | "quiet"
+  | "premium";
 
 export interface StylePreset {
   id: string;
@@ -24,6 +25,8 @@ export interface StylePreset {
    * ignore this and render from `style`.
    */
   landingAnim?: string;
+  /** Styles generation — 2.0 curated viral set, 3.0 premium atelier looks. */
+  generation?: "2.0" | "3.0";
   style: SubtitleStyle;
 }
 
@@ -35,10 +38,12 @@ export const PRESET_CATEGORIES: { id: PresetCategory | "all"; label: string }[] 
   { id: "cinematic", label: "Cinematic" },
   { id: "build", label: "Build" },
   { id: "quiet", label: "Quiet" },
+  { id: "premium", label: "Premium" },
 ];
 
 const ACCENT_RED = "#FF3B30";
 const ACCENT_NEON = "#FF4EC8";
+const ATELIER_BLUE = "#2E90FF";
 
 /** Styles 2.0 — 14 curated presets. */
 export const PRESETS: StylePreset[] = [
@@ -464,16 +469,55 @@ export const PRESETS: StylePreset[] = [
   },
 ];
 
+/** Styles 3.0 — premium atelier looks (Klickpin-inspired elegant kinetic). */
+export const PRESETS_V3: StylePreset[] = [
+  {
+    id: "atelier",
+    name: "Atelier",
+    category: "premium",
+    tag: "Premium 3.0",
+    sample: "anywhere",
+    generation: "3.0",
+    landingAnim: "cinema",
+    style: {
+      ...DEFAULT_STYLE,
+      fontFamily: "Montserrat",
+      fontWeight: 700,
+      fontSizePct: 4.6,
+      color: "#FFFFFF",
+      highlightColor: ATELIER_BLUE,
+      outlineWidth: 0,
+      shadow: true,
+      glowStrength: 0,
+      backgroundOpacity: 0,
+      boxMode: "none",
+      positionYPct: 52,
+      maxWidthPct: 88,
+      letterSpacingEm: -0.03,
+      lineHeight: 1,
+      textCase: "lower",
+      uppercase: false,
+      karaoke: false,
+      emphasisMode: "off",
+      animation: "atelier",
+      textEffect: "none",
+    },
+  },
+];
+
+/** Full catalog — Styles 2.0 + Styles 3.0. */
+export const ALL_PRESETS: StylePreset[] = [...PRESETS, ...PRESETS_V3];
+
 /** Find the preset whose style matches `style` field-for-field (used to highlight the card). */
 export function matchingPresetId(style: SubtitleStyle): string | null {
-  for (const p of PRESETS) {
+  for (const p of ALL_PRESETS) {
     if (stylesEqual(p.style, style)) return p.id;
   }
   return null;
 }
 
 export function getPresetById(id: string): StylePreset | undefined {
-  return PRESETS.find((p) => p.id === id);
+  return ALL_PRESETS.find((p) => p.id === id);
 }
 
 function stylesEqual(a: SubtitleStyle, b: SubtitleStyle): boolean {

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Uploader } from "@/components/Uploader";
 import { LandingNavbar } from "@/components/landing/LandingNavbar";
 import type { LandingUser } from "@/components/landing/types";
-import { PRESETS } from "@/components/presets";
+import { getPresetById, PRESETS } from "@/components/presets";
 
 export type { LandingUser };
 
@@ -43,7 +43,7 @@ const STRIP_STYLES = [
 ] as const;
 
 function applyPendingStyle(presetId: string) {
-  const preset = PRESETS.find((p) => p.id === presetId);
+  const preset = getPresetById(presetId);
   if (!preset || typeof sessionStorage === "undefined") return;
   sessionStorage.setItem("pendingStyle", JSON.stringify(preset.style));
 }

@@ -3,6 +3,7 @@
 // Premium Style 3 = neon "hook" (support lines + glowing keyword).
 // Premium Style 4 = "flash" (punchy scale pop on each caption frame; density sets word count).
 // Premium Style 5 = "editorial" (blue sans focus + italic serif supports + accent ruler).
+// Styles 3.0 = "atelier" (Klickpin elegant: mixed serif/sans, blue focus, ruler, pill, cascade).
 
 export interface KineticWordPose {
   /** Multiplier on the base caption font size (1 = base). */
@@ -119,13 +120,18 @@ export function isEditorial(style: { animation?: string }): boolean {
   return style.animation === "editorial";
 }
 
+export function isAtelier(style: { animation?: string }): boolean {
+  return style.animation === "atelier";
+}
+
 /** Premium modes that need per-word fill tracking. */
 export function isKineticMode(style: { animation?: string }): boolean {
   return (
     isKinetic(style) ||
     isScatter(style) ||
     isHook(style) ||
-    isEditorial(style)
+    isEditorial(style) ||
+    isAtelier(style)
   );
 }
 
@@ -154,6 +160,33 @@ export function editorialLayout(tokenCount: number, focus = 0): {
 export const EDITORIAL_FOCUS_SCALE = 1.28;
 export const EDITORIAL_SATELLITE_SCALE = 0.46;
 export const EDITORIAL_SATELLITE_FONT = "Instrument Serif";
+
+/**
+ * Styles 3.0 — Atelier layout variants (from Klickpin elegant self-care reference).
+ * Switches composition as speech advances so captions feel designed, not static.
+ */
+export type AtelierVariant = "pill" | "cascade" | "overlap" | "stack" | "roll";
+
+export function atelierVariant(tokenCount: number, focus = 0): AtelierVariant {
+  const n = Math.max(1, tokenCount);
+  const f = ((focus % n) + n) % n;
+  if (n === 1) return "pill";
+  if (n === 2) return f === 0 ? "cascade" : "stack";
+  if (f === 0) return "cascade";
+  if (f === n - 1 && n >= 3) return "roll";
+  if (n >= 3 && f > 0 && f < n - 1) return "overlap";
+  return "stack";
+}
+
+/** Same focus slicing as editorial — spoken word is the large blue sans. */
+export function atelierLayout(tokenCount: number, focus = 0) {
+  return editorialLayout(tokenCount, focus);
+}
+
+export const ATELIER_FOCUS_SCALE = 1.42;
+export const ATELIER_SATELLITE_SCALE = 0.42;
+export const ATELIER_ROLL_SCALE = 0.72;
+export const ATELIER_SATELLITE_FONT = "Instrument Serif";
 
 /** Vertical gap between stacked words, as % of video height (Style 1 / 3). */
 export function kineticGapPct(fontSizePct: number): number {

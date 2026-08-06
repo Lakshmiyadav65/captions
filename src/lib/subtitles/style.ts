@@ -17,6 +17,7 @@ export type CaptionAnimation =
   | "hook"
   | "flash"
   | "editorial"
+  | "atelier"
   | "typewriter";
 
 /** Special glyph treatments beyond flat fill (preview-rich; ASS approximates). */
