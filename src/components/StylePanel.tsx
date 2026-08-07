@@ -27,7 +27,7 @@ import {
 function Field({ label, value, children }: { label: string; value?: string; children: ReactNode }) {
   return (
     <label className="block space-y-1.5">
-      <div className="flex items-center justify-between text-xs font-medium text-neutral-400">
+      <div className="flex items-center justify-between text-xs font-medium text-[var(--ed-muted,#a39d93)]">
         <span>{label}</span>
         {value !== undefined && <span className="tabular-nums text-neutral-500">{value}</span>}
       </div>
@@ -60,7 +60,7 @@ function Slider({
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(parseFloat(e.target.value))}
-      className="w-full accent-sky-500 disabled:opacity-40"
+      className="w-full accent-[var(--ed-accent,#e9691c)] disabled:opacity-40"
     />
   );
 }
@@ -72,9 +72,9 @@ function ColorInput({ value, onChange }: { value: string; onChange: (v: string) 
         type="color"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-8 w-10 cursor-pointer rounded border border-white/10 bg-transparent"
+        className="h-8 w-10 cursor-pointer rounded border border-[var(--ed-line,#e8e4de)] bg-transparent"
       />
-      <span className="font-mono text-xs text-neutral-400">{value.toUpperCase()}</span>
+      <span className="font-mono text-xs text-[var(--ed-muted,#a39d93)]">{value.toUpperCase()}</span>
     </div>
   );
 }
@@ -113,8 +113,8 @@ function KeywordColorPicker({
               onClick={() => onChange(s.hex)}
               className={`h-7 w-7 rounded-md border transition ${
                 active
-                  ? "border-sky-400 ring-2 ring-sky-400/50"
-                  : "border-white/15 hover:border-white/40"
+                  ? "border-[var(--ed-accent,#e9691c)] ring-2 ring-[var(--ed-accent,#e9691c)]/40"
+                  : "border-[var(--ed-line,#e8e4de)] hover:border-[var(--ed-soft,#736e66)]"
               }`}
               style={{ background: s.hex }}
             />
@@ -135,7 +135,7 @@ function Segmented<T extends string | number>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="inline-flex flex-wrap rounded-lg bg-neutral-800 p-0.5">
+    <div className="inline-flex flex-wrap rounded-lg bg-[var(--ed-chip,#f4f2ee)] p-0.5">
       {options.map((o) => (
         <button
           key={String(o.value)}
@@ -143,8 +143,8 @@ function Segmented<T extends string | number>({
           onClick={() => onChange(o.value)}
           className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
             value === o.value
-              ? "bg-sky-600 text-white"
-              : "text-neutral-400 hover:text-neutral-200"
+              ? "bg-[var(--ed-accent,#e9691c)] text-white"
+              : "text-[var(--ed-soft,#736e66)] hover:text-[var(--ed-ink,#1a1917)]"
           }`}
         >
           {o.label}
@@ -243,8 +243,8 @@ function PresetCard({
       onClick={onSelect}
       className={`group flex flex-col overflow-hidden rounded-lg border text-left transition ${
         active
-          ? "border-sky-500 ring-1 ring-sky-500/60"
-          : "border-white/10 hover:border-white/25"
+          ? "border-[var(--ed-accent,#e9691c)] ring-1 ring-[var(--ed-accent,#e9691c)]/50"
+          : "border-[var(--ed-line,#e8e4de)] hover:border-[var(--ed-soft,#736e66)]"
       }`}
     >
       <div
@@ -276,9 +276,9 @@ function PresetCard({
           {preset.sample ?? "Aa"}
         </span>
       </div>
-      <div className="flex items-center justify-between gap-2 border-t border-white/5 bg-neutral-900 px-2 py-1.5">
-        <div className="truncate text-[11px] font-medium text-neutral-200">{preset.name}</div>
-        <div className="shrink-0 truncate text-[10px] text-neutral-500">
+      <div className="flex items-center justify-between gap-2 border-t border-[var(--ed-line-soft,#f1eee9)] bg-[var(--ed-chip,#f4f2ee)] px-2 py-1.5">
+        <div className="truncate text-[11px] font-medium text-[var(--ed-ink,#1a1917)]">{preset.name}</div>
+        <div className="shrink-0 truncate text-[10px] text-[var(--ed-muted,#a39d93)]">
           {preset.tag ?? preset.category}
         </div>
       </div>
@@ -292,6 +292,7 @@ export function StylePanel({
   onApplyPreset,
   wordsPerFrame,
   onWordsPerFrameChange,
+  panel = "all",
 }: {
   style: SubtitleStyle;
   onChange: (patch: Partial<SubtitleStyle>) => void;
@@ -299,6 +300,8 @@ export function StylePanel({
   /** How many words appear in each on-screen caption frame (1–6). */
   wordsPerFrame?: number;
   onWordsPerFrameChange?: (n: number) => void;
+  /** Editor right-rail tabs: preset | text | effect | all (legacy full panel). */
+  panel?: "preset" | "text" | "effect" | "all";
 }) {
   const [category, setCategory] = useState<PresetCategory | "all">("all");
   const activeId = matchingPresetId(style);
@@ -330,10 +333,14 @@ export function StylePanel({
     }
   };
 
+  const showPreset = panel === "all" || panel === "preset";
+  const showText = panel === "all" || panel === "text";
+  const showEffect = panel === "all" || panel === "effect";
+
   return (
     <div className="space-y-6">
       {/* Caption density — how many words share each on-screen frame */}
-      {wordsPerFrame !== undefined && onWordsPerFrameChange && (
+      {showPreset && wordsPerFrame !== undefined && onWordsPerFrameChange && (
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
             Words per frame
@@ -356,6 +363,7 @@ export function StylePanel({
       )}
 
       {/* Preset filters */}
+      {showPreset && (
       <section className="space-y-2">
         <div className="flex flex-wrap gap-1">
           {PRESET_CATEGORIES.filter((c) => c.id !== "premium").map((c) => (
@@ -365,8 +373,8 @@ export function StylePanel({
               onClick={() => setCategory(c.id)}
               className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
                 category === c.id
-                  ? "bg-sky-600 text-white"
-                  : "bg-neutral-800 text-neutral-400 hover:text-neutral-200"
+                  ? "bg-[var(--ed-accent,#e9691c)] text-white"
+                  : "bg-[var(--ed-chip,#f4f2ee)] text-[var(--ed-soft,#736e66)] hover:text-[var(--ed-ink,#1a1917)]"
               }`}
             >
               {c.label}
@@ -377,17 +385,18 @@ export function StylePanel({
             onClick={() => setCategory("premium")}
             className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
               category === "premium"
-                ? "bg-amber-600 text-white"
-                : "bg-neutral-800 text-amber-500/90 hover:text-amber-300"
+                ? "bg-[var(--ed-ink,#1a1917)] text-white"
+                : "bg-[var(--ed-chip,#f4f2ee)] text-[var(--ed-accent-deep,#d45f14)] hover:text-[var(--ed-ink,#1a1917)]"
             }`}
           >
             3.0
           </button>
         </div>
       </section>
+      )}
 
       {/* Presets — Styles 2.0 */}
-      {filteredV2.length > 0 && (
+      {showPreset && filteredV2.length > 0 && (
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
             Styles 2.0
@@ -406,7 +415,7 @@ export function StylePanel({
       )}
 
       {/* Presets — Styles 3.0 Premium */}
-      {filteredV3.length > 0 && (
+      {showPreset && filteredV3.length > 0 && (
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-500/90">
             Styles 3.0 · Premium
@@ -429,6 +438,7 @@ export function StylePanel({
       )}
 
       {/* Caption position — prominent so users can place top / middle / bottom / anywhere */}
+      {showText && (
       <section className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Caption position
@@ -469,8 +479,10 @@ export function StylePanel({
           Or drag the caption on the video preview to place it anywhere.
         </p>
       </section>
+      )}
 
       {/* Font */}
+      {showText && (
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Font
@@ -485,17 +497,17 @@ export function StylePanel({
                 title={f.note}
                 className={`rounded-lg border px-3 py-2 text-left transition ${
                   style.fontFamily === f.family
-                    ? "border-sky-500 bg-sky-500/10"
-                    : "border-white/10 bg-neutral-800 hover:border-white/25"
+                    ? "border-[var(--ed-accent,#e9691c)] bg-[var(--ed-accent-wash,#fdede2)]"
+                    : "border-[var(--ed-line,#e8e4de)] bg-[var(--ed-chip,#f4f2ee)] hover:border-[var(--ed-soft,#736e66)]"
                 }`}
               >
                 <div
-                  className="text-lg leading-tight text-white"
+                  className="text-lg leading-tight text-[var(--ed-ink,#1a1917)]"
                   style={{ fontFamily: fontStack(f.family) }}
                 >
                   Aa Bb
                 </div>
-                <div className="mt-0.5 text-[11px] text-neutral-400">{f.label}</div>
+                <div className="mt-0.5 text-[11px] text-[var(--ed-muted,#a39d93)]">{f.label}</div>
               </button>
             ))}
           </div>
@@ -510,17 +522,17 @@ export function StylePanel({
                 title={f.note}
                 className={`rounded-lg border px-3 py-2 text-left transition ${
                   style.fontFamily === f.family
-                    ? "border-sky-500 bg-sky-500/10"
-                    : "border-white/10 bg-neutral-800 hover:border-white/25"
+                    ? "border-[var(--ed-accent,#e9691c)] bg-[var(--ed-accent-wash,#fdede2)]"
+                    : "border-[var(--ed-line,#e8e4de)] bg-[var(--ed-chip,#f4f2ee)] hover:border-[var(--ed-soft,#736e66)]"
                 }`}
               >
                 <div
-                  className="text-lg leading-tight text-white"
+                  className="text-lg leading-tight text-[var(--ed-ink,#1a1917)]"
                   style={{ fontFamily: fontStack(f.family) }}
                 >
                   తెలుగు
                 </div>
-                <div className="mt-0.5 text-[11px] text-neutral-400">{f.label}</div>
+                <div className="mt-0.5 text-[11px] text-[var(--ed-muted,#a39d93)]">{f.label}</div>
               </button>
             ))}
           </div>
@@ -554,8 +566,10 @@ export function StylePanel({
           />
         </Field>
       </section>
+      )}
 
       {/* Colors */}
+      {showText && (
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Colors
@@ -601,8 +615,10 @@ export function StylePanel({
           />
         </div>
       </section>
+      )}
 
       {/* Effects */}
+      {showEffect && (
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Effects
@@ -696,8 +712,10 @@ export function StylePanel({
           />
         </Field>
       </section>
+      )}
 
       {/* Karaoke + keyword emphasis */}
+      {showEffect && (
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Word-by-word (karaoke)
@@ -757,8 +775,10 @@ export function StylePanel({
           </Field>
         )}
       </section>
+      )}
 
       {/* Background box color/opacity */}
+      {showEffect && (
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Background box
@@ -777,8 +797,10 @@ export function StylePanel({
           />
         </Field>
       </section>
+      )}
 
       {/* Layout */}
+      {showText && (
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Layout
@@ -825,6 +847,7 @@ export function StylePanel({
           Sentence = first letter capital, rest lower. Title = Each Word Capitalized.
         </p>
       </section>
+      )}
     </div>
   );
 }

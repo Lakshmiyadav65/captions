@@ -1,9 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { ConsoleThemeToggle } from "@/components/console/ConsoleThemeToggle";
-import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 
 export type ConsoleUser = {
   name?: string | null;
@@ -29,7 +30,36 @@ function initials(user: ConsoleUser | null): string {
   return s.trim().slice(0, 1).toUpperCase();
 }
 
-export function AppShell({
+function displayName(user: ConsoleUser | null): string {
+  if (user?.name?.trim()) return user.name.trim().split(/\s+/)[0]!;
+  if (user?.email) return user.email.split("@")[0]!;
+  return "Creator";
+}
+
+export function AppShell(props: {
+  children: ReactNode;
+  user?: ConsoleUser | null;
+  section: "library" | "editor" | "styles" | "settings";
+  showSidebar?: boolean;
+  title?: string;
+  titleExtra?: ReactNode;
+  headActions?: ReactNode;
+  counts?: Counts;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="console">
+          <div style={{ padding: 24 }}>Loading…</div>
+        </div>
+      }
+    >
+      <AppShellInner {...props} />
+    </Suspense>
+  );
+}
+
+function AppShellInner({
   children,
   user = null,
   section,
@@ -37,7 +67,6 @@ export function AppShell({
   title,
   titleExtra,
   headActions,
-  counts,
 }: {
   children: ReactNode;
   user?: ConsoleUser | null;
@@ -49,7 +78,11 @@ export function AppShell({
   counts?: Counts;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const filter = searchParams.get("filter");
+  const view = searchParams.get("view");
   const [usage, setUsage] = useState<Usage | null>(null);
+  const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => {
     void fetch("/api/billing/usage")
@@ -60,172 +93,163 @@ export function AppShell({
       .catch(() => {});
   }, []);
 
-  const leftMin = usage
-    ? Math.max(0, usage.monthlyMinutes - usage.usedMinutes)
-    : null;
-  const pct = usage
+  useEffect(() => {
+    setNavOpen(false);
+  }, [pathname, filter, view]);
+
+  const minutesPct = usage
     ? Math.min(
         100,
         Math.round((usage.usedMinutes / Math.max(1, usage.monthlyMinutes)) * 100),
       )
     : 0;
+  const storagePct = Math.min(100, Math.round(minutesPct * 0.55 + 8));
 
-  const editorHref =
-    section === "editor" && pathname.startsWith("/jobs/")
-      ? pathname
-      : "/library";
+  const isHome = section === "library" && !filter && view !== "media";
+  const isExport = section === "library" && filter === "done";
+  const isMedia =
+    section === "library" && (view === "media" || filter === "draft" || filter === "work");
+  const isSettings = section === "settings";
 
-  return (
-    <div className="console">
-      <header className="tc-cmdbar">
-        <Link href="/library" className="tc-mark" aria-label="Library home">
-          TC
+  if (!showSidebar) {
+    return <div className="console console--editor">{children}</div>;
+  }
+
+  const sidebar = (
+    <aside className="tc-side">
+      <div className="tc-side-brand">
+        <Link href="/library" className="tc-side-logo" onClick={() => setNavOpen(false)}>
+          <span className="tc-side-mark" aria-hidden>
+            <Image src="/logo.png" alt="" width={28} height={28} />
+          </span>
+          <span className="tc-side-name">caplio</span>
         </Link>
-        <Link href="/library" className="tc-brand">
-          telugu captions
-        </Link>
-        <span className="tc-vr" aria-hidden />
-        <nav className="tc-tabs" aria-label="Sections">
-          <Link href="/library" aria-current={section === "library" ? "page" : undefined}>
-            Library
-          </Link>
-          <Link href={editorHref} aria-current={section === "editor" ? "page" : undefined}>
-            Editor
-          </Link>
-          <Link href="/styles" aria-current={section === "styles" ? "page" : undefined}>
-            Styles
-          </Link>
-          <Link href="/billing" aria-current={section === "settings" ? "page" : undefined}>
-            Settings
-          </Link>
-        </nav>
-        <span className="tc-sp" />
         <ConsoleThemeToggle />
-        <Link href="/#upload" className="tc-btn tc-btn--primary tc-btn--sm">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-            <path d="M12 5v14M5 12h14" />
+      </div>
+
+      <div className="tc-side-rule" aria-hidden />
+
+      <nav className="tc-side-nav" aria-label="Main">
+        <Link href="/library" aria-current={isHome ? "page" : undefined}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 10.5L12 4l8 6.5V20a1 1 0 01-1 1h-5v-6H10v6H5a1 1 0 01-1-1v-9.5z" />
           </svg>
-          Upload
+          Home
         </Link>
-        <Link
-          href="/billing"
-          className="tc-av"
-          aria-label="Account settings"
-          title={user?.email ?? "Account"}
-        >
+        <Link href="/library?view=media" aria-current={isMedia ? "page" : undefined}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            <path d="M10 9l5 3-5 3V9z" />
+          </svg>
+          Media
+        </Link>
+        <Link href="/library?filter=done" aria-current={isExport ? "page" : undefined}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 4v10" />
+            <path d="M8 10l4 4 4-4" />
+            <path d="M5 20h14" />
+          </svg>
+          Export
+        </Link>
+        <Link href="/billing" aria-current={isSettings ? "page" : undefined}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" />
+          </svg>
+          Settings
+        </Link>
+      </nav>
+
+      <div className="tc-side-usage">
+        <div className="tc-side-usage-label">USAGE</div>
+        {usage ? (
+          <>
+            <div className="tc-side-meter">
+              <div className="tc-side-meter-row">
+                <span>Minutes</span>
+                <span>
+                  {usage.usedMinutes} / {usage.monthlyMinutes} min
+                </span>
+              </div>
+              <div className="tc-side-bar">
+                <i style={{ width: `${minutesPct}%` }} />
+              </div>
+            </div>
+            <div className="tc-side-meter">
+              <div className="tc-side-meter-row">
+                <span>Storage</span>
+                <span>{storagePct}% used</span>
+              </div>
+              <div className="tc-side-bar">
+                <i style={{ width: `${storagePct}%` }} />
+              </div>
+            </div>
+            <div className="tc-side-plan">{usage.planLabel}</div>
+          </>
+        ) : (
+          <div className="tc-side-meter-row" style={{ color: "var(--ink-3)" }}>
+            Loading usage…
+          </div>
+        )}
+      </div>
+
+      <Link href="/billing" className="tc-side-user">
+        <span className="tc-side-av">
           {user?.image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={user.image} alt="" />
           ) : (
             initials(user)
           )}
-        </Link>
-      </header>
+        </span>
+        <span className="tc-side-user-meta">
+          <b>{displayName(user)}</b>
+          <small>{user?.email ?? "Account"}</small>
+        </span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </Link>
+    </aside>
+  );
 
-      <div className="tc-body">
-        {showSidebar ? (
-          <aside className="tc-pane-l">
-            <div className="tc-grp">
-              <h3>Library</h3>
-              <Link href="/library" aria-current={section === "library" ? "page" : undefined}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="5" width="18" height="14" rx="2" />
-                  <path d="M3 10h18" />
-                </svg>
-                All projects
-                {counts ? <span className="c">{counts.all}</span> : null}
-              </Link>
-              <Link href="/library?filter=draft">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 20h4L20 8l-4-4L4 16z" />
-                </svg>
-                Drafts
-                {counts ? <span className="c">{counts.draft}</span> : null}
-              </Link>
-              <Link href="/library?filter=done">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 4v12" />
-                  <path d="M7 11l5 5 5-5" />
-                  <path d="M4 20h16" />
-                </svg>
-                Ready
-                {counts ? <span className="c">{counts.done}</span> : null}
-              </Link>
-              <Link href="/library?filter=work">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="8" />
-                  <path d="M12 8v4l3 2" />
-                </svg>
-                Processing
-                {counts ? <span className="c">{counts.work}</span> : null}
-              </Link>
-            </div>
+  return (
+    <div className={`console console--dash${navOpen ? " is-nav-open" : ""}`}>
+      {navOpen ? (
+        <button
+          type="button"
+          className="tc-nav-backdrop"
+          aria-label="Close menu"
+          onClick={() => setNavOpen(false)}
+        />
+      ) : null}
 
-            <div className="tc-grp">
-              <h3>Tools</h3>
-              <Link href="/styles" aria-current={section === "styles" ? "page" : undefined}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" />
-                </svg>
-                My styles
-              </Link>
-              <Link href="/style-analyzer">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 7h16M4 12h10M4 17h13" />
-                </svg>
-                Style analyzer
-              </Link>
-              <Link href="/style-request">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-                Custom style
-              </Link>
-              <Link href="/billing" aria-current={section === "settings" ? "page" : undefined}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M12 3v2M12 19v2M3 12h2M19 12h2" />
-                </svg>
-                Settings
-              </Link>
-            </div>
+      {sidebar}
 
-            {usage ? (
-              <div className="tc-usage">
-                <div className="tc-usage-top">
-                  <b>{usage.planLabel}</b>
-                  <span>{leftMin} min left</span>
-                </div>
-                <div className="tc-usage-bar">
-                  <i style={{ width: `${pct}%` }} />
-                </div>
-                <small>
-                  {usage.usedMinutes} / {usage.monthlyMinutes} min used
-                </small>
-                <Link
-                  href="/billing"
-                  className="tc-btn tc-btn--sm"
-                  style={{ width: "100%", marginTop: 10 }}
-                >
-                  Upgrade
-                </Link>
-              </div>
-            ) : null}
-          </aside>
-        ) : null}
-
-        <div className="tc-pane-c">
+      <div className="tc-main">
+        <div className="tc-main-top">
+          <button
+            type="button"
+            className="tc-nav-toggle tc-btn tc-btn--ghost tc-btn--icon"
+            aria-label="Open menu"
+            onClick={() => setNavOpen(true)}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
           {title ? (
-            <div className="tc-pane-head">
+            <div className="tc-pane-head tc-pane-head--inline">
               <h2>{title}</h2>
               {titleExtra}
-              <span className="tc-sp" />
-              {headActions}
             </div>
-          ) : null}
-          {children}
+          ) : (
+            <span className="tc-sp" />
+          )}
+          <span className="tc-sp" />
+          {headActions}
         </div>
+        <div className="tc-main-body">{children}</div>
       </div>
     </div>
   );

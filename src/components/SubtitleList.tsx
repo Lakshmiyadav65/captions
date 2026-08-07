@@ -58,6 +58,7 @@ export function SubtitleList({
   currentTime,
   onSeek,
   onTextCommit,
+  embedded = false,
 }: {
   segments: Segment[];
   onChange: (segments: Segment[]) => void;
@@ -65,6 +66,8 @@ export function SubtitleList({
   onSeek: (t: number) => void;
   /** Fired when the user leaves a caption line after editing (blur). */
   onTextCommit?: (index: number, text: string) => void;
+  /** Hide chrome when the parent editor already shows Transcript / Strip fillers. */
+  embedded?: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLLIElement>(null);
@@ -231,49 +234,64 @@ export function SubtitleList({
     <div
       ref={rootRef}
       data-transcript-panel
-      className="space-y-2"
+      className={embedded ? "ed-lines" : "space-y-2"}
       onWheel={() => pauseFollow()}
       onTouchMove={() => pauseFollow()}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-          Transcript · {segments.length} lines
-        </h3>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={doStripFillers}
-            className="rounded-md border border-white/10 bg-neutral-800 px-2 py-1 text-[11px] text-neutral-300 hover:bg-neutral-700"
-            title="Remove um / uh / ante / you know (F)"
-          >
-            Strip fillers
-          </button>
-          {!following && (
-            <button
-              type="button"
-              onClick={resumeFollow}
-              className="text-[11px] text-sky-400 hover:text-sky-300"
-              title="Scroll the transcript with the video again"
-            >
-              Follow playback
-            </button>
-          )}
-          {segments.length === 0 && (
-            <button
-              type="button"
-              onClick={() => addAfter(-1)}
-              className="text-xs text-sky-400 hover:text-sky-300"
-            >
-              + Add line
-            </button>
-          )}
-        </div>
-      </div>
-      <p className="text-[10px] text-neutral-600">
-        Keys: J/K next·prev · S split · M merge · F strip fillers
-      </p>
+      {!embedded && (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              Transcript · {segments.length} lines
+            </h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={doStripFillers}
+                className="rounded-md border border-white/10 bg-neutral-800 px-2 py-1 text-[11px] text-neutral-300 hover:bg-neutral-700"
+                title="Remove um / uh / ante / you know (F)"
+              >
+                Strip fillers
+              </button>
+              {!following && (
+                <button
+                  type="button"
+                  onClick={resumeFollow}
+                  className="text-[11px] text-sky-400 hover:text-sky-300"
+                  title="Scroll the transcript with the video again"
+                >
+                  Follow playback
+                </button>
+              )}
+              {segments.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => addAfter(-1)}
+                  className="text-xs text-sky-400 hover:text-sky-300"
+                >
+                  + Add line
+                </button>
+              )}
+            </div>
+          </div>
+          <p className="text-[10px] text-neutral-600">
+            Keys: J/K next·prev · S split · M merge · F strip fillers
+          </p>
+        </>
+      )}
 
-      <ol className="space-y-1.5">
+      {embedded && !following && (
+        <button
+          type="button"
+          onClick={resumeFollow}
+          className="ed-follow"
+          title="Scroll the transcript with the video again"
+        >
+          Follow playback
+        </button>
+      )}
+
+      <ol className={embedded ? "ed-line-list" : "space-y-1.5"}>
         {segments.map((s, i) => {
           const active = i === activeIndex;
           const selected = i === focusIndex;
@@ -283,19 +301,36 @@ export function SubtitleList({
               ref={active || selected ? activeRef : undefined}
               data-active={active || undefined}
               onClick={() => setSelectedIndex(i)}
-              className={`rounded-lg border p-2.5 transition ${
-                active
-                  ? "border-sky-500/60 bg-sky-500/10"
-                  : selected
-                    ? "border-white/25 bg-neutral-900"
-                    : "border-white/5 bg-neutral-900 hover:border-white/15"
-              }`}
+              className={
+                embedded
+                  ? `ed-line${active ? " is-active" : ""}${selected && !active ? " is-selected" : ""}`
+                  : `rounded-lg border p-2.5 transition ${
+                      active
+                        ? "border-sky-500/60 bg-sky-500/10"
+                        : selected
+                          ? "border-white/25 bg-neutral-900"
+                          : "border-white/5 bg-neutral-900 hover:border-white/15"
+                    }`
+              }
             >
-              <div className="mb-1.5 flex items-center gap-2 text-[11px] text-neutral-400">
+              <div
+                className={
+                  embedded
+                    ? "ed-line-meta"
+                    : "mb-1.5 flex items-center gap-2 text-[11px] text-neutral-400"
+                }
+              >
+                <span className={embedded ? "ed-line-num" : undefined}>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
                 <button
                   type="button"
                   onClick={() => onSeek(s.start)}
-                  className="rounded bg-neutral-800 px-1.5 py-0.5 font-mono text-sky-300 hover:bg-neutral-700"
+                  className={
+                    embedded
+                      ? "ed-line-time"
+                      : "rounded bg-neutral-800 px-1.5 py-0.5 font-mono text-sky-300 hover:bg-neutral-700"
+                  }
                   title="Jump to this line"
                 >
                   {fmt(s.start)}
@@ -308,7 +343,11 @@ export function SubtitleList({
                   onChange={(e) => update(i, { start: parseFloat(e.target.value) || 0 })}
                   onFocus={() => pauseFollow(8000)}
                   onBlur={() => onTextCommit?.(i, segments[i].text)}
-                  className="w-16 rounded bg-neutral-800 px-1.5 py-0.5 font-mono text-neutral-200 outline-none focus:ring-1 focus:ring-sky-500"
+                  className={
+                    embedded
+                      ? "ed-line-input"
+                      : "w-16 rounded bg-neutral-800 px-1.5 py-0.5 font-mono text-neutral-200 outline-none focus:ring-1 focus:ring-sky-500"
+                  }
                   aria-label="Start time (seconds)"
                 />
                 <input
@@ -318,14 +357,18 @@ export function SubtitleList({
                   onChange={(e) => update(i, { end: parseFloat(e.target.value) || 0 })}
                   onFocus={() => pauseFollow(8000)}
                   onBlur={() => onTextCommit?.(i, segments[i].text)}
-                  className="w-16 rounded bg-neutral-800 px-1.5 py-0.5 font-mono text-neutral-200 outline-none focus:ring-1 focus:ring-sky-500"
+                  className={
+                    embedded
+                      ? "ed-line-input"
+                      : "w-16 rounded bg-neutral-800 px-1.5 py-0.5 font-mono text-neutral-200 outline-none focus:ring-1 focus:ring-sky-500"
+                  }
                   aria-label="End time (seconds)"
                 />
-                <div className="ml-auto flex items-center gap-1">
+                <div className={embedded ? "ed-line-actions" : "ml-auto flex items-center gap-1"}>
                   <button
                     type="button"
                     onClick={() => doSplit(i)}
-                    className="rounded px-1.5 py-0.5 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-200"
+                    className={embedded ? "ed-line-act" : "rounded px-1.5 py-0.5 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-200"}
                     title="Split line (S)"
                   >
                     Split
@@ -334,7 +377,7 @@ export function SubtitleList({
                     type="button"
                     onClick={() => doMerge(i)}
                     disabled={i >= segments.length - 1}
-                    className="rounded px-1.5 py-0.5 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-200 disabled:opacity-30"
+                    className={embedded ? "ed-line-act" : "rounded px-1.5 py-0.5 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-200 disabled:opacity-30"}
                     title="Merge with next (M)"
                   >
                     Merge
@@ -342,7 +385,7 @@ export function SubtitleList({
                   <button
                     type="button"
                     onClick={() => addAfter(i)}
-                    className="rounded px-1.5 py-0.5 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-200"
+                    className={embedded ? "ed-line-act" : "rounded px-1.5 py-0.5 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-200"}
                     title="Add line below"
                   >
                     +
@@ -350,7 +393,7 @@ export function SubtitleList({
                   <button
                     type="button"
                     onClick={() => remove(i)}
-                    className="rounded px-1.5 py-0.5 text-neutral-500 hover:bg-red-500/20 hover:text-red-300"
+                    className={embedded ? "ed-line-act ed-line-act--danger" : "rounded px-1.5 py-0.5 text-neutral-500 hover:bg-red-500/20 hover:text-red-300"}
                     title="Delete line"
                   >
                     ✕
@@ -368,7 +411,11 @@ export function SubtitleList({
                 }}
                 onBlur={(e) => onTextCommit?.(i, e.target.value)}
                 style={{ fontFamily: fontStack("Noto Sans Telugu") }}
-                className="w-full resize-none rounded bg-transparent text-[15px] leading-snug text-neutral-100 outline-none focus:bg-neutral-800/60"
+                className={
+                  embedded
+                    ? "ed-line-text"
+                    : "w-full resize-none rounded bg-transparent text-[15px] leading-snug text-neutral-100 outline-none focus:bg-neutral-800/60"
+                }
               />
             </li>
           );

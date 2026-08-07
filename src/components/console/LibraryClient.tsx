@@ -31,14 +31,6 @@ function statusLabel(status: string): string {
   return status;
 }
 
-function formatDuration(sec: number | null): string {
-  if (sec == null || !Number.isFinite(sec)) return "—";
-  const s = Math.round(sec);
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  return `${m}:${String(r).padStart(2, "0")}`;
-}
-
 function relativeTime(iso: string): string {
   const t = new Date(iso).getTime();
   const diff = Date.now() - t;
@@ -49,6 +41,19 @@ function relativeTime(iso: string): string {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   return `${days}d ago`;
+}
+
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Good Morning";
+  if (h < 17) return "Good Afternoon";
+  return "Good Evening";
+}
+
+function firstName(user: ConsoleUser | null): string {
+  if (user?.name?.trim()) return user.name.trim().split(/\s+/)[0]!;
+  if (user?.email) return user.email.split("@")[0]!;
+  return "there";
 }
 
 export function LibraryClient({
@@ -63,9 +68,9 @@ export function LibraryClient({
   const searchParams = useSearchParams();
   const router = useRouter();
   const urlFilter = searchParams.get("filter") ?? initialFilter;
+  const view = searchParams.get("view");
   const [filter, setFilter] = useState(urlFilter);
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<"recent" | "name">("recent");
+  const [planLabel, setPlanLabel] = useState("FREE PLAN");
 
   useEffect(() => {
     setFilter(
@@ -74,6 +79,15 @@ export function LibraryClient({
         : "all",
     );
   }, [urlFilter]);
+
+  useEffect(() => {
+    void fetch("/api/billing/usage")
+      .then(async (res) => (res.ok ? ((await res.json()) as { planLabel?: string }) : null))
+      .then((data) => {
+        if (data?.planLabel) setPlanLabel(data.planLabel.toUpperCase());
+      })
+      .catch(() => {});
+  }, []);
 
   const counts = useMemo(() => {
     let draft = 0;
@@ -93,122 +107,92 @@ export function LibraryClient({
     if (filter === "draft") list = list.filter((j) => statusKind(j.status) === "draft");
     else if (filter === "done") list = list.filter((j) => statusKind(j.status) === "done");
     else if (filter === "work") list = list.filter((j) => statusKind(j.status) === "work");
-
-    const q = query.trim().toLowerCase();
-    if (q) list = list.filter((j) => j.originalName.toLowerCase().includes(q));
-
-    if (sort === "name") {
-      list = [...list].sort((a, b) => a.originalName.localeCompare(b.originalName));
-    }
     return list;
-  }, [jobs, filter, query, sort]);
+  }, [jobs, filter]);
 
-  const title =
-    filter === "draft"
-      ? "Drafts"
-      : filter === "done"
-        ? "Ready"
+  const showGreeting = filter === "all" && view !== "media";
+  const sectionTitle =
+    filter === "done"
+      ? "Ready to export"
+      : filter === "draft"
+        ? "Drafts"
         : filter === "work"
           ? "Processing"
-          : "All projects";
+          : view === "media"
+            ? "Media"
+            : "Recent Projects";
 
   return (
-    <AppShell
-      section="library"
-      user={user}
-      title={title}
-      titleExtra={<span className="count">{visible.length} items</span>}
-      counts={counts}
-      headActions={
-        <>
-          <label className="tc-find">
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3.5-3.5" />
-            </svg>
-            <input
-              type="search"
-              placeholder="Filter"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </label>
-          <div className="tc-seg" role="group" aria-label="Sort">
-            <button
-              type="button"
-              aria-pressed={sort === "recent"}
-              onClick={() => setSort("recent")}
-            >
-              Recent
+    <AppShell section="library" user={user} counts={counts}>
+      <div className="tc-home">
+        {showGreeting ? (
+          <section className="tc-greet">
+            <div>
+              <div className="tc-greet-badge">{planLabel}</div>
+              <h1>
+                {greeting()}, <em>{firstName(user)}</em>
+              </h1>
+              <p>Create AI-powered subtitles for your videos in seconds.</p>
+            </div>
+            <Link href="/#upload" className="tc-btn tc-btn--outline">
+              + New Project
+            </Link>
+          </section>
+        ) : null}
+
+        <div className="tc-sec-head">
+          <h2>{sectionTitle}</h2>
+          {showGreeting ? (
+            <Link href="/library?view=media">View all →</Link>
+          ) : filter !== "all" || view === "media" ? (
+            <button type="button" className="tc-btn tc-btn--ghost tc-btn--sm" onClick={() => router.push("/library")}>
+              Back to Home
             </button>
-            <button type="button" aria-pressed={sort === "name"} onClick={() => setSort("name")}>
-              Name
-            </button>
-          </div>
-        </>
-      }
-    >
-      <div className="tc-pane-scroll">
+          ) : null}
+        </div>
+
         {visible.length === 0 ? (
-          <div className="tc-empty">
+          <div className="tc-empty" style={{ padding: "48px 24px" }}>
             <b>Nothing here yet</b>
-            <p>
-              Upload a video from the landing page or hit Upload in the command bar to start
-              captioning.
-            </p>
+            <p>Upload a video to start captioning.</p>
             <Link href="/#upload" className="tc-btn tc-btn--primary tc-btn--sm">
               Upload video
             </Link>
-            {filter !== "all" ? (
-              <button
-                type="button"
-                className="tc-btn tc-btn--sm"
-                onClick={() => router.push("/library")}
-              >
-                Show all projects
-              </button>
-            ) : null}
           </div>
         ) : (
-          <>
-            <div className="tc-list-head">
-              <span />
-              <span>Project</span>
-              <span>Status</span>
-              <span>Length</span>
-              <span>Updated</span>
-              <span />
-            </div>
-            <div role="listbox" aria-label="Projects">
-              {visible.map((job) => {
-                const kind = statusKind(job.status);
-                return (
-                  <Link key={job.id} href={`/jobs/${job.id}`} className="tc-item" role="option">
-                    <span className="th" aria-hidden />
-                    <span className="nm">
-                      <b>{job.originalName}</b>
-                      <span>{relativeTime(job.createdAt)}</span>
-                    </span>
-                    <span className={`tc-tag tc-tag--${kind === "fail" ? "fail" : kind}`}>
-                      {statusLabel(job.status)}
+          <div className="tc-card-grid">
+            {visible.map((job) => {
+              const kind = statusKind(job.status);
+              return (
+                <Link key={job.id} href={`/jobs/${job.id}`} className="tc-proj">
+                  <div className="tc-proj-thumb" aria-hidden>
+                    <span className="tc-badge tc-badge--subs">
+                      {kind === "done" ? "Ready" : statusLabel(job.status)}
                       {kind === "work" ? ` ${job.progress}%` : ""}
                     </span>
-                    <span className="du">{formatDuration(job.durationSec)}</span>
-                    <span className="st">{relativeTime(job.updatedAt)}</span>
-                    <span className="tc-btn tc-btn--ghost tc-btn--sm">Open</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </>
+                    {job.durationSec != null ? (
+                      <span className="tc-badge tc-badge--ttl">
+                        {Math.max(1, Math.round(job.durationSec / 60))}m
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="tc-proj-body">
+                    <div>
+                      <b>{job.originalName}</b>
+                      <span>{relativeTime(job.updatedAt)}</span>
+                    </div>
+                    <span className="tc-proj-more" aria-hidden>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="5" r="1.6" />
+                        <circle cx="12" cy="12" r="1.6" />
+                        <circle cx="12" cy="19" r="1.6" />
+                      </svg>
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         )}
       </div>
     </AppShell>

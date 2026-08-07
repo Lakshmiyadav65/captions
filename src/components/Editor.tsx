@@ -23,6 +23,7 @@ import {
   displayInScript,
   type ScriptDisplay,
 } from "@/lib/transliterate";
+import { stripFillers } from "@/lib/transcript-edit";
 import { friendlyJobError } from "@/lib/errors";
 import { PreviewStage } from "./PreviewStage";
 import { StylePanel } from "./StylePanel";
@@ -30,6 +31,8 @@ import { SubtitleList } from "./SubtitleList";
 import { DictionaryPanel } from "./DictionaryPanel";
 import { QuotaBadge } from "./QuotaBadge";
 import { AppShell, type ConsoleUser } from "@/components/console/AppShell";
+import { EditorTimeline, formatTime } from "./EditorTimeline";
+import Link from "next/link";
 
 interface Progress {
   status: string;
@@ -169,6 +172,11 @@ export function Editor({
   const [retryError, setRetryError] = useState<string | null>(null);
   /** Bumped on retry so the SSE effect re-subscribes after a failure. */
   const [streamEpoch, setStreamEpoch] = useState(0);
+  const [editorTool, setEditorTool] = useState<"upload" | "text" | "captions">("captions");
+  const [styleTab, setStyleTab] = useState<"preset" | "text" | "effect">("preset");
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [playing, setPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   /** Per-line ASR/previous text — used to detect what the user just fixed. */
   const baselineRef = useRef<Segment[] | null>(null);
@@ -487,33 +495,169 @@ export function Editor({
     progress.status !== "done" && progress.status !== "failed";
   const isMock = progress.provider === "mock";
 
-  return (
-    <AppShell
-      section="editor"
-      user={user}
-      showSidebar={false}
-      title={originalName ?? "Telugu captions"}
-      titleExtra={
-        progress.status === "done" ? (
-          <span className="tc-tag tc-tag--work">editing</span>
-        ) : progress.status === "failed" ? (
-          <span className="tc-tag tc-tag--fail">failed</span>
-        ) : (
-          <span className="tc-tag tc-tag--draft">{STATUS_LABEL[progress.status] ?? progress.status}</span>
-        )
-      }
-      headActions={
-        progress.status === "done" ? (
-          <div className="flex flex-wrap items-center justify-end gap-2">
+  const seekTo = (t: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = Math.max(0, t);
+      setCurrentTime(videoRef.current.currentTime);
+    }
+  };
+
+  const togglePlay = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) void v.play();
+    else v.pause();
+  };
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const onMeta = () => setDuration(v.duration || 0);
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
+    v.addEventListener("loadedmetadata", onMeta);
+    v.addEventListener("play", onPlay);
+    v.addEventListener("pause", onPause);
+    if (v.duration) setDuration(v.duration);
+    return () => {
+      v.removeEventListener("loadedmetadata", onMeta);
+      v.removeEventListener("play", onPlay);
+      v.removeEventListener("pause", onPause);
+    };
+  }, [progress.status, videoUrl]);
+
+  /* —— Processing / failed: keep simple shell with sidebar off —— */
+  if (progress.status !== "done") {
+    return (
+      <AppShell section="editor" user={user} showSidebar={false}>
+        <div className="ed-root">
+          <header className="ed-header">
+          <Link href="/library" className="ed-back" aria-label="Back to library">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <line x1="10" y1="3" x2="5" y2="8" />
+              <line x1="5" y1="8" x2="10" y2="13" />
+            </svg>
+          </Link>
+          <div className="ed-title-wrap">
+            <h1 className="ed-title">{originalName ?? "Telugu captions"}</h1>
+            <div className="ed-meta">
+              {STATUS_LABEL[progress.status] ?? progress.status}
+            </div>
+          </div>
+          <div className="ed-header-actions">
             <QuotaBadge />
-            <button
-              type="button"
-              onClick={exportMp4}
-              disabled={exportState === "exporting"}
-              className="tc-btn tc-btn--primary tc-btn--sm"
-            >
-              {exportState === "exporting" ? "Rendering…" : "Export MP4"}
-            </button>
+          </div>
+          </header>
+          <div className="tc-editor flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-4">
+            {isProcessing && (
+              <div
+                className="mb-6 rounded-xl p-6"
+                style={{ background: "var(--surface)", border: "1px solid var(--line)" }}
+              >
+                <div className="mb-2 flex items-center justify-between text-sm">
+                  <span className="font-medium" style={{ color: "var(--ink)" }}>
+                    {STATUS_LABEL[progress.status] ?? progress.status}
+                  </span>
+                  <span className="tabular-nums" style={{ color: "var(--ink-3)" }}>
+                    {progress.progress}%
+                  </span>
+                </div>
+                <div
+                  className="h-2 w-full overflow-hidden rounded-full"
+                  style={{ background: "var(--track)" }}
+                >
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${progress.progress}%`,
+                      background: "var(--accent)",
+                    }}
+                  />
+                </div>
+                <p className="mt-3 text-xs" style={{ color: "var(--ink-3)" }}>
+                  {progress.provider === "mock"
+                    ? "Using the built-in sample transcript (no ASR API key set)."
+                    : progress.status === "extracting"
+                      ? "Pulling audio from your video — this usually takes a few seconds."
+                      : progress.status === "transcribing"
+                        ? "Transcribing Telugu. Longer clips can take a few minutes — audio is sent in short pieces."
+                        : "Preparing your captions…"}
+                </p>
+              </div>
+            )}
+            {progress.status === "failed" && (
+              <div
+                className="mb-6 rounded-xl p-6 text-sm"
+                style={{
+                  border: "1px solid rgba(240,112,95,.3)",
+                  background: "var(--danger-wash)",
+                  color: "var(--danger)",
+                }}
+              >
+                <p className="font-medium">Processing failed</p>
+                <p className="mt-1" style={{ opacity: 0.85 }}>
+                  {friendlyJobError(progress.error)}
+                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void retryJob()}
+                    disabled={retrying}
+                    className="tc-btn tc-btn--sm"
+                  >
+                    {retrying ? "Retrying…" : "Try again"}
+                  </button>
+                  <a href="/#upload" className="text-sm">
+                    Upload a different video
+                  </a>
+                </div>
+                {retryError && (
+                  <p className="mt-2 text-xs" style={{ color: "var(--warn)" }}>
+                    {retryError}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  return (
+    <AppShell section="editor" user={user} showSidebar={false}>
+      <div className="ed-root">
+        <header className="ed-header">
+          <Link href="/library" className="ed-back" aria-label="Back to library">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <line x1="10" y1="3" x2="5" y2="8" />
+              <line x1="5" y1="8" x2="10" y2="13" />
+            </svg>
+          </Link>
+          <div className="ed-title-wrap">
+            <h1 className="ed-title">{originalName ?? "Untitled project"}</h1>
+            <div className="ed-meta">
+              {formatTime(duration || currentTime)}
+              {width && height ? ` · ${width}×${height}` : ""}
+              {saveState === "saving"
+                ? " · saving…"
+                : saveState === "saved"
+                  ? " · saved"
+                  : ""}
+            </div>
+          </div>
+          <div className="ed-header-actions">
+            {exportState === "exporting" && (
+              <span className="text-xs" style={{ color: "var(--ed-soft)" }}>
+                Burning captions…
+              </span>
+            )}
+            {exportState === "error" && exportError && (
+              <span className="text-xs" style={{ color: "var(--danger)" }}>
+                {exportError}
+              </span>
+            )}
+            <QuotaBadge />
             {EXPORT_FORMATS.map((f) => (
               <button
                 key={f.ext}
@@ -524,240 +668,299 @@ export function Editor({
                 {f.label}
               </button>
             ))}
-          </div>
-        ) : (
-          <QuotaBadge />
-        )
-      }
-    >
-      <div
-        className={`tc-editor flex min-h-0 flex-1 flex-col px-4 ${
-          progress.status === "done" ? "overflow-hidden py-3" : "overflow-y-auto py-4"
-        }`}
-      >
-        <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
-          <a href="/library" className="text-sm" style={{ color: "var(--accent)" }}>
-            ← Library
-          </a>
-          {exportState === "exporting" && (
-            <span className="text-xs" style={{ color: "var(--ink-3)" }}>
-              Burning captions, then saving the MP4…
-            </span>
-          )}
-          {exportState === "error" && exportError && (
-            <span className="text-xs" style={{ color: "var(--danger)" }}>
-              {exportError}
-            </span>
-          )}
-        </div>
-
-      {isProcessing && (
-        <div
-          className="mb-6 rounded-xl p-6"
-          style={{ background: "var(--surface)", border: "1px solid var(--line)" }}
-        >
-          <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="font-medium" style={{ color: "var(--ink)" }}>
-              {STATUS_LABEL[progress.status] ?? progress.status}
-            </span>
-            <span className="tabular-nums" style={{ color: "var(--ink-3)" }}>
-              {progress.progress}%
-            </span>
-          </div>
-          <div
-            className="h-2 w-full overflow-hidden rounded-full"
-            style={{ background: "var(--bg)" }}
-          >
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${progress.progress}%`,
-                background: "var(--accent)",
-              }}
-            />
-          </div>
-          <p className="mt-3 text-xs" style={{ color: "var(--ink-3)" }}>
-            {progress.provider === "mock"
-              ? "Using the built-in sample transcript (no ASR API key set)."
-              : progress.status === "extracting"
-                ? "Pulling audio from your video — this usually takes a few seconds."
-                : progress.status === "transcribing"
-                  ? "Transcribing Telugu. Longer clips can take a few minutes — audio is sent in short pieces."
-                  : "Preparing your captions…"}
-          </p>
-        </div>
-      )}
-
-      {progress.status === "failed" && (
-        <div
-          className="mb-6 rounded-xl p-6 text-sm"
-          style={{
-            border: "1px solid rgba(240,112,95,.3)",
-            background: "var(--danger-wash)",
-            color: "var(--danger)",
-          }}
-        >
-          <p className="font-medium">Processing failed</p>
-          <p className="mt-1" style={{ opacity: 0.85 }}>
-            {friendlyJobError(progress.error)}
-          </p>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={() => void retryJob()}
-              disabled={retrying}
-              className="tc-btn tc-btn--sm"
+              onClick={exportMp4}
+              disabled={exportState === "exporting"}
+              className="tc-btn tc-btn--primary tc-btn--sm"
             >
-              {retrying ? "Retrying…" : "Try again"}
+              {exportState === "exporting" ? "Rendering…" : "Export MP4"}
             </button>
-            <a href="/#upload" className="text-sm">
-              Upload a different video
-            </a>
           </div>
-          {retryError && (
-            <p className="mt-2 text-xs" style={{ color: "var(--warn)" }}>
-              {retryError}
-            </p>
-          )}
-        </div>
-      )}
+        </header>
 
-      {progress.status === "done" && (
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto overscroll-contain lg:grid-cols-[420px_minmax(0,1fr)_340px] lg:gap-6 lg:overflow-hidden">
-          {/* Left: video preview */}
-          <section className="order-1 flex min-h-0 flex-col gap-3 lg:overflow-hidden">
-            {isMock && (
-              <div
-                className="shrink-0 rounded-lg px-4 py-2.5 text-xs"
-                style={{
-                  border: "1px solid rgba(232,179,65,.3)",
-                  background: "var(--warn-wash)",
-                  color: "var(--warn)",
-                }}
-              >
-                Showing a <strong>sample</strong> Telugu transcript. Add a transcription
-                API key (see README) to transcribe your real audio.
-              </div>
-            )}
-            <div className="min-h-[320px] flex-1 lg:min-h-0">
-              <PreviewStage
-                videoRef={videoRef}
-                videoUrl={videoUrl}
-                segments={displaySegments}
-                style={style}
-                onTime={setCurrentTime}
-                initialAspect={width && height ? width / height : undefined}
-                onPositionChange={(positionYPct) => patchStyle({ positionYPct })}
-              />
-            </div>
-          </section>
-
-          {/* Center: transcript and timings */}
-          <section className="order-2 flex min-h-0 flex-col gap-3 lg:overflow-hidden">
-            <div
-              className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl p-3"
-              style={{ background: "var(--surface)", border: "1px solid var(--line)" }}
+        <div className={`ed-body is-tool-${editorTool}`}>
+          <nav className="ed-rail" aria-label="Editor tools">
+            <Link
+              href="/#upload"
+              className={`ed-rail-btn${editorTool === "upload" ? " is-active" : ""}`}
+              title="Upload"
+              onClick={() => setEditorTool("upload")}
             >
-              <div className="flex flex-wrap items-center gap-3">
-                <p className="text-xs" style={{ color: "var(--ink-3)" }}>
-                  Detected language:{" "}
-                  <span style={{ color: "var(--ink-2)" }}>
-                    {progress.language ?? "te"}
-                  </span>
-                  {saveState === "saving" && (
-                    <span className="ml-2" style={{ color: "var(--ink-3)" }}>
-                      · Saving…
+              <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <line x1="8" y1="10.5" x2="8" y2="2.5" />
+                <polyline points="4.5,6 8,2.5 11.5,6" />
+                <line x1="3" y1="13.5" x2="13" y2="13.5" />
+              </svg>
+            </Link>
+            <button
+              type="button"
+              className={`ed-rail-btn${editorTool === "text" ? " is-active" : ""}`}
+              title="Text"
+              onClick={() => {
+                setEditorTool("text");
+                setLeftCollapsed(false);
+              }}
+            >
+              <span style={{ fontWeight: 600, fontSize: 15 }}>T</span>
+            </button>
+            <button
+              type="button"
+              className={`ed-rail-btn${editorTool === "captions" ? " is-active" : ""}`}
+              title="Captions"
+              onClick={() => setEditorTool("captions")}
+            >
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+                <rect x="1.5" y="3.5" width="13" height="9" rx="2" />
+                <line x1="4" y1="9.5" x2="8" y2="9.5" strokeLinecap="round" />
+                <line x1="9.5" y1="9.5" x2="12" y2="9.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </nav>
+
+          <div className={`ed-workspace${leftCollapsed ? " is-left-collapsed" : ""}`}>
+            {!leftCollapsed && (
+              <section className="ed-panel ed-left">
+                <button
+                  type="button"
+                  className="ed-panel-collapse"
+                  aria-label="Collapse panel"
+                  onClick={() => setLeftCollapsed(true)}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M15 6l-6 6 6 6" />
+                  </svg>
+                </button>
+                <div className="ed-panel-head">
+                  <div className="ed-panel-head-row">
+                    <b>Transcript</b>
+                    <span className="ed-count">
+                      {segments?.length ?? 0} lines
                     </span>
-                  )}
-                  {saveState === "saved" && (
-                    <span className="ml-2" style={{ color: "var(--ok)" }}>
-                      · Saved
-                    </span>
-                  )}
-                </p>
-                <div className="tc-seg">
-                  {(
-                    [
-                      { id: "roman" as const, label: "Roman" },
-                      { id: "telugu" as const, label: "తెలుగు" },
-                    ]
-                  ).map((opt) => (
+                    <span style={{ flex: 1 }} />
                     <button
-                      key={opt.id}
                       type="button"
-                      onClick={() => setScriptMode(opt.id)}
-                      aria-pressed={scriptMode === opt.id}
+                      className="ed-chip"
+                      title="Remove um / uh / ante / you know (F)"
+                      onClick={() => {
+                        if (!segments) return;
+                        onSegmentsChange(stripFillers(segments));
+                      }}
                     >
-                      {opt.label}
+                      Strip fillers
                     </button>
-                  ))}
+                  </div>
+                  <div className="ed-panel-head-row">
+                    <div className="tc-seg">
+                      {(
+                        [
+                          { id: "roman" as const, label: "Roman" },
+                          { id: "telugu" as const, label: "తెలుగు" },
+                        ]
+                      ).map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setScriptMode(opt.id)}
+                          aria-pressed={scriptMode === opt.id}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <span style={{ flex: 1 }} />
+                    <button
+                      type="button"
+                      onClick={saveEdits}
+                      disabled={saveState === "saving"}
+                      className="tc-btn tc-btn--sm"
+                      style={{
+                        background: "var(--ed-ink)",
+                        color: "#fff",
+                        borderColor: "var(--ed-ink)",
+                      }}
+                    >
+                      {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Save"}
+                    </button>
+                  </div>
+                  <div className="ed-keys">
+                    <span>J / K</span> next · prev
+                    <span>S</span> split
+                    <span>M</span> merge
+                  </div>
                 </div>
-              </div>
-              <button
-                type="button"
-                onClick={saveEdits}
-                disabled={saveState === "saving"}
-                className="tc-btn tc-btn--sm"
-              >
-                Save timings
-              </button>
-            </div>
-            {learned && learned.length > 0 && (
-              <div
-                className="shrink-0 rounded-lg px-3 py-2 text-xs"
-                style={{
-                  border: "1px solid rgba(95,208,138,.3)",
-                  background: "var(--ok-wash)",
-                  color: "var(--ok)",
-                }}
-              >
-                Remembered{" "}
-                {learned.map((r) => `${r.from} → ${r.to}`).join(" · ")} — will use
-                next time
-              </div>
+                <div className="ed-panel-body">
+                  {isMock && (
+                    <p className="mb-2 text-xs" style={{ color: "var(--warn)" }}>
+                      Sample transcript — add an ASR key for real audio.
+                    </p>
+                  )}
+                  {learned && learned.length > 0 && (
+                    <p className="mb-2 text-xs" style={{ color: "var(--ok)" }}>
+                      Remembered {learned.map((r) => `${r.from} → ${r.to}`).join(" · ")}
+                    </p>
+                  )}
+                  {segments && (
+                    <SubtitleList
+                      segments={segments}
+                      onChange={onSegmentsChange}
+                      currentTime={currentTime}
+                      onSeek={seekTo}
+                      onTextCommit={onTextCommit}
+                      embedded
+                    />
+                  )}
+                </div>
+              </section>
             )}
-            {segments && (
-              <div
-                className="min-h-[320px] flex-1 overflow-y-auto overscroll-contain rounded-xl p-3"
-                style={{ background: "var(--surface)", border: "1px solid var(--line)" }}
-              >
-                <SubtitleList
-                  segments={segments}
-                  onChange={onSegmentsChange}
-                  currentTime={currentTime}
-                  onSeek={(t) => {
-                    if (videoRef.current) videoRef.current.currentTime = t;
+
+            <section className="ed-center">
+              <div className="ed-stage-tools">
+                {leftCollapsed ? (
+                  <button
+                    type="button"
+                    className="ed-chip"
+                    onClick={() => setLeftCollapsed(false)}
+                  >
+                    Show captions
+                  </button>
+                ) : (
+                  <Link href="/#upload" className="ed-chip">
+                    Replace video
+                  </Link>
+                )}
+                <span className="ed-chip">
+                  {width && height
+                    ? Math.abs(width / height - 9 / 16) < 0.08
+                      ? "9:16"
+                      : Math.abs(width / height - 16 / 9) < 0.08
+                        ? "16:9"
+                        : Math.abs(width / height - 1) < 0.08
+                          ? "1:1"
+                          : `${width}×${height}`
+                    : "9:16"}
+                </span>
+                <span style={{ flex: 1 }} />
+                <button
+                  type="button"
+                  className="ed-chip"
+                  onClick={() => {
+                    const el = document.querySelector(".ed-preview-frame");
+                    if (el && "requestFullscreen" in el) {
+                      void (el as HTMLElement).requestFullscreen();
+                    }
                   }}
-                  onTextCommit={onTextCommit}
+                >
+                  Full screen
+                </button>
+              </div>
+              <div className="ed-preview-frame">
+                <PreviewStage
+                  videoRef={videoRef}
+                  videoUrl={videoUrl}
+                  segments={displaySegments}
+                  style={style}
+                  onTime={setCurrentTime}
+                  initialAspect={width && height ? width / height : undefined}
+                  onPositionChange={(positionYPct) => patchStyle({ positionYPct })}
                 />
               </div>
-            )}
-          </section>
+              <div className="ed-transport">
+                <div className="ed-transport-btns">
+                  <button type="button" aria-label="Back 5s" onClick={() => seekTo(currentTime - 5)}>
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                      <polygon points="12,3 12,13 5,8" />
+                      <rect x="3" y="3" width="1.6" height="10" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className="ed-play"
+                    aria-label={playing ? "Pause" : "Play"}
+                    onClick={togglePlay}
+                  >
+                    {playing ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
+                      </svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                        <polygon points="4,2.5 13,8 4,13.5" />
+                      </svg>
+                    )}
+                  </button>
+                  <button type="button" aria-label="Forward 5s" onClick={() => seekTo(currentTime + 5)}>
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                      <polygon points="4,3 4,13 11,8" />
+                      <rect x="11.4" y="3" width="1.6" height="10" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="ed-time">
+                  <b>{formatTime(currentTime)}</b>
+                  {" "}
+                  <span>/</span>
+                  {" "}
+                  <span>{formatTime(duration)}</span>
+                </div>
+              </div>
+            </section>
 
-          {/* Right: style / editor settings */}
-          <aside
-            className="order-3 min-h-0 max-h-[70vh] overflow-y-auto overscroll-contain rounded-xl p-4 lg:max-h-none"
-            style={{ background: "var(--surface)", border: "1px solid var(--line)" }}
-          >
-            <StylePanel
-              style={style}
-              onChange={patchStyle}
-              onApplyPreset={(s) => setStyle({ ...s })}
-              wordsPerFrame={wordsPerFrame}
-              onWordsPerFrameChange={onWordsPerFrameChange}
-            />
-            <DictionaryPanel
-              segments={segments}
-              refreshToken={dictRefresh}
-              onApplySegments={(next) => {
-                setSegments(next);
-                baselineRef.current = next.map((s) => ({ ...s, text: s.text }));
-                schedulePersist(next);
-              }}
-            />
-          </aside>
+            <aside className="ed-panel ed-right">
+              <div className="ed-tabs" role="tablist">
+                {(
+                  [
+                    { id: "preset" as const, label: "Preset" },
+                    { id: "text" as const, label: "Text" },
+                    { id: "effect" as const, label: "Effect" },
+                  ]
+                ).map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    className={styleTab === tab.id ? "is-active" : undefined}
+                    aria-selected={styleTab === tab.id}
+                    onClick={() => setStyleTab(tab.id)}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <div className="ed-panel-body ed-inspector">
+                <StylePanel
+                  style={style}
+                  onChange={patchStyle}
+                  onApplyPreset={(s) => setStyle({ ...s })}
+                  wordsPerFrame={wordsPerFrame}
+                  onWordsPerFrameChange={onWordsPerFrameChange}
+                  panel={styleTab}
+                />
+                {styleTab === "text" && (
+                  <DictionaryPanel
+                    segments={segments}
+                    refreshToken={dictRefresh}
+                    onApplySegments={(next) => {
+                      setSegments(next);
+                      baselineRef.current = next.map((s) => ({ ...s, text: s.text }));
+                      schedulePersist(next);
+                    }}
+                  />
+                )}
+              </div>
+            </aside>
+          </div>
         </div>
-      )}
+
+        {segments && (
+          <EditorTimeline
+            segments={segments}
+            currentTime={currentTime}
+            duration={duration}
+            videoRef={videoRef}
+            onSeek={seekTo}
+          />
+        )}
       </div>
     </AppShell>
   );

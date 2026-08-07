@@ -23,8 +23,7 @@ export function readStoredTheme(): AppTheme | null {
 }
 
 export function systemTheme(): AppTheme {
-  if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return "light";
 }
 
 export function persistTheme(theme: AppTheme) {

@@ -11,7 +11,7 @@ import {
 
 /** Sync theme onto landing + console roots and persist. */
 export function useAppTheme() {
-  const [theme, setTheme] = useState<AppTheme>("dark");
+  const [theme, setTheme] = useState<AppTheme>("light");
   const [ready, setReady] = useState(false);
 
   useEffect(() => {

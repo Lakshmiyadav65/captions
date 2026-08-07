@@ -185,13 +185,18 @@ export function PreviewStage({
               ref={videoRef}
               src={videoUrl}
               onLoadedMetadata={onLoadedMetadata}
-              controls
               playsInline
               // Hide native FS — it can't include the caption overlay, and swapping FS
               // targets after the fact is blocked (no user gesture).
               controlsList="nofullscreen"
               disablePictureInPicture
               className="h-full w-full bg-black object-contain"
+              onClick={() => {
+                const v = videoRef.current;
+                if (!v) return;
+                if (v.paused) void v.play();
+                else v.pause();
+              }}
             />
             <SubtitleOverlay
               segment={active.seg}
