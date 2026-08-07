@@ -36,7 +36,8 @@ export function EditorTimeline({
   const pct = Math.min(100, Math.max(0, (currentTime / dur) * 100));
   const activeIdx = segments.findIndex((s) => currentTime >= s.start && currentTime < s.end);
 
-  const tickCount = Math.min(9, Math.max(4, Math.ceil(dur / 4) + 1));
+  // Cap ticks by duration so rounded second labels stay unique (short clips).
+  const tickCount = Math.min(9, Math.max(2, Math.floor(dur) + 1));
   const ticks = Array.from({ length: tickCount }, (_, i) =>
     Math.round((i / Math.max(1, tickCount - 1)) * dur),
   );
@@ -65,8 +66,8 @@ export function EditorTimeline({
         </div>
         <div className="ed-tl-tracks">
           <div className="ed-tl-ruler">
-            {ticks.map((t) => (
-              <span key={t}>{t}s</span>
+            {ticks.map((t, i) => (
+              <span key={i}>{t}s</span>
             ))}
           </div>
           <div className="ed-tl-caps" role="list">
