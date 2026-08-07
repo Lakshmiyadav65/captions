@@ -150,7 +150,6 @@ function AppShellInner({
             <path d="M4 11l8-7 8 7v8a1 1 0 01-1 1h-4v-6H9v6H5a1 1 0 01-1-1z" />
           </svg>
           Home
-          <kbd>1</kbd>
         </Link>
         <Link href="/library?view=media" aria-current={isMedia ? "page" : undefined}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -158,7 +157,6 @@ function AppShellInner({
             <path d="M10 9l5 3-5 3V9z" />
           </svg>
           Media
-          <kbd>2</kbd>
         </Link>
         <Link href="/library?filter=done" aria-current={isExport ? "page" : undefined}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -167,7 +165,6 @@ function AppShellInner({
             <path d="M5 20h14" />
           </svg>
           Export
-          <kbd>3</kbd>
         </Link>
         <Link href="/billing" aria-current={isSettings ? "page" : undefined}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -175,7 +172,6 @@ function AppShellInner({
             <path d="M12 3v2m0 14v2M4 12H2m20 0h-2M6.3 6.3L4.9 4.9m14.2 14.2l-1.4-1.4m1.4-12.8l-1.4 1.4M6.3 17.7l-1.4 1.4" />
           </svg>
           Settings
-          <kbd>4</kbd>
         </Link>
       </nav>
 
