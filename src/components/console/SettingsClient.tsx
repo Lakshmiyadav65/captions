@@ -71,14 +71,18 @@ export function SettingsClient({ user }: { user: ConsoleUser | null }) {
     <AppShell section="settings" user={user} title="Settings">
       <div className="tc-pane-scroll">
         <div className="tc-set">
-          <h1>Settings</h1>
+          <div className="tc-set-intro">
+            <h1>Settings</h1>
+            <p>Defaults apply to every new project. Export and plan live here.</p>
+          </div>
+
           {error ? (
             <p
               className="tc-card-plain"
               style={{
                 padding: 12,
                 marginBottom: 16,
-                borderColor: "rgba(232,179,65,.35)",
+                borderColor: "var(--warn-line, rgba(232,179,65,.35))",
                 color: "var(--warn)",
               }}
             >
@@ -87,11 +91,15 @@ export function SettingsClient({ user }: { user: ConsoleUser | null }) {
           ) : null}
 
           <div className="tc-set-grid">
-            <div style={{ display: "flex", flexDirection: "column", gap: 24, minWidth: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
               <div className="tc-card-plain">
+                <div className="tc-card-head">
+                  <b>Account</b>
+                  <span>Signed-in identity and current plan</span>
+                </div>
                 <div className="tc-row">
                   <span>
-                    <b>Account</b>
+                    <b>Email</b>
                     <span>{user?.email ?? user?.name ?? "Signed in"}</span>
                   </span>
                   <Link href="/" className="tc-btn tc-btn--sm">
@@ -121,11 +129,9 @@ export function SettingsClient({ user }: { user: ConsoleUser | null }) {
               </div>
 
               <div className="tc-card-plain">
-                <div className="tc-row">
-                  <span>
-                    <b>Plans</b>
-                    <span>Free for getting started. Upgrade when you need more minutes.</span>
-                  </span>
+                <div className="tc-card-head">
+                  <b>Plan</b>
+                  <span>Free for getting started. Upgrade when you need more minutes.</span>
                 </div>
                 {(Object.keys(PLANS) as PlanId[]).map((id) => {
                   const p = PLANS[id];
@@ -146,7 +152,7 @@ export function SettingsClient({ user }: { user: ConsoleUser | null }) {
                         </span>
                       </span>
                       {id === "free" ? (
-                        <span className="mono" style={{ color: "var(--ink-3)", fontSize: 12 }}>
+                        <span className="mono" style={{ color: "var(--ink-4)", fontSize: 12 }}>
                           Included
                         </span>
                       ) : (
@@ -171,25 +177,37 @@ export function SettingsClient({ user }: { user: ConsoleUser | null }) {
               </div>
             </div>
 
-            <div className="tc-card-plain" style={{ padding: 16 }}>
-              <b style={{ display: "block", marginBottom: 8 }}>Tips</b>
+            <div className="tc-card-plain" style={{ padding: 18 }}>
+              <b
+                style={{
+                  display: "block",
+                  marginBottom: 8,
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: "var(--ink-4)",
+                }}
+              >
+                Tips
+              </b>
               <p
                 style={{
                   margin: 0,
                   color: "var(--ink-3)",
-                  fontSize: "0.8125rem",
+                  fontSize: 13,
                   lineHeight: 1.5,
                 }}
               >
-                Upload from the Library command bar or the landing page. Open any project to edit
-                captions, pick a style, and export a burned MP4.
+                Upload from Projects or the landing page. Open any project to edit captions, pick a
+                style, and export a burned MP4.
               </p>
               <Link
                 href="/library"
                 className="tc-btn tc-btn--primary tc-btn--sm"
                 style={{ marginTop: 14 }}
               >
-                Back to Library
+                Back to Projects
               </Link>
             </div>
           </div>

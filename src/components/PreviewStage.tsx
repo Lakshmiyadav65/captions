@@ -160,7 +160,7 @@ export function PreviewStage({
       >
         <div
           ref={stageRef}
-          className={`preview-stage relative overflow-hidden bg-black shadow-lg ring-1 ring-white/10 ${
+          className={`preview-stage relative overflow-hidden bg-black shadow-[0_12px_30px_rgba(26,25,23,0.18)] ring-1 ring-black/10 ${
             isFullscreen
               ? "flex h-full w-full items-center justify-center rounded-none ring-0"
               : "rounded-xl"

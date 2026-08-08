@@ -658,16 +658,25 @@ export function Editor({
               </span>
             )}
             <QuotaBadge />
-            {EXPORT_FORMATS.map((f) => (
-              <button
-                key={f.ext}
-                type="button"
-                onClick={() => doExport(f.ext, f.mime)}
-                className="tc-btn tc-btn--sm"
-              >
-                {f.label}
-              </button>
-            ))}
+            <details className="ed-export-menu">
+              <summary>
+                Subtitles <span style={{ fontSize: 8, color: "var(--ed-muted)" }}>▾</span>
+              </summary>
+              <div className="ed-export-list">
+                {EXPORT_FORMATS.map((f) => (
+                  <button
+                    key={f.ext}
+                    type="button"
+                    onClick={(e) => {
+                      doExport(f.ext, f.mime);
+                      (e.currentTarget.closest("details") as HTMLDetailsElement | null)?.removeAttribute("open");
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </details>
             <button
               type="button"
               onClick={exportMp4}

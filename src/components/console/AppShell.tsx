@@ -100,9 +100,6 @@ function AppShellInner({
     setNavOpen(false);
   }, [pathname, filter, view]);
 
-  const minutesLeft = usage
-    ? Math.max(0, usage.monthlyMinutes - usage.usedMinutes)
-    : 0;
   const minutesPct = usage
     ? Math.min(
         100,
@@ -119,7 +116,7 @@ function AppShellInner({
   const topTitle =
     title ??
     (isHome
-      ? "Home"
+      ? "Projects"
       : isExport
         ? "Export"
         : isMedia
@@ -137,9 +134,12 @@ function AppShellInner({
       <div className="tc-side-brand">
         <Link href="/library" className="tc-side-logo" onClick={() => setNavOpen(false)}>
           <span className="tc-side-mark" aria-hidden>
-            <Image src="/logo.png" alt="" width={28} height={28} />
+            <Image src="/logo.png" alt="" width={26} height={26} />
           </span>
-          <span className="tc-side-name">caplio</span>
+          <span className="tc-side-brand-text">
+            <span className="tc-side-name">Caplio</span>
+            <span className="tc-side-tag">Telugu captions</span>
+          </span>
         </Link>
         <ConsoleThemeToggle />
       </div>
@@ -147,9 +147,12 @@ function AppShellInner({
       <nav className="tc-side-nav" aria-label="Main">
         <Link href="/library" aria-current={isHome ? "page" : undefined}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 11l8-7 8 7v8a1 1 0 01-1 1h-4v-6H9v6H5a1 1 0 01-1-1z" />
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
           </svg>
-          Home
+          Projects
         </Link>
         <Link href="/library?view=media" aria-current={isMedia ? "page" : undefined}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -181,18 +184,17 @@ function AppShellInner({
             <div className="tc-side-meter">
               <div className="tc-side-meter-row">
                 <b>{usage.planLabel}</b>
-                <span className="mono">{minutesLeft} min left</span>
+                <span className="mono">
+                  {usage.usedMinutes}/{usage.monthlyMinutes}
+                </span>
               </div>
               <div className="tc-side-bar">
                 <i style={{ width: `${minutesPct}%` }} />
               </div>
-              <div className="tc-side-plan">
-                {usage.usedMinutes} / {usage.monthlyMinutes} transcription minutes this month
-              </div>
+              <Link href="/billing" className="tc-btn tc-btn--outline tc-btn--sm tc-side-upgrade">
+                Upgrade
+              </Link>
             </div>
-            <Link href="/billing" className="tc-btn tc-btn--outline tc-btn--sm tc-side-upgrade">
-              Upgrade
-            </Link>
           </>
         ) : (
           <div className="tc-side-meter-row" style={{ color: "var(--ink-3)" }}>
@@ -212,7 +214,7 @@ function AppShellInner({
         </span>
         <span className="tc-side-user-meta">
           <b>{displayName(user)}</b>
-          <small>{usage?.planLabel ?? user?.email ?? "Account"}</small>
+          <small>{user?.email ?? usage?.planLabel ?? "Account"}</small>
         </span>
       </Link>
     </aside>

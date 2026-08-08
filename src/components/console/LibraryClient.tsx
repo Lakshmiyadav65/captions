@@ -24,11 +24,11 @@ function statusKind(status: string): "draft" | "done" | "work" | "fail" {
 }
 
 function statusLabel(status: string): string {
-  if (status === "done") return "Ready";
+  if (status === "done") return "Exported";
   if (status === "failed") return "Failed";
   if (status === "queued") return "Draft";
-  if (status === "extracting") return "Extracting";
-  if (status === "transcribing") return "Transcribing";
+  if (status === "extracting") return "Rendering";
+  if (status === "transcribing") return "Rendering";
   return status;
 }
 
@@ -65,7 +65,13 @@ function formatLength(sec: number | null): string {
   return `${m}:${String(r).padStart(2, "0")}`;
 }
 
-type Tab = "all" | "draft" | "done";
+type Tab = "all" | "draft" | "work" | "done";
+
+type Usage = {
+  planLabel: string;
+  usedMinutes: number;
+  monthlyMinutes: number;
+};
 
 export function LibraryClient({
   jobs,
@@ -81,17 +87,28 @@ export function LibraryClient({
   const urlFilter = searchParams.get("filter") ?? initialFilter;
   const view = searchParams.get("view");
   const [query, setQuery] = useState("");
+  const [usage, setUsage] = useState<Usage | null>(null);
   const [tab, setTab] = useState<Tab>(() => {
     if (urlFilter === "done") return "done";
-    if (urlFilter === "draft" || urlFilter === "work") return "draft";
+    if (urlFilter === "draft") return "draft";
+    if (urlFilter === "work") return "work";
     return "all";
   });
 
-  // Keep local segment in sync when arriving via sidebar Export/Media links.
   useEffect(() => {
     if (urlFilter === "done") setTab("done");
-    else if (urlFilter === "draft" || urlFilter === "work") setTab("draft");
+    else if (urlFilter === "draft") setTab("draft");
+    else if (urlFilter === "work") setTab("work");
   }, [urlFilter]);
+
+  useEffect(() => {
+    void fetch("/api/billing/usage")
+      .then(async (res) => (res.ok ? ((await res.json()) as Usage) : null))
+      .then((data) => {
+        if (data) setUsage(data);
+      })
+      .catch(() => {});
+  }, []);
 
   const showHome = !view && urlFilter === "all";
 
@@ -103,6 +120,14 @@ export function LibraryClient({
     () => jobs.filter((j) => statusKind(j.status) === "work").length,
     [jobs],
   );
+  const exported = useMemo(
+    () => jobs.filter((j) => statusKind(j.status) === "done").length,
+    [jobs],
+  );
+
+  const minutesLeft = usage
+    ? Math.max(0, Math.round((usage.monthlyMinutes - usage.usedMinutes) * 10) / 10)
+    : null;
 
   const visible = useMemo(() => {
     let list = jobs;
@@ -115,10 +140,9 @@ export function LibraryClient({
       list = list.filter((j) => statusKind(j.status) === "work");
     } else if (showHome) {
       if (tab === "draft") {
-        list = list.filter((j) => {
-          const k = statusKind(j.status);
-          return k === "draft" || k === "work";
-        });
+        list = list.filter((j) => statusKind(j.status) === "draft");
+      } else if (tab === "work") {
+        list = list.filter((j) => statusKind(j.status) === "work");
       } else if (tab === "done") {
         list = list.filter((j) => statusKind(j.status) === "done");
       }
@@ -134,7 +158,7 @@ export function LibraryClient({
   const styleStrip = PRESETS.slice(0, 6);
 
   const topTitle = showHome
-    ? "Home"
+    ? "Projects"
     : urlFilter === "done"
       ? "Export"
       : view === "media"
@@ -163,9 +187,7 @@ export function LibraryClient({
 
   const actions = (
     <Link href="/#upload" className="tc-btn tc-btn--primary">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 5v14M5 12h14" />
-      </svg>
+      <span aria-hidden>+</span>
       New project
     </Link>
   );
@@ -187,43 +209,56 @@ export function LibraryClient({
                   Good <em>{greetingWord()}</em>, {firstName(user)}
                 </h1>
                 <p>
-                  {waiting === 0
-                    ? "Nothing waiting on captions right now."
-                    : waiting === 1
-                      ? "One clip is waiting on captions."
-                      : `${waiting} clips are waiting on captions.`}
-                  {exporting === 0
-                    ? " Nothing is exporting right now."
-                    : exporting === 1
-                      ? " One project is still processing."
-                      : ` ${exporting} projects are still processing.`}
+                  {jobs.length} project{jobs.length === 1 ? "" : "s"}
+                  {exporting > 0 ? ` · ${exporting} waiting on export` : ""}
+                  {minutesLeft != null ? ` · ${minutesLeft} minutes left this month` : ""}
                 </p>
               </div>
+              <Link href="/#upload" className="tc-btn tc-btn--primary">
+                <span aria-hidden>+</span>
+                New project
+              </Link>
             </section>
 
             <Link href="/#upload" className="tc-drop">
               <span className="tc-drop-ic" aria-hidden>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 16V4" />
-                  <path d="M7 9l5-5 5 5" />
-                  <path d="M4 20h16" />
-                </svg>
+                ↑
               </span>
               <span className="tc-drop-body">
                 <b>Drop a video to caption it</b>
-                <span>Telugu speech becomes word-timed captions in about 40 seconds.</span>
-                <span className="fmt">MP4 · MOV · WEBM — up to 2 GB</span>
-              </span>
-              <span className="tc-btn tc-btn--primary" style={{ height: 44, padding: "0 20px" }} aria-hidden>
-                Choose a video
+                <span className="fmt">MP4 or MOV · up to 3 minutes · Telugu audio</span>
               </span>
             </Link>
 
-            <section style={{ display: "flex", flexDirection: "column", gap: "var(--s4)" }}>
+            <section className="tc-stats">
+              <div className="tc-stat">
+                <span className="tc-stat-label">Minutes left</span>
+                <span className="tc-stat-value mono">
+                  {minutesLeft != null ? String(minutesLeft) : "—"}
+                </span>
+                <span className="tc-stat-note">
+                  {usage ? `of ${usage.monthlyMinutes}` : "this month"}
+                </span>
+              </div>
+              <div className="tc-stat">
+                <span className="tc-stat-label">Projects</span>
+                <span className="tc-stat-value mono">{jobs.length}</span>
+                <span className="tc-stat-note">
+                  {waiting > 0 ? `${waiting} in progress` : "all clear"}
+                </span>
+              </div>
+              <div className="tc-stat">
+                <span className="tc-stat-label">Exports</span>
+                <span className="tc-stat-value mono">{exported}</span>
+                <span className="tc-stat-note">ready to download</span>
+              </div>
+            </section>
+
+            <section className="tc-sec">
               <div className="tc-sec-head">
                 <div>
                   <h2>Caption styles</h2>
-                  <p>Live looks from Styles 2.0 — pick one in the editor when you open a project.</p>
+                  <p>Live looks — pick one in the editor when you open a project.</p>
                 </div>
                 <Link href="/#styles" className="tc-btn tc-btn--sm">
                   Browse all {PRESETS.length}
@@ -233,7 +268,7 @@ export function LibraryClient({
                 {styleStrip.map((p) => (
                   <Link key={p.id} href="/#upload" className="tc-tile" title={p.name}>
                     <div className="tc-tile-cap">
-                      <span>{p.sample ?? "meeru ee"}</span>
+                      <span>{p.sample ?? "Aa"}</span>
                     </div>
                     <div className="tc-tile-foot">
                       <b>{p.name}</b>
@@ -246,7 +281,7 @@ export function LibraryClient({
           </>
         ) : null}
 
-        <section style={{ display: "flex", flexDirection: "column", gap: "var(--s4)" }}>
+        <section className="tc-sec">
           <div className="tc-sec-head">
             <div>
               <h2>
@@ -258,13 +293,17 @@ export function LibraryClient({
                       ? "All media"
                       : "Projects"}
               </h2>
+              {showHome ? (
+                <p className="tc-sec-sub">Sorted by last edited</p>
+              ) : null}
             </div>
             {showHome ? (
               <div className="tc-seg" role="group" aria-label="Filter projects">
                 {(
                   [
                     { id: "all" as const, label: "All" },
-                    { id: "draft" as const, label: "Drafts" },
+                    { id: "draft" as const, label: "Draft" },
+                    { id: "work" as const, label: "Rendering" },
                     { id: "done" as const, label: "Exported" },
                   ]
                 ).map((opt) => (
@@ -284,73 +323,46 @@ export function LibraryClient({
                 className="tc-btn tc-btn--ghost tc-btn--sm"
                 onClick={() => router.push("/library")}
               >
-                Back to Home
+                Back to Projects
               </button>
             )}
           </div>
 
           {visible.length === 0 ? (
-            <div className="tc-panel">
-              <div className="tc-empty">
-                <b>{tab === "done" || urlFilter === "done" ? "No exports yet" : "Nothing here yet"}</b>
-                <p>
-                  {tab === "done" || urlFilter === "done"
-                    ? "Finish captioning a draft and hit Export — burned-in 1080p MP4s land here."
-                    : "Upload a video to start captioning."}
-                </p>
-                <Link href="/#upload" className="tc-btn tc-btn--primary tc-btn--sm">
-                  Upload video
-                </Link>
-              </div>
+            <div className="tc-empty-card">
+              <b>{tab === "done" || urlFilter === "done" ? "No exports yet" : "Nothing here yet"}</b>
+              <p>
+                {tab === "done" || urlFilter === "done"
+                  ? "Finish captioning a draft and hit Export — burned-in MP4s land here."
+                  : "Upload a video to start captioning."}
+              </p>
+              <Link href="/#upload" className="tc-btn tc-btn--primary tc-btn--sm">
+                Upload video
+              </Link>
             </div>
           ) : (
-            <div className="tc-panel">
-              <table className="tc-tbl">
-                <thead>
-                  <tr>
-                    <th style={{ width: "46%" }}>Project</th>
-                    <th>Status</th>
-                    <th>Length</th>
-                    <th>Updated</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {visible.map((job) => {
-                    const kind = statusKind(job.status);
-                    return (
-                      <tr key={job.id}>
-                        <td>
-                          <div className="tc-cell-name">
-                            <span className="tc-thumb" aria-hidden />
-                            <Link href={`/jobs/${job.id}`}>
-                              <b>{job.originalName}</b>
-                              <span>{relativeTime(job.updatedAt)}</span>
-                            </Link>
-                          </div>
-                        </td>
-                        <td>
-                          <span className={`tc-badge tc-badge--${kind}`}>
-                            {statusLabel(job.status)}
-                            {kind === "work" ? ` ${job.progress}%` : ""}
-                          </span>
-                        </td>
-                        <td className="mono" style={{ fontFamily: "var(--mono)", color: "var(--ink-2)" }}>
-                          {formatLength(job.durationSec)}
-                        </td>
-                        <td style={{ color: "var(--ink-3)" }}>{relativeTime(job.updatedAt)}</td>
-                        <td>
-                          <div className="tc-row-actions">
-                            <Link href={`/jobs/${job.id}`} className="tc-btn tc-btn--sm">
-                              Open
-                            </Link>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="tc-project-grid">
+              {visible.map((job) => {
+                const kind = statusKind(job.status);
+                return (
+                  <Link key={job.id} href={`/jobs/${job.id}`} className="tc-project-card">
+                    <div className="tc-project-thumb" aria-hidden>
+                      <span className="tc-project-frame">9:16 frame</span>
+                      <span className="tc-project-dur mono">{formatLength(job.durationSec)}</span>
+                    </div>
+                    <div className="tc-project-body">
+                      <b className="tc-project-title">{job.originalName}</b>
+                      <span className="tc-project-meta">
+                        <span className={`tc-badge tc-badge--${kind}`}>
+                          {statusLabel(job.status)}
+                          {kind === "work" ? ` ${job.progress}%` : ""}
+                        </span>
+                        <span className="tc-project-time">{relativeTime(job.updatedAt)}</span>
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </section>

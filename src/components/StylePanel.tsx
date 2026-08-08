@@ -60,7 +60,7 @@ function Slider({
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(parseFloat(e.target.value))}
-      className="w-full accent-[var(--ed-accent,#e9691c)] disabled:opacity-40"
+      className="w-full accent-[var(--ed-accent,#e4571b)] disabled:opacity-40"
     />
   );
 }
@@ -113,7 +113,7 @@ function KeywordColorPicker({
               onClick={() => onChange(s.hex)}
               className={`h-7 w-7 rounded-md border transition ${
                 active
-                  ? "border-[var(--ed-accent,#e9691c)] ring-2 ring-[var(--ed-accent,#e9691c)]/40"
+                  ? "border-[var(--ed-accent,#e4571b)] ring-2 ring-[var(--ed-accent,#e4571b)]/40"
                   : "border-[var(--ed-line,#e8e4de)] hover:border-[var(--ed-soft,#736e66)]"
               }`}
               style={{ background: s.hex }}
@@ -135,7 +135,7 @@ function Segmented<T extends string | number>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="inline-flex flex-wrap rounded-lg bg-[var(--ed-chip,#f4f2ee)] p-0.5">
+    <div className="inline-flex flex-wrap rounded-lg bg-[var(--ed-chip,#fbfaf8)] p-0.5">
       {options.map((o) => (
         <button
           key={String(o.value)}
@@ -143,8 +143,8 @@ function Segmented<T extends string | number>({
           onClick={() => onChange(o.value)}
           className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
             value === o.value
-              ? "bg-[var(--ed-accent,#e9691c)] text-white"
-              : "text-[var(--ed-soft,#736e66)] hover:text-[var(--ed-ink,#1a1917)]"
+              ? "bg-[var(--ed-accent,#e4571b)] text-white"
+              : "text-[var(--ed-soft,#736e66)] hover:text-[var(--ed-ink,#1b1a18)]"
           }`}
         >
           {o.label}
@@ -241,10 +241,10 @@ function PresetCard({
     <button
       type="button"
       onClick={onSelect}
-      className={`group flex flex-col overflow-hidden rounded-lg border text-left transition ${
+      className={`group flex flex-col overflow-hidden rounded-[10px] border text-left transition ${
         active
-          ? "border-[var(--ed-accent,#e9691c)] ring-1 ring-[var(--ed-accent,#e9691c)]/50"
-          : "border-[var(--ed-line,#e8e4de)] hover:border-[var(--ed-soft,#736e66)]"
+          ? "border-[var(--ed-accent,#e4571b)] ring-1 ring-[var(--ed-accent-line,#f6d6c2)]"
+          : "border-[var(--ed-line,#e7e3db)] hover:border-[#d9d4ca] hover:shadow-[0_8px_24px_-12px_rgba(40,30,15,0.28)]"
       }`}
     >
       <div
@@ -276,9 +276,9 @@ function PresetCard({
           {preset.sample ?? "Aa"}
         </span>
       </div>
-      <div className="flex items-center justify-between gap-2 border-t border-[var(--ed-line-soft,#f1eee9)] bg-[var(--ed-chip,#f4f2ee)] px-2 py-1.5">
-        <div className="truncate text-[11px] font-medium text-[var(--ed-ink,#1a1917)]">{preset.name}</div>
-        <div className="shrink-0 truncate text-[10px] text-[var(--ed-muted,#a39d93)]">
+      <div className="flex items-center justify-between gap-2 border-t border-[var(--ed-line-soft,#f1efe9)] bg-[var(--ed-chip,#fbfaf8)] px-2 py-1.5">
+        <div className="truncate text-[11px] font-medium text-[var(--ed-ink,#1b1a18)]">{preset.name}</div>
+        <div className="shrink-0 truncate text-[10px] text-[var(--ed-muted,#9a958c)]">
           {preset.tag ?? preset.category}
         </div>
       </div>
@@ -373,8 +373,8 @@ export function StylePanel({
               onClick={() => setCategory(c.id)}
               className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
                 category === c.id
-                  ? "bg-[var(--ed-accent,#e9691c)] text-white"
-                  : "bg-[var(--ed-chip,#f4f2ee)] text-[var(--ed-soft,#736e66)] hover:text-[var(--ed-ink,#1a1917)]"
+                  ? "bg-[var(--ed-accent,#e4571b)] text-white"
+                  : "bg-[var(--ed-chip,#fbfaf8)] text-[var(--ed-soft,#736e66)] hover:text-[var(--ed-ink,#1b1a18)]"
               }`}
             >
               {c.label}
@@ -385,8 +385,8 @@ export function StylePanel({
             onClick={() => setCategory("premium")}
             className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
               category === "premium"
-                ? "bg-[var(--ed-ink,#1a1917)] text-white"
-                : "bg-[var(--ed-chip,#f4f2ee)] text-[var(--ed-accent-deep,#d45f14)] hover:text-[var(--ed-ink,#1a1917)]"
+                ? "bg-[var(--ed-ink,#1b1a18)] text-white"
+                : "bg-[var(--ed-chip,#fbfaf8)] text-[var(--ed-accent-deep,#c9490f)] hover:text-[var(--ed-ink,#1b1a18)]"
             }`}
           >
             3.0
@@ -497,12 +497,12 @@ export function StylePanel({
                 title={f.note}
                 className={`rounded-lg border px-3 py-2 text-left transition ${
                   style.fontFamily === f.family
-                    ? "border-[var(--ed-accent,#e9691c)] bg-[var(--ed-accent-wash,#fdede2)]"
-                    : "border-[var(--ed-line,#e8e4de)] bg-[var(--ed-chip,#f4f2ee)] hover:border-[var(--ed-soft,#736e66)]"
+                    ? "border-[var(--ed-accent,#e4571b)] bg-[var(--ed-accent-wash,#fdefe7)]"
+                    : "border-[var(--ed-line,#e8e4de)] bg-[var(--ed-chip,#fbfaf8)] hover:border-[var(--ed-soft,#736e66)]"
                 }`}
               >
                 <div
-                  className="text-lg leading-tight text-[var(--ed-ink,#1a1917)]"
+                  className="text-lg leading-tight text-[var(--ed-ink,#1b1a18)]"
                   style={{ fontFamily: fontStack(f.family) }}
                 >
                   Aa Bb
@@ -522,12 +522,12 @@ export function StylePanel({
                 title={f.note}
                 className={`rounded-lg border px-3 py-2 text-left transition ${
                   style.fontFamily === f.family
-                    ? "border-[var(--ed-accent,#e9691c)] bg-[var(--ed-accent-wash,#fdede2)]"
-                    : "border-[var(--ed-line,#e8e4de)] bg-[var(--ed-chip,#f4f2ee)] hover:border-[var(--ed-soft,#736e66)]"
+                    ? "border-[var(--ed-accent,#e4571b)] bg-[var(--ed-accent-wash,#fdefe7)]"
+                    : "border-[var(--ed-line,#e8e4de)] bg-[var(--ed-chip,#fbfaf8)] hover:border-[var(--ed-soft,#736e66)]"
                 }`}
               >
                 <div
-                  className="text-lg leading-tight text-[var(--ed-ink,#1a1917)]"
+                  className="text-lg leading-tight text-[var(--ed-ink,#1b1a18)]"
                   style={{ fontFamily: fontStack(f.family) }}
                 >
                   తెలుగు
