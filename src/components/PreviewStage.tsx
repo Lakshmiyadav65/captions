@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import type { Segment } from "@/lib/transcription/types";
 import type { SubtitleStyle } from "@/lib/subtitles/style";
 import { tokenizeSegment, filledCount } from "@/lib/subtitles/karaoke";
@@ -14,7 +14,7 @@ import { SubtitleOverlay } from "./SubtitleOverlay";
 //
 // Native <video> fullscreen only shows the video (no caption overlay), and "exit then
 // re-request on the stage" fails because requestFullscreen needs a user gesture. So we hide
-// the native fullscreen control and expose our own button that fullscreens the stage.
+// the native control and fullscreen the stage from the editor toolbar instead.
 
 function fitBox(availW: number, availH: number, aspect: number) {
   let w = availW;
@@ -32,6 +32,8 @@ export function PreviewStage({
   segments,
   style,
   onTime,
+  onPlayingChange,
+  onDuration,
   initialAspect,
   onPositionChange,
 }: {
@@ -40,6 +42,8 @@ export function PreviewStage({
   segments: Segment[];
   style: SubtitleStyle;
   onTime?: (t: number) => void;
+  onPlayingChange?: (playing: boolean) => void;
+  onDuration?: (duration: number) => void;
   /** Video aspect ratio known up front (detected server-side) to avoid a 16:9 flash. */
   initialAspect?: number;
   /** Drag caption on the preview to set vertical position (% from top). */
@@ -102,23 +106,40 @@ export function PreviewStage({
     return () => document.removeEventListener("fullscreenchange", onFsChange);
   }, []);
 
-  const toggleFullscreen = useCallback(async () => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    try {
-      if (document.fullscreenElement === stage) {
-        await document.exitFullscreen();
-      } else {
-        await stage.requestFullscreen();
-      }
-    } catch {
-      // Browser blocked fullscreen (permissions / unsupported).
-    }
-  }, []);
+  // Bind play/pause/duration on the mounted <video> so the transport stays in sync.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+
+    const syncDuration = () => {
+      const d = v.duration;
+      if (Number.isFinite(d) && d > 0) onDuration?.(d);
+    };
+    const onPlay = () => onPlayingChange?.(true);
+    const onPause = () => onPlayingChange?.(false);
+    const onEnded = () => onPlayingChange?.(false);
+
+    v.addEventListener("loadedmetadata", syncDuration);
+    v.addEventListener("durationchange", syncDuration);
+    v.addEventListener("play", onPlay);
+    v.addEventListener("pause", onPause);
+    v.addEventListener("ended", onEnded);
+    syncDuration();
+    onPlayingChange?.(!v.paused);
+
+    return () => {
+      v.removeEventListener("loadedmetadata", syncDuration);
+      v.removeEventListener("durationchange", syncDuration);
+      v.removeEventListener("play", onPlay);
+      v.removeEventListener("pause", onPause);
+      v.removeEventListener("ended", onEnded);
+    };
+  }, [videoRef, videoUrl, onPlayingChange, onDuration]);
 
   const onLoadedMetadata = () => {
     const v = videoRef.current;
     if (v?.videoWidth && v?.videoHeight) setAspect(v.videoWidth / v.videoHeight);
+    if (v && Number.isFinite(v.duration) && v.duration > 0) onDuration?.(v.duration);
   };
 
   useEffect(() => {
@@ -199,7 +220,7 @@ export function PreviewStage({
               onClick={() => {
                 const v = videoRef.current;
                 if (!v) return;
-                if (v.paused) void v.play();
+                if (v.paused) void v.play().catch(() => {});
                 else v.pause();
               }}
             />
@@ -210,26 +231,9 @@ export function PreviewStage({
               filled={active.filled}
               onPositionChange={onPositionChange}
             />
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                void toggleFullscreen();
-              }}
-              className="absolute right-2 bottom-12 z-20 rounded-md bg-black/70 px-2.5 py-1.5 text-xs font-medium text-white shadow ring-1 ring-white/20 backdrop-blur-sm transition hover:bg-black/90"
-              title={isFullscreen ? "Exit full screen (Esc)" : "Full screen with captions"}
-              aria-label={isFullscreen ? "Exit full screen" : "Full screen with captions"}
-            >
-              {isFullscreen ? "Exit full screen" : "Full screen"}
-            </button>
           </div>
         </div>
       </div>
-      {onPositionChange && !isFullscreen && (
-        <p className="ed-preview-hint mt-2 shrink-0 text-center text-[11px] leading-snug text-[var(--ed-muted,#9a958c)]">
-          Drag the caption on the video to reposition · Top / Middle / Bottom in Position
-        </p>
-      )}
     </div>
   );
 }

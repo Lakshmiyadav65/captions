@@ -501,29 +501,36 @@ export function Editor({
     }
   };
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) void v.play();
-    else v.pause();
+    try {
+      if (v.paused) {
+        // Restart from the beginning when the clip has ended.
+        if (v.ended) v.currentTime = 0;
+        await v.play();
+      } else {
+        v.pause();
+      }
+    } catch {
+      // AbortError when a play() is interrupted by pause() — ignore.
+    }
+    setPlaying(!v.paused);
   };
 
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    const onMeta = () => setDuration(v.duration || 0);
-    const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
-    v.addEventListener("loadedmetadata", onMeta);
-    v.addEventListener("play", onPlay);
-    v.addEventListener("pause", onPause);
-    if (v.duration) setDuration(v.duration);
-    return () => {
-      v.removeEventListener("loadedmetadata", onMeta);
-      v.removeEventListener("play", onPlay);
-      v.removeEventListener("pause", onPause);
-    };
-  }, [progress.status, videoUrl]);
+  const toggleFullscreen = async () => {
+    const stage = document.querySelector(".preview-stage");
+    if (!(stage instanceof HTMLElement)) return;
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await stage.requestFullscreen();
+      }
+    } catch {
+      // Browser blocked fullscreen (permissions / unsupported).
+    }
+  };
 
   /* —— Processing / failed: keep simple shell with sidebar off —— */
   if (progress.status !== "done") {
@@ -815,10 +822,7 @@ export function Editor({
                   type="button"
                   className="ed-chip"
                   onClick={() => {
-                    const el = document.querySelector(".ed-preview-frame");
-                    if (el && "requestFullscreen" in el) {
-                      void (el as HTMLElement).requestFullscreen();
-                    }
+                    void toggleFullscreen();
                   }}
                 >
                   Full screen
@@ -831,6 +835,8 @@ export function Editor({
                   segments={displaySegments}
                   style={style}
                   onTime={setCurrentTime}
+                  onPlayingChange={setPlaying}
+                  onDuration={setDuration}
                   initialAspect={width && height ? width / height : undefined}
                   onPositionChange={(positionYPct) => patchStyle({ positionYPct })}
                 />
@@ -847,7 +853,9 @@ export function Editor({
                     type="button"
                     className="ed-play"
                     aria-label={playing ? "Pause" : "Play"}
-                    onClick={togglePlay}
+                    onClick={() => {
+                      void togglePlay();
+                    }}
                   >
                     {playing ? (
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
