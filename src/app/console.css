@@ -2212,8 +2212,8 @@ html[data-console-theme="dark"] .console.console--editor {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  padding: 48px 16px 20px;
+  gap: 12px;
+  padding: 52px 24px 16px;
   background: #f1efea;
   position: relative;
   border: 0;
@@ -2227,6 +2227,7 @@ html[data-console-theme="dark"] .console.console--editor {
   display: flex;
   align-items: center;
   gap: 8px;
+  z-index: 2;
 }
 .console .ed-chip {
   height: 28px;
@@ -2243,15 +2244,15 @@ html[data-console-theme="dark"] .console.console--editor {
   cursor: pointer;
 }
 .console .ed-preview-frame {
-  flex: 0 1 auto;
-  width: min(100%, 280px);
-  max-height: calc(100% - 80px);
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: min(440px, 92%);
+  min-height: 0;
+  height: 100%;
+  max-height: calc(100% - 56px);
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  border-radius: 14px;
-  overflow: hidden;
-  box-shadow: 0 12px 30px rgba(26, 25, 23, 0.18);
 }
 .console .ed-preview-frame .preview-stage {
   border-radius: 14px !important;
@@ -2539,7 +2540,7 @@ html[data-console-theme="dark"] .console.console--editor {
     display: flex;
   }
   .console .ed-preview-frame {
-    width: min(100%, 240px);
+    max-width: min(320px, 100%);
   }
   .console .ed-timeline {
     height: 140px;

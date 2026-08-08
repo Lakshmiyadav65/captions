@@ -75,10 +75,11 @@ export function PreviewStage({
 
       const availW = wrap.clientWidth;
       if (!availW) return;
+      // Prefer the wrap's laid-out height so portrait reels grow with the center column.
       const availH =
-        wrap.clientHeight > 40
+        wrap.clientHeight > 80
           ? wrap.clientHeight
-          : Math.min(window.innerHeight * 0.62, 720);
+          : Math.min(window.innerHeight * 0.7, 860);
       setBox(fitBox(availW, availH, aspect));
     };
 
@@ -170,7 +171,11 @@ export function PreviewStage({
               ? undefined
               : box.w
                 ? { width: box.w, height: box.h }
-                : { width: "100%", aspectRatio: "16 / 9", maxHeight: "100%" }
+                : {
+                    width: "100%",
+                    aspectRatio: String(aspect),
+                    maxHeight: "100%",
+                  }
           }
         >
           <div
@@ -221,9 +226,8 @@ export function PreviewStage({
         </div>
       </div>
       {onPositionChange && !isFullscreen && (
-        <p className="mt-1.5 shrink-0 text-center text-[11px] text-neutral-500">
-          Drag the caption up/down on the video — or use Top / Middle / Bottom in styles.
-          Use the Full screen button on the preview so captions stay visible.
+        <p className="ed-preview-hint mt-2 shrink-0 text-center text-[11px] leading-snug text-[var(--ed-muted,#9a958c)]">
+          Drag the caption on the video to reposition · Top / Middle / Bottom in Position
         </p>
       )}
     </div>
