@@ -31,7 +31,7 @@ import { SubtitleList } from "./SubtitleList";
 import { DictionaryPanel } from "./DictionaryPanel";
 import { QuotaBadge } from "./QuotaBadge";
 import { AppShell, type ConsoleUser } from "@/components/console/AppShell";
-import { EditorTimeline, formatTime } from "./EditorTimeline";
+import { formatTime } from "./EditorTimeline";
 import Link from "next/link";
 
 interface Progress {
@@ -922,16 +922,6 @@ export function Editor({
             </aside>
           </div>
         </div>
-
-        {segments && (
-          <EditorTimeline
-            segments={segments}
-            currentTime={currentTime}
-            duration={duration}
-            videoRef={videoRef}
-            onSeek={seekTo}
-          />
-        )}
       </div>
     </AppShell>
   );
