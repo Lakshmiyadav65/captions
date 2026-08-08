@@ -1,6 +1,6 @@
 "use client";
 
-import type { RefObject } from "react";
+import type { MouseEvent, RefObject } from "react";
 import type { Segment } from "@/lib/transcription/types";
 
 function formatTime(sec: number): string {
@@ -42,6 +42,12 @@ export function EditorTimeline({
     Math.round((i / Math.max(1, tickCount - 1)) * dur),
   );
 
+  const seekFromTrack = (e: MouseEvent<HTMLElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / Math.max(1, rect.width);
+    onSeek(x * dur);
+  };
+
   return (
     <div className="ed-timeline">
       <div className="ed-tl-toolbar">
@@ -60,10 +66,6 @@ export function EditorTimeline({
             <i className="ed-tl-dot" style={{ background: "var(--ed-accent)" }} />
             Captions
           </div>
-          <div>
-            <i className="ed-tl-dot" style={{ background: "#8A857D" }} />
-            Video
-          </div>
         </div>
         <div className="ed-tl-tracks">
           <div className="ed-tl-ruler">
@@ -71,7 +73,18 @@ export function EditorTimeline({
               <span key={i}>{t}s</span>
             ))}
           </div>
-          <div className="ed-tl-caps" role="list">
+          <div
+            className="ed-tl-caps"
+            role="list"
+            tabIndex={0}
+            aria-label="Caption timeline"
+            onClick={seekFromTrack}
+            onKeyDown={(e) => {
+              if (!videoRef.current) return;
+              if (e.key === "ArrowRight") onSeek(Math.min(dur, currentTime + 1));
+              if (e.key === "ArrowLeft") onSeek(Math.max(0, currentTime - 1));
+            }}
+          >
             {segments.slice(0, 48).map((s, i) => {
               const label = (s.text || "…").trim().slice(0, 18) || "Caption";
               return (
@@ -81,34 +94,17 @@ export function EditorTimeline({
                   role="listitem"
                   className={`ed-tl-pill${i === activeIdx ? " is-active" : ""}`}
                   title={s.text}
-                  onClick={() => onSeek(s.start + 0.01)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSeek(s.start + 0.01);
+                  }}
                 >
                   {label}
                   {s.text && s.text.length > 18 ? "…" : ""}
                 </button>
               );
             })}
-          </div>
-          <div
-            className="ed-tl-video"
-            role="slider"
-            aria-valuemin={0}
-            aria-valuemax={Math.round(dur)}
-            aria-valuenow={Math.round(currentTime)}
-            tabIndex={0}
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              const x = (e.clientX - rect.left) / Math.max(1, rect.width);
-              onSeek(x * dur);
-            }}
-            onKeyDown={(e) => {
-              if (!videoRef.current) return;
-              if (e.key === "ArrowRight") onSeek(Math.min(dur, currentTime + 1));
-              if (e.key === "ArrowLeft") onSeek(Math.max(0, currentTime - 1));
-            }}
-          >
-            <i style={{ width: `${pct}%` }} />
-            <b style={{ left: `${pct}%` }} />
+            <b className="ed-tl-playhead" style={{ left: `${pct}%` }} aria-hidden />
           </div>
         </div>
       </div>

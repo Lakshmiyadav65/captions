@@ -2335,7 +2335,7 @@ html[data-console-theme="dark"] .console.console--editor {
 }
 .console .ed-timeline {
   flex: none;
-  height: 148px;
+  height: 120px;
   margin: 0;
   border: 0;
   border-top: 1px solid var(--ed-line);
@@ -2432,8 +2432,18 @@ html[data-console-theme="dark"] .console.console--editor {
   gap: 4px;
   padding: 8px;
   overflow-x: auto;
-  border-bottom: 1px solid var(--ed-line-soft);
   position: relative;
+  cursor: pointer;
+}
+.console .ed-tl-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ed-accent);
+  border-radius: 0;
+  pointer-events: none;
 }
 .console .ed-tl-pill {
   flex: none;
