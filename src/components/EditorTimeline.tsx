@@ -45,6 +45,7 @@ export function EditorTimeline({
   return (
     <div className="ed-timeline">
       <div className="ed-tl-toolbar">
+        <span className="ed-tl-label">Timeline</span>
         <span className="ed-chip">Split</span>
         <span className="ed-chip">Merge</span>
         <span style={{ flex: 1 }} />

@@ -172,8 +172,7 @@ export function Editor({
   const [retryError, setRetryError] = useState<string | null>(null);
   /** Bumped on retry so the SSE effect re-subscribes after a failure. */
   const [streamEpoch, setStreamEpoch] = useState(0);
-  const [editorTool, setEditorTool] = useState<"upload" | "text" | "captions">("captions");
-  const [styleTab, setStyleTab] = useState<"preset" | "text" | "effect">("preset");
+  const [styleTab, setStyleTab] = useState<"preset" | "text" | "effect" | "position">("preset");
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [duration, setDuration] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -688,45 +687,7 @@ export function Editor({
           </div>
         </header>
 
-        <div className={`ed-body is-tool-${editorTool}`}>
-          <nav className="ed-rail" aria-label="Editor tools">
-            <Link
-              href="/#upload"
-              className={`ed-rail-btn${editorTool === "upload" ? " is-active" : ""}`}
-              title="Upload"
-              onClick={() => setEditorTool("upload")}
-            >
-              <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <line x1="8" y1="10.5" x2="8" y2="2.5" />
-                <polyline points="4.5,6 8,2.5 11.5,6" />
-                <line x1="3" y1="13.5" x2="13" y2="13.5" />
-              </svg>
-            </Link>
-            <button
-              type="button"
-              className={`ed-rail-btn${editorTool === "text" ? " is-active" : ""}`}
-              title="Text"
-              onClick={() => {
-                setEditorTool("text");
-                setLeftCollapsed(false);
-              }}
-            >
-              <span style={{ fontWeight: 600, fontSize: 15 }}>T</span>
-            </button>
-            <button
-              type="button"
-              className={`ed-rail-btn${editorTool === "captions" ? " is-active" : ""}`}
-              title="Captions"
-              onClick={() => setEditorTool("captions")}
-            >
-              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-                <rect x="1.5" y="3.5" width="13" height="9" rx="2" />
-                <line x1="4" y1="9.5" x2="8" y2="9.5" strokeLinecap="round" />
-                <line x1="9.5" y1="9.5" x2="12" y2="9.5" strokeLinecap="round" />
-              </svg>
-            </button>
-          </nav>
-
+        <div className="ed-body">
           <div className={`ed-workspace${leftCollapsed ? " is-left-collapsed" : ""}`}>
             {!leftCollapsed && (
               <section className="ed-panel ed-left">
@@ -919,9 +880,10 @@ export function Editor({
               <div className="ed-tabs" role="tablist">
                 {(
                   [
-                    { id: "preset" as const, label: "Preset" },
+                    { id: "preset" as const, label: "Style" },
                     { id: "text" as const, label: "Text" },
-                    { id: "effect" as const, label: "Effect" },
+                    { id: "effect" as const, label: "Motion" },
+                    { id: "position" as const, label: "Position" },
                   ]
                 ).map((tab) => (
                   <button
@@ -943,7 +905,7 @@ export function Editor({
                   onApplyPreset={(s) => setStyle({ ...s })}
                   wordsPerFrame={wordsPerFrame}
                   onWordsPerFrameChange={onWordsPerFrameChange}
-                  panel={styleTab}
+                  panel={styleTab === "position" ? "position" : styleTab}
                 />
                 {styleTab === "text" && (
                   <DictionaryPanel

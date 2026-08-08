@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { ConsoleThemeToggle } from "@/components/console/ConsoleThemeToggle";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -16,13 +15,6 @@ type Usage = {
   planLabel: string;
   usedMinutes: number;
   monthlyMinutes: number;
-};
-
-type Counts = {
-  all: number;
-  draft: number;
-  done: number;
-  work: number;
 };
 
 function initials(user: ConsoleUser | null): string {
@@ -45,7 +37,7 @@ export function AppShell(props: {
   titleExtra?: ReactNode;
   headActions?: ReactNode;
   headSearch?: ReactNode;
-  counts?: Counts;
+  hideTopBar?: boolean;
 }) {
   return (
     <Suspense
@@ -69,6 +61,7 @@ function AppShellInner({
   titleExtra,
   headActions,
   headSearch,
+  hideTopBar = false,
 }: {
   children: ReactNode;
   user?: ConsoleUser | null;
@@ -78,7 +71,7 @@ function AppShellInner({
   titleExtra?: ReactNode;
   headActions?: ReactNode;
   headSearch?: ReactNode;
-  counts?: Counts;
+  hideTopBar?: boolean;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -86,12 +79,25 @@ function AppShellInner({
   const view = searchParams.get("view");
   const [usage, setUsage] = useState<Usage | null>(null);
   const [navOpen, setNavOpen] = useState(false);
+  const [editorHref, setEditorHref] = useState("/library");
 
   useEffect(() => {
     void fetch("/api/billing/usage")
       .then(async (res) => (res.ok ? ((await res.json()) as Usage) : null))
       .then((data) => {
         if (data) setUsage(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    void fetch("/api/jobs")
+      .then(async (res) =>
+        res.ok ? ((await res.json()) as { jobs?: { id: string }[] }) : null,
+      )
+      .then((data) => {
+        const id = data?.jobs?.[0]?.id;
+        if (id) setEditorHref(`/jobs/${id}`);
       })
       .catch(() => {});
   }, []);
@@ -107,20 +113,21 @@ function AppShellInner({
       )
     : 0;
 
-  const isHome = section === "library" && !filter && view !== "media";
-  const isExport = section === "library" && filter === "done";
-  const isMedia =
-    section === "library" && (view === "media" || filter === "draft" || filter === "work");
-  const isSettings = section === "settings";
+  const isProjects = section === "library" && !filter && view !== "new";
+  const isNew = section === "library" && view === "new";
+  const isEditor = section === "editor";
+  const isPlan = section === "settings" && searchParams.get("tab") !== "settings";
+  const isSettings =
+    section === "settings" && searchParams.get("tab") === "settings";
 
   const topTitle =
     title ??
-    (isHome
+    (isProjects
       ? "Projects"
-      : isExport
-        ? "Export"
-        : isMedia
-          ? "Media"
+      : isNew
+        ? "New project"
+        : isPlan
+          ? "Plan"
           : isSettings
             ? "Settings"
             : undefined);
@@ -134,7 +141,7 @@ function AppShellInner({
       <div className="tc-side-brand">
         <Link href="/library" className="tc-side-logo" onClick={() => setNavOpen(false)}>
           <span className="tc-side-mark" aria-hidden>
-            <Image src="/logo.png" alt="" width={26} height={26} />
+            C
           </span>
           <span className="tc-side-brand-text">
             <span className="tc-side-name">Caplio</span>
@@ -145,57 +152,57 @@ function AppShellInner({
       </div>
 
       <nav className="tc-side-nav" aria-label="Main">
-        <Link href="/library" aria-current={isHome ? "page" : undefined}>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="7" height="7" rx="1.5" />
-            <rect x="14" y="3" width="7" height="7" rx="1.5" />
-            <rect x="3" y="14" width="7" height="7" rx="1.5" />
-            <rect x="14" y="14" width="7" height="7" rx="1.5" />
-          </svg>
+        <Link href="/library" aria-current={isProjects ? "page" : undefined}>
+          <span className="tc-side-glyph" aria-hidden>
+            ▦
+          </span>
           Projects
         </Link>
-        <Link href="/library?view=media" aria-current={isMedia ? "page" : undefined}>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="5" width="18" height="14" rx="2" />
-            <path d="M10 9l5 3-5 3V9z" />
-          </svg>
-          Media
+        <Link href="/library?view=new" aria-current={isNew ? "page" : undefined}>
+          <span className="tc-side-glyph" aria-hidden>
+            +
+          </span>
+          New project
         </Link>
-        <Link href="/library?filter=done" aria-current={isExport ? "page" : undefined}>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 4v10" />
-            <path d="M8 10l4 4 4-4" />
-            <path d="M5 20h14" />
-          </svg>
-          Export
+        <Link href={editorHref} aria-current={isEditor ? "page" : undefined}>
+          <span className="tc-side-glyph" aria-hidden>
+            ✎
+          </span>
+          Editor
         </Link>
-        <Link href="/billing" aria-current={isSettings ? "page" : undefined}>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M12 3v2m0 14v2M4 12H2m20 0h-2M6.3 6.3L4.9 4.9m14.2 14.2l-1.4-1.4m1.4-12.8l-1.4 1.4M6.3 17.7l-1.4 1.4" />
-          </svg>
+        <Link href="/billing" aria-current={isPlan ? "page" : undefined}>
+          <span className="tc-side-glyph" aria-hidden>
+            ◈
+          </span>
+          Plan
+        </Link>
+        <Link
+          href="/billing?tab=settings"
+          aria-current={isSettings ? "page" : undefined}
+        >
+          <span className="tc-side-glyph" aria-hidden>
+            ⚙
+          </span>
           Settings
         </Link>
       </nav>
 
       <div className="tc-side-usage">
         {usage ? (
-          <>
-            <div className="tc-side-meter">
-              <div className="tc-side-meter-row">
-                <b>{usage.planLabel}</b>
-                <span className="mono">
-                  {usage.usedMinutes}/{usage.monthlyMinutes}
-                </span>
-              </div>
-              <div className="tc-side-bar">
-                <i style={{ width: `${minutesPct}%` }} />
-              </div>
-              <Link href="/billing" className="tc-btn tc-btn--outline tc-btn--sm tc-side-upgrade">
-                Upgrade
-              </Link>
+          <div className="tc-side-meter">
+            <div className="tc-side-meter-row">
+              <b>{usage.planLabel}</b>
+              <span className="mono">
+                {usage.usedMinutes}/{usage.monthlyMinutes}
+              </span>
             </div>
-          </>
+            <div className="tc-side-bar">
+              <i style={{ width: `${minutesPct}%` }} />
+            </div>
+            <Link href="/billing" className="tc-btn tc-btn--outline tc-btn--sm tc-side-upgrade">
+              Upgrade
+            </Link>
+          </div>
         ) : (
           <div className="tc-side-meter-row" style={{ color: "var(--ink-3)" }}>
             Loading usage…
@@ -203,7 +210,7 @@ function AppShellInner({
         )}
       </div>
 
-      <Link href="/billing" className="tc-side-user">
+      <Link href="/billing?tab=settings" className="tc-side-user">
         <span className="tc-side-av">
           {user?.image ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -234,10 +241,29 @@ function AppShellInner({
       {sidebar}
 
       <div className="tc-main">
-        <div className="tc-main-top">
+        {!hideTopBar ? (
+          <div className="tc-main-top">
+            <button
+              type="button"
+              className="tc-nav-toggle tc-btn tc-btn--ghost tc-btn--icon"
+              aria-label="Open menu"
+              onClick={() => setNavOpen(true)}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="3" />
+                <path d="M10 4v16" />
+              </svg>
+            </button>
+            {topTitle ? <h2>{topTitle}</h2> : null}
+            {titleExtra}
+            <span className="tc-sp" />
+            {headSearch}
+            {headActions}
+          </div>
+        ) : (
           <button
             type="button"
-            className="tc-nav-toggle tc-btn tc-btn--ghost tc-btn--icon"
+            className="tc-nav-toggle tc-btn tc-btn--ghost tc-btn--icon tc-nav-toggle--float"
             aria-label="Open menu"
             onClick={() => setNavOpen(true)}
           >
@@ -246,12 +272,7 @@ function AppShellInner({
               <path d="M10 4v16" />
             </svg>
           </button>
-          {topTitle ? <h2>{topTitle}</h2> : null}
-          {titleExtra}
-          <span className="tc-sp" />
-          {headSearch}
-          {headActions}
-        </div>
+        )}
         <div className="tc-main-body">{children}</div>
       </div>
     </div>

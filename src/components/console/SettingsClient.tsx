@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { PLANS, type PlanId } from "@/lib/plans";
 import { AppShell, type ConsoleUser } from "@/components/console/AppShell";
 
@@ -15,6 +16,8 @@ type Usage = {
 };
 
 export function SettingsClient({ user }: { user: ConsoleUser | null }) {
+  const searchParams = useSearchParams();
+  const isSettingsTab = searchParams.get("tab") === "settings";
   const [usage, setUsage] = useState<Usage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -68,12 +71,20 @@ export function SettingsClient({ user }: { user: ConsoleUser | null }) {
   };
 
   return (
-    <AppShell section="settings" user={user} title="Settings">
+    <AppShell
+      section="settings"
+      user={user}
+      title={isSettingsTab ? "Settings" : "Plan"}
+    >
       <div className="tc-pane-scroll">
         <div className="tc-set">
           <div className="tc-set-intro">
-            <h1>Settings</h1>
-            <p>Defaults apply to every new project. Export and plan live here.</p>
+            <h1>{isSettingsTab ? "Settings" : "Plan"}</h1>
+            <p>
+              {isSettingsTab
+                ? "Defaults apply to every new project. Export and plan live here."
+                : "Free for getting started. Upgrade when you need more minutes."}
+            </p>
           </div>
 
           {error ? (
