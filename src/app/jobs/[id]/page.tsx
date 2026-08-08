@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { config } from "@/lib/config";
 import { prisma } from "@/lib/db";
 import { currentUser, requireUserId } from "@/lib/auth-helpers";
@@ -16,9 +16,12 @@ export default async function JobPage({
   const job = await prisma.job.findUnique({ where: { id } });
   if (!job || !job.videoKey) notFound();
 
-  // When auth is on, don't reveal someone else's job.
+  // When auth is on, require sign-in (don't 404 signed-out users — that looks broken).
   if (config.authEnabled) {
     const userId = await requireUserId();
+    if (userId === null) {
+      redirect(`/signin?next=${encodeURIComponent(`/jobs/${id}`)}`);
+    }
     if (job.userId && job.userId !== userId) notFound();
   }
 
