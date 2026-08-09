@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { Segment } from "@/lib/transcription/types";
 import type { SubtitleStyle } from "@/lib/subtitles/style";
 import { tokenizeSegment, filledCount } from "@/lib/subtitles/karaoke";
+import {
+  estimateCaptionRectPct,
+  evaluateCaptionVisibility,
+  type CaptionVisibility,
+} from "@/lib/instagram/safe-zone";
 import { SubtitleOverlay } from "./SubtitleOverlay";
+import { InstagramPreviewChrome } from "./instagram/InstagramPreviewChrome";
+import { CaptionSafeZoneOverlay } from "./instagram/CaptionSafeZoneOverlay";
 
 // Video player with the live subtitle overlay on top. The stage is sized to the video's REAL
 // aspect ratio (portrait/square/landscape) and fit within the available width and a max
@@ -15,6 +22,9 @@ import { SubtitleOverlay } from "./SubtitleOverlay";
 // Native <video> fullscreen only shows the video (no caption overlay), and "exit then
 // re-request on the stage" fails because requestFullscreen needs a user gesture. So we hide
 // the native control and fullscreen the stage from the editor toolbar instead.
+//
+// Optional Instagram Preview chrome reuses this same video + SubtitleOverlay — no second
+// player — so Reels simulation always matches editor captions and position.
 
 function fitBox(availW: number, availH: number, aspect: number) {
   let w = availW;
@@ -36,6 +46,9 @@ export function PreviewStage({
   onDuration,
   initialAspect,
   onPositionChange,
+  instagramPreview = false,
+  safeZoneEnabled = false,
+  onCaptionVisibility,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   videoUrl: string;
@@ -48,6 +61,12 @@ export function PreviewStage({
   initialAspect?: number;
   /** Drag caption on the preview to set vertical position (% from top). */
   onPositionChange?: (positionYPct: number) => void;
+  /** Simulated Instagram Reels chrome over the real preview. */
+  instagramPreview?: boolean;
+  /** Show configurable caption safe-zone overlays (only meaningful with Instagram Preview). */
+  safeZoneEnabled?: boolean;
+  /** Reports estimated caption vs IG-UI collision level. */
+  onCaptionVisibility?: (level: CaptionVisibility) => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -60,6 +79,7 @@ export function PreviewStage({
     seg: null,
     filled: 0,
   });
+  const [playhead, setPlayhead] = useState(0);
   const lastReport = useRef(0);
 
   // Fit the video's aspect ratio inside the stage container (or the fullscreen viewport).
@@ -163,6 +183,7 @@ export function PreviewStage({
         setActive((prev) =>
           prev.seg === seg && prev.filled === filled ? prev : { seg, filled },
         );
+        setPlayhead(t);
         if (onTime && Math.abs(t - lastReport.current) > 0.04) {
           lastReport.current = t;
           onTime(t);
@@ -173,6 +194,30 @@ export function PreviewStage({
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [segments, videoRef, onTime, style.karaoke, style.animation]);
+
+  const visibility = useMemo(() => {
+    if (!instagramPreview) return null as CaptionVisibility | null;
+    const lines = active.seg
+      ? Math.max(1, Math.ceil(active.seg.text.trim().split(/\s+/).length / 4))
+      : 1.2;
+    const rect = estimateCaptionRectPct(
+      {
+        positionYPct: style.positionYPct,
+        fontSizePct: style.fontSizePct,
+        lineHeight: style.lineHeight,
+        maxWidthPct: style.maxWidthPct,
+        align: style.align,
+        bgPaddingYPct: style.bgPaddingYPct,
+        boxMode: style.boxMode,
+      },
+      0.9 + lines * 0.45,
+    );
+    return evaluateCaptionVisibility(rect);
+  }, [instagramPreview, style, active.seg]);
+
+  useEffect(() => {
+    if (visibility) onCaptionVisibility?.(visibility);
+  }, [visibility, onCaptionVisibility]);
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
@@ -185,8 +230,10 @@ export function PreviewStage({
           className={`preview-stage relative overflow-hidden bg-black shadow-[0_12px_30px_rgba(26,25,23,0.18)] ring-1 ring-black/10 ${
             isFullscreen
               ? "flex h-full w-full items-center justify-center rounded-none ring-0"
-              : "rounded-xl"
-          }`}
+              : instagramPreview
+                ? "rounded-[22px] ring-black/40"
+                : "rounded-xl"
+          } ${instagramPreview ? "ed-ig-stage" : ""}`}
           style={
             isFullscreen
               ? undefined
@@ -231,6 +278,16 @@ export function PreviewStage({
               filled={active.filled}
               onPositionChange={onPositionChange}
             />
+            {instagramPreview && safeZoneEnabled && <CaptionSafeZoneOverlay />}
+            {instagramPreview && (
+              <InstagramPreviewChrome
+                progressPct={
+                  videoRef.current?.duration
+                    ? (playhead / videoRef.current.duration) * 100
+                    : 0
+                }
+              />
+            )}
           </div>
         </div>
       </div>

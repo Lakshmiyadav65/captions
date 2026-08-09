@@ -2583,6 +2583,12 @@ html[data-console-theme="dark"] .console.console--editor {
   text-decoration: none;
   cursor: pointer;
 }
+.console .ed-chip.is-active {
+  background: var(--ed-accent-wash);
+  border-color: var(--ed-accent-line);
+  color: var(--ed-accent-deep);
+  font-weight: 600;
+}
 .console .ed-preview-frame {
   flex: 1 1 auto;
   width: 100%;
@@ -2594,9 +2600,355 @@ html[data-console-theme="dark"] .console.console--editor {
   align-items: stretch;
   justify-content: center;
 }
+.console .ed-preview-frame.is-ig {
+  max-height: calc(100% - 120px);
+}
 .console .ed-preview-frame .preview-stage {
   border-radius: 14px !important;
 }
+.console .ed-preview-frame.is-ig .preview-stage,
+.console .ed-ig-stage {
+  border-radius: 22px !important;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.55),
+    0 18px 40px rgba(20, 16, 12, 0.28) !important;
+}
+
+/* —— Instagram Reels simulation (matched to real “Your reels” capture) —— */
+.console .ed-ig-chrome,
+.console .ed-ig-safezones {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+}
+.console .ed-ig-ico {
+  width: 1.55em;
+  height: 1.55em;
+  display: block;
+  color: #fff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+}
+.console .ed-ig-ico--liked {
+  color: #ff3040;
+  width: 1.7em;
+  height: 1.7em;
+}
+.console .ed-ig-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 7.5%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.6% 3.2% 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.42), transparent);
+  color: #fff;
+  font-size: clamp(11px, 2.9vw, 13px);
+  font-weight: 600;
+}
+.console .ed-ig-top .ed-ig-ico {
+  width: 1.35em;
+  height: 1.35em;
+}
+.console .ed-ig-top-label {
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+.console .ed-ig-rail {
+  position: absolute;
+  right: 2.2%;
+  bottom: 19.5%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(10px, 2.4%, 16px);
+  color: #fff;
+  font-size: clamp(10px, 2.6vw, 12px);
+}
+.console .ed-ig-rail-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.console .ed-ig-rail-btn small {
+  font-size: 0.92em;
+  font-weight: 600;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+.console .ed-ig-rail-more {
+  margin-top: 2px;
+  padding: 4px 0;
+}
+.console .ed-ig-dots {
+  display: block;
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  background:
+    radial-gradient(circle at 2px 50%, #fff 1.6px, transparent 1.7px),
+    radial-gradient(circle at 9px 50%, #fff 1.6px, transparent 1.7px),
+    radial-gradient(circle at 16px 50%, #fff 1.6px, transparent 1.7px);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+}
+.console .ed-ig-audio-tile {
+  margin-top: 6px;
+  width: clamp(28px, 7.2%, 34px);
+  height: clamp(28px, 7.2%, 34px);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1.5px #fff,
+    0 2px 6px rgba(0, 0, 0, 0.45);
+  background: #222;
+}
+.console .ed-ig-audio-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.console .ed-ig-bottom {
+  position: absolute;
+  left: 0;
+  right: 16%;
+  bottom: 8.8%;
+  padding: 10% 3.6% 1.2%;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.58), transparent 72%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: clamp(11px, 2.85vw, 13px);
+}
+.console .ed-ig-translations {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.88em;
+  font-weight: 500;
+  opacity: 0.95;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+.console .ed-ig-translations svg {
+  flex: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+.console .ed-ig-user-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.console .ed-ig-user-avatar {
+  width: clamp(26px, 7%, 32px);
+  height: clamp(26px, 7%, 32px);
+  border-radius: 50%;
+  object-fit: cover;
+  background: #2a2a2a;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+  flex: none;
+}
+.console .ed-ig-user-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  line-height: 1.2;
+}
+.console .ed-ig-user-meta b {
+  font-size: 1em;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+.console .ed-ig-user-meta span {
+  font-size: 0.86em;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.78);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.console .ed-ig-desc {
+  margin: 0;
+  font-size: 0.95em;
+  line-height: 1.3;
+  font-weight: 400;
+  opacity: 0.95;
+  max-width: 98%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+.console .ed-ig-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 7.4%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.28);
+}
+.console .ed-ig-progress i {
+  display: block;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.92);
+}
+.console .ed-ig-creator-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 7.4%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 3%;
+  background: #0a0a0a;
+  color: #fff;
+  font-size: clamp(10px, 2.45vw, 12px);
+  font-weight: 600;
+}
+.console .ed-ig-edits,
+.console .ed-ig-views,
+.console .ed-ig-boost {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.console .ed-ig-edits {
+  flex: 0 1 auto;
+  max-width: 48%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 62%;
+  padding: 0 10px 0 7px;
+  border-radius: 999px;
+  background: #fff;
+  color: #111;
+  font-weight: 600;
+  font-size: 0.92em;
+}
+.console .ed-ig-edits-mark {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  flex: none;
+  background:
+    linear-gradient(135deg, #5b8def 0%, #a855f7 40%, #ff4d6d 78%, #f59e0b 100%);
+}
+.console .ed-ig-views {
+  flex: none;
+  margin-left: auto;
+  opacity: 0.95;
+  font-weight: 500;
+}
+.console .ed-ig-boost {
+  flex: none;
+}
+
+.console .ed-ig-zone {
+  position: absolute;
+  border: 1px dashed transparent;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 6px 8px;
+  box-sizing: border-box;
+}
+.console .ed-ig-zone span {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+}
+.console .ed-ig-zone--safe {
+  background: rgba(46, 160, 90, 0.16);
+  border-color: rgba(80, 200, 120, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(80, 200, 120, 0.2);
+}
+.console .ed-ig-zone--safe span {
+  background: rgba(30, 110, 60, 0.75);
+}
+.console .ed-ig-zone--warn {
+  background: rgba(220, 150, 40, 0.2);
+  border-color: rgba(240, 180, 60, 0.55);
+}
+.console .ed-ig-zone--warn span {
+  background: rgba(140, 90, 10, 0.75);
+}
+.console .ed-ig-zone--blocked {
+  background: rgba(200, 50, 50, 0.22);
+  border-color: rgba(255, 110, 110, 0.5);
+}
+.console .ed-ig-zone--blocked span {
+  background: rgba(120, 25, 25, 0.8);
+}
+
+.console .ed-ig-visibility {
+  flex: none;
+  width: 100%;
+  max-width: min(440px, 92%);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--ed-line);
+  background: var(--ed-surface);
+}
+.console .ed-ig-visibility-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  flex: none;
+}
+.console .ed-ig-visibility b {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ed-ink);
+}
+.console .ed-ig-visibility small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--ed-soft);
+  line-height: 1.35;
+}
+.console .ed-ig-visibility--safe {
+  border-color: rgba(60, 150, 90, 0.35);
+  background: rgba(60, 150, 90, 0.08);
+}
+.console .ed-ig-visibility--safe .ed-ig-visibility-dot {
+  background: #2fa866;
+}
+.console .ed-ig-visibility--warning {
+  border-color: rgba(200, 140, 30, 0.4);
+  background: rgba(220, 160, 40, 0.1);
+}
+.console .ed-ig-visibility--warning .ed-ig-visibility-dot {
+  background: #d4921a;
+}
+.console .ed-ig-visibility--danger {
+  border-color: rgba(200, 70, 60, 0.4);
+  background: rgba(220, 80, 70, 0.1);
+}
+.console .ed-ig-visibility--danger .ed-ig-visibility-dot {
+  background: #d44a3a;
+}
+
 .console .ed-transport {
   flex: none;
   width: 100%;

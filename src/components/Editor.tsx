@@ -29,11 +29,13 @@ import { SubtitleList } from "./SubtitleList";
 import { DictionaryPanel } from "./DictionaryPanel";
 import { QuotaBadge } from "./QuotaBadge";
 import { ProcessingFailed, ProcessingView } from "./ProcessingView";
+import { CaptionVisibilityIndicator } from "./instagram/CaptionVisibilityIndicator";
 import { AppShell, type ConsoleUser } from "@/components/console/AppShell";
 import { formatTime } from "./EditorTimeline";
 import Link from "next/link";
 import { friendlyJobError } from "@/lib/errors";
 import { withCaptionSyncDelay } from "@/lib/transcription/sync-delay";
+import type { CaptionVisibility } from "@/lib/instagram/safe-zone";
 
 const LEFT_W_KEY = "caplio.ed.leftW";
 const RIGHT_W_KEY = "caplio.ed.rightW";
@@ -198,6 +200,10 @@ export function Editor({
   const [leftW, setLeftW] = useState(LEFT_W_DEFAULT);
   const [rightW, setRightW] = useState(RIGHT_W_DEFAULT);
   const [resizing, setResizing] = useState<"left" | "right" | null>(null);
+  const [instagramPreview, setInstagramPreview] = useState(false);
+  const [safeZoneEnabled, setSafeZoneEnabled] = useState(false);
+  const [captionVisibility, setCaptionVisibility] =
+    useState<CaptionVisibility>("safe");
   const [duration, setDuration] = useState(0);
   const [playing, setPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -227,6 +233,10 @@ export function Editor({
     if (typeof window === "undefined") return;
     window.localStorage.setItem(RIGHT_W_KEY, String(rightW));
   }, [rightW]);
+
+  const onCaptionVisibility = useCallback((level: CaptionVisibility) => {
+    setCaptionVisibility(level);
+  }, []);
 
   const beginResize = useCallback((side: "left" | "right", e: ReactPointerEvent<HTMLElement>) => {
     e.preventDefault();
@@ -837,6 +847,37 @@ export function Editor({
                 <span style={{ flex: 1 }} />
                 <button
                   type="button"
+                  className={`ed-chip${instagramPreview ? " is-active" : ""}`}
+                  aria-pressed={instagramPreview}
+                  aria-label={
+                    instagramPreview
+                      ? "Exit Instagram Preview"
+                      : "Open Instagram Preview"
+                  }
+                  onClick={() => {
+                    setInstagramPreview((v) => {
+                      if (v) setSafeZoneEnabled(false);
+                      return !v;
+                    });
+                  }}
+                >
+                  Instagram Preview
+                </button>
+                {instagramPreview && (
+                  <button
+                    type="button"
+                    className={`ed-chip${safeZoneEnabled ? " is-active" : ""}`}
+                    aria-pressed={safeZoneEnabled}
+                    aria-label={
+                      safeZoneEnabled ? "Hide Safe Zone" : "Show Safe Zone"
+                    }
+                    onClick={() => setSafeZoneEnabled((v) => !v)}
+                  >
+                    Safe Zone
+                  </button>
+                )}
+                <button
+                  type="button"
                   className="ed-chip"
                   onClick={() => {
                     void toggleFullscreen();
@@ -845,7 +886,7 @@ export function Editor({
                   Full screen
                 </button>
               </div>
-              <div className="ed-preview-frame">
+              <div className={`ed-preview-frame${instagramPreview ? " is-ig" : ""}`}>
                 <PreviewStage
                   videoRef={videoRef}
                   videoUrl={videoUrl}
@@ -856,8 +897,14 @@ export function Editor({
                   onDuration={setDuration}
                   initialAspect={width && height ? width / height : undefined}
                   onPositionChange={(positionYPct) => patchStyle({ positionYPct })}
+                  instagramPreview={instagramPreview}
+                  safeZoneEnabled={safeZoneEnabled}
+                  onCaptionVisibility={onCaptionVisibility}
                 />
               </div>
+              {instagramPreview && (
+                <CaptionVisibilityIndicator level={captionVisibility} />
+              )}
               <div className="ed-transport">
                 <label className="ed-scrub">
                   <input
