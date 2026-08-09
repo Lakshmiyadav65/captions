@@ -483,6 +483,36 @@ export function StylePanel({
         </section>
       )}
 
+      {/* Text case — top of Text tab */}
+      {showText && (
+        <section className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            Text case
+          </h3>
+          <Field label="Text case">
+            <Segmented
+              value={style.textCase ?? (style.uppercase ? "upper" : "none")}
+              onChange={(v) =>
+                onChange({
+                  textCase: v as TextCase,
+                  uppercase: v === "upper",
+                })
+              }
+              options={[
+                { label: "As typed", value: "none" },
+                { label: "Sentence", value: "sentence" },
+                { label: "Title", value: "title" },
+                { label: "lower", value: "lower" },
+                { label: "UPPER", value: "upper" },
+              ]}
+            />
+          </Field>
+          <p className="text-[10px] leading-relaxed text-neutral-600">
+            Sentence = first letter capital, rest lower. Title = Each Word Capitalized.
+          </p>
+        </section>
+      )}
+
       {/* Font */}
       {showText && (
       <section className="space-y-3">
@@ -827,27 +857,6 @@ export function StylePanel({
         <Field label="Letter spacing" value={`${style.letterSpacingEm.toFixed(2)} em`}>
           <Slider min={-0.05} max={0.3} step={0.01} value={style.letterSpacingEm} onChange={(v) => onChange({ letterSpacingEm: v })} />
         </Field>
-        <Field label="Text case">
-          <Segmented
-            value={style.textCase ?? (style.uppercase ? "upper" : "none")}
-            onChange={(v) =>
-              onChange({
-                textCase: v as TextCase,
-                uppercase: v === "upper",
-              })
-            }
-            options={[
-              { label: "As typed", value: "none" },
-              { label: "Sentence", value: "sentence" },
-              { label: "Title", value: "title" },
-              { label: "lower", value: "lower" },
-              { label: "UPPER", value: "upper" },
-            ]}
-          />
-        </Field>
-        <p className="text-[10px] leading-relaxed text-neutral-600">
-          Sentence = first letter capital, rest lower. Title = Each Word Capitalized.
-        </p>
       </section>
       )}
     </div>
