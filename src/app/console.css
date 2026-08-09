@@ -2431,13 +2431,21 @@ html[data-console-theme="dark"] .console.console--editor {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: 420px minmax(0, 1fr) 360px;
+  grid-template-columns: var(--ed-left-w, 420px) minmax(0, 1fr) var(--ed-right-w, 360px);
   gap: 0;
   padding: 0;
   background: #f1efea;
 }
 .console .ed-workspace.is-left-collapsed {
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) var(--ed-right-w, 360px);
+}
+.console .ed-workspace.is-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+.console .ed-workspace.is-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 .console .ed-panel {
   min-height: 0;
@@ -2454,6 +2462,40 @@ html[data-console-theme="dark"] .console.console--editor {
 }
 .console .ed-right {
   border-left: 1px solid var(--ed-line);
+}
+.console .ed-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  z-index: 5;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+}
+.console .ed-resize-handle--left {
+  right: auto;
+  left: -3px;
+}
+.console .ed-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 32px;
+  border-radius: 999px;
+  background: transparent;
+  transform: translate(-50%, -50%);
+  transition: background 0.15s ease, height 0.15s ease;
+}
+.console .ed-resize-handle:hover::after,
+.console .ed-workspace.is-resizing .ed-resize-handle::after {
+  background: var(--ed-accent);
+  height: 48px;
+}
+.console .ed-left .ed-panel-head {
+  padding-right: 44px;
 }
 .console .ed-panel-collapse {
   position: absolute;
@@ -2859,12 +2901,15 @@ html[data-console-theme="dark"] .console.console--editor {
 
 @media (max-width: 1100px) {
   .console .ed-workspace {
-    grid-template-columns: minmax(0, 1fr) 280px;
+    grid-template-columns: minmax(0, 1fr) min(280px, var(--ed-right-w, 280px));
   }
   .console .ed-workspace.is-left-collapsed {
-    grid-template-columns: minmax(0, 1fr) 280px;
+    grid-template-columns: minmax(0, 1fr) min(280px, var(--ed-right-w, 280px));
   }
   .console .ed-left {
+    display: none;
+  }
+  .console .ed-resize-handle {
     display: none;
   }
 }

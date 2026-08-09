@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { Segment } from "@/lib/transcription/types";
 import {
   estimateWordsPerFrame,
@@ -23,7 +23,6 @@ import {
   displayInScript,
   type ScriptDisplay,
 } from "@/lib/transliterate";
-import { stripFillers } from "@/lib/transcript-edit";
 import { PreviewStage } from "./PreviewStage";
 import { StylePanel } from "./StylePanel";
 import { SubtitleList } from "./SubtitleList";
@@ -34,6 +33,26 @@ import { AppShell, type ConsoleUser } from "@/components/console/AppShell";
 import { formatTime } from "./EditorTimeline";
 import Link from "next/link";
 import { friendlyJobError } from "@/lib/errors";
+
+const LEFT_W_KEY = "caplio.ed.leftW";
+const RIGHT_W_KEY = "caplio.ed.rightW";
+const LEFT_W_DEFAULT = 420;
+const RIGHT_W_DEFAULT = 360;
+const LEFT_W_MIN = 240;
+const LEFT_W_MAX = 640;
+const RIGHT_W_MIN = 260;
+const RIGHT_W_MAX = 520;
+
+function clamp(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, n));
+}
+
+function readStoredWidth(key: string, fallback: number) {
+  if (typeof window === "undefined") return fallback;
+  const raw = window.localStorage.getItem(key);
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) ? n : fallback;
+}
 
 interface Progress {
   status: string;
@@ -173,8 +192,11 @@ export function Editor({
   const [retryError, setRetryError] = useState<string | null>(null);
   /** Bumped on retry so the SSE effect re-subscribes after a failure. */
   const [streamEpoch, setStreamEpoch] = useState(0);
-  const [styleTab, setStyleTab] = useState<"preset" | "text" | "effect" | "position">("preset");
+  const [styleTab, setStyleTab] = useState<"preset" | "text" | "effect">("preset");
   const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [leftW, setLeftW] = useState(LEFT_W_DEFAULT);
+  const [rightW, setRightW] = useState(RIGHT_W_DEFAULT);
+  const [resizing, setResizing] = useState<"left" | "right" | null>(null);
   const [duration, setDuration] = useState(0);
   const [playing, setPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -189,6 +211,44 @@ export function Editor({
   useEffect(() => {
     segmentsRef.current = segments;
   }, [segments]);
+
+  useEffect(() => {
+    setLeftW(clamp(readStoredWidth(LEFT_W_KEY, LEFT_W_DEFAULT), LEFT_W_MIN, LEFT_W_MAX));
+    setRightW(clamp(readStoredWidth(RIGHT_W_KEY, RIGHT_W_DEFAULT), RIGHT_W_MIN, RIGHT_W_MAX));
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(LEFT_W_KEY, String(leftW));
+  }, [leftW]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(RIGHT_W_KEY, String(rightW));
+  }, [rightW]);
+
+  const beginResize = useCallback((side: "left" | "right", e: ReactPointerEvent<HTMLElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startLeft = leftW;
+    const startRight = rightW;
+    setResizing(side);
+
+    const onMove = (ev: PointerEvent) => {
+      if (side === "left") {
+        setLeftW(clamp(startLeft + (ev.clientX - startX), LEFT_W_MIN, LEFT_W_MAX));
+      } else {
+        setRightW(clamp(startRight - (ev.clientX - startX), RIGHT_W_MIN, RIGHT_W_MAX));
+      }
+    };
+    const onUp = () => {
+      setResizing(null);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, [leftW, rightW]);
 
   const persistTranscript = useCallback(
     async (segs: Segment[]) => {
@@ -643,37 +703,43 @@ export function Editor({
         </header>
 
         <div className="ed-body">
-          <div className={`ed-workspace${leftCollapsed ? " is-left-collapsed" : ""}`}>
+          <div
+            className={`ed-workspace${leftCollapsed ? " is-left-collapsed" : ""}${resizing ? " is-resizing" : ""}`}
+            style={
+              {
+                ["--ed-left-w" as string]: `${leftW}px`,
+                ["--ed-right-w" as string]: `${rightW}px`,
+              }
+            }
+          >
             {!leftCollapsed && (
               <section className="ed-panel ed-left">
                 <button
                   type="button"
                   className="ed-panel-collapse"
-                  aria-label="Collapse panel"
+                  aria-label="Collapse transcript panel"
                   onClick={() => setLeftCollapsed(true)}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M15 6l-6 6 6 6" />
                   </svg>
                 </button>
+                <div
+                  className="ed-resize-handle"
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label="Resize transcript panel"
+                  aria-valuenow={leftW}
+                  aria-valuemin={LEFT_W_MIN}
+                  aria-valuemax={LEFT_W_MAX}
+                  onPointerDown={(e) => beginResize("left", e)}
+                />
                 <div className="ed-panel-head">
                   <div className="ed-panel-head-row">
                     <b>Transcript</b>
                     <span className="ed-count">
                       {segments?.length ?? 0} lines
                     </span>
-                    <span style={{ flex: 1 }} />
-                    <button
-                      type="button"
-                      className="ed-chip"
-                      title="Remove um / uh / ante / you know (F)"
-                      onClick={() => {
-                        if (!segments) return;
-                        onSegmentsChange(stripFillers(segments));
-                      }}
-                    >
-                      Strip fillers
-                    </button>
                   </div>
                   <div className="ed-panel-head-row">
                     <div className="tc-seg">
@@ -858,13 +924,22 @@ export function Editor({
             </section>
 
             <aside className="ed-panel ed-right">
+              <div
+                className="ed-resize-handle ed-resize-handle--left"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize style panel"
+                aria-valuenow={rightW}
+                aria-valuemin={RIGHT_W_MIN}
+                aria-valuemax={RIGHT_W_MAX}
+                onPointerDown={(e) => beginResize("right", e)}
+              />
               <div className="ed-tabs" role="tablist">
                 {(
                   [
                     { id: "preset" as const, label: "Style" },
                     { id: "text" as const, label: "Text" },
                     { id: "effect" as const, label: "Motion" },
-                    { id: "position" as const, label: "Position" },
                   ]
                 ).map((tab) => (
                   <button
@@ -886,7 +961,7 @@ export function Editor({
                   onApplyPreset={(s) => setStyle({ ...s })}
                   wordsPerFrame={wordsPerFrame}
                   onWordsPerFrameChange={onWordsPerFrameChange}
-                  panel={styleTab === "position" ? "position" : styleTab}
+                  panel={styleTab}
                 />
                 {styleTab === "text" && (
                   <DictionaryPanel

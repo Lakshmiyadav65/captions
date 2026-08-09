@@ -300,8 +300,8 @@ export function StylePanel({
   /** How many words appear in each on-screen caption frame (1–6). */
   wordsPerFrame?: number;
   onWordsPerFrameChange?: (n: number) => void;
-  /** Editor right-rail tabs: preset | text | effect | position | all (legacy full panel). */
-  panel?: "preset" | "text" | "effect" | "position" | "all";
+  /** Editor right-rail tabs: preset | text | effect | all (legacy full panel). */
+  panel?: "preset" | "text" | "effect" | "all";
 }) {
   const [category, setCategory] = useState<PresetCategory | "all">("all");
   const activeId = matchingPresetId(style);
@@ -325,55 +325,6 @@ export function StylePanel({
   );
 
   const boxMode = effectiveBoxMode(style);
-
-  if (panel === "position") {
-    return (
-      <div className="space-y-4">
-        <section className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--ed-muted,#9a958c)]">
-            Vertical placement
-          </h3>
-          <div className="flex gap-2">
-            {(
-              [
-                { label: "Top", y: 16 },
-                { label: "Middle", y: 50 },
-                { label: "Bottom", y: 78 },
-              ] as const
-            ).map((p) => (
-              <button
-                key={p.label}
-                type="button"
-                onClick={() => onChange({ positionYPct: p.y })}
-                className={`flex-1 rounded-md border px-2 py-2 text-xs font-medium transition ${
-                  Math.abs((style.positionYPct ?? 78) - p.y) < 8
-                    ? "border-[var(--ed-accent-line,#f6d6c2)] bg-[var(--ed-accent-wash,#fdefe7)] text-[var(--ed-accent-deep,#c9490f)]"
-                    : "border-[var(--ed-line,#e7e3db)] bg-[var(--ed-chip,#fbfaf8)] text-[var(--ed-mid,#6e6a62)]"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-          <Field
-            label="Fine tune"
-            value={`${Math.round(style.positionYPct ?? 78)}%`}
-          >
-            <Slider
-              min={8}
-              max={92}
-              step={1}
-              value={style.positionYPct ?? 78}
-              onChange={(v) => onChange({ positionYPct: v })}
-            />
-          </Field>
-        </section>
-        <p className="text-[11px] leading-relaxed text-[var(--ed-muted,#9a958c)]">
-          Drag the caption on the video preview to reposition, or use the controls above.
-        </p>
-      </div>
-    );
-  }
 
   const applyPreset = (p: StylePreset) => {
     onApplyPreset({ ...p.style });
@@ -407,6 +358,52 @@ export function StylePanel({
           <p className="text-[10px] leading-relaxed text-neutral-600">
             Fewer words feel punchier; more words show longer phrases at once.
             Changing this rebuilds your caption lines.
+          </p>
+        </section>
+      )}
+
+      {/* Caption position — Top / Middle / Bottom + fine-tune on the Style tab */}
+      {showPreset && (
+        <section className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            Caption position
+          </h3>
+          <div className="flex gap-2">
+            {(
+              [
+                { label: "Top", y: 16 },
+                { label: "Middle", y: 50 },
+                { label: "Bottom", y: 78 },
+              ] as const
+            ).map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => onChange({ positionYPct: p.y })}
+                className={`flex-1 rounded-md border px-2 py-2 text-xs font-medium transition ${
+                  Math.abs((style.positionYPct ?? 78) - p.y) < 8
+                    ? "border-[var(--ed-accent-line,#f6d6c2)] bg-[var(--ed-accent-wash,#fdefe7)] text-[var(--ed-accent-deep,#c9490f)]"
+                    : "border-[var(--ed-line,#e7e3db)] bg-[var(--ed-chip,#fbfaf8)] text-[var(--ed-mid,#6e6a62)]"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <Field
+            label="Fine tune"
+            value={`${Math.round(style.positionYPct ?? 78)}% from top`}
+          >
+            <Slider
+              min={8}
+              max={92}
+              step={1}
+              value={style.positionYPct ?? 78}
+              onChange={(v) => onChange({ positionYPct: v })}
+            />
+          </Field>
+          <p className="text-[10px] leading-relaxed text-neutral-600">
+            Or drag the caption on the video preview to place it anywhere.
           </p>
         </section>
       )}
@@ -484,50 +481,6 @@ export function StylePanel({
             ))}
           </div>
         </section>
-      )}
-
-      {/* Caption position — prominent so users can place top / middle / bottom / anywhere */}
-      {showText && (
-      <section className="space-y-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-          Caption position
-        </h3>
-        <Field label="Place on frame">
-          <Segmented
-            value={
-              style.positionYPct <= 28
-                ? "top"
-                : style.positionYPct >= 72
-                  ? "bottom"
-                  : style.positionYPct >= 40 && style.positionYPct <= 60
-                    ? "middle"
-                    : "custom"
-            }
-            onChange={(v) => {
-              if (v === "top") onChange({ positionYPct: 14 });
-              else if (v === "middle") onChange({ positionYPct: 50 });
-              else if (v === "bottom") onChange({ positionYPct: 86 });
-            }}
-            options={[
-              { label: "Top", value: "top" },
-              { label: "Middle", value: "middle" },
-              { label: "Bottom", value: "bottom" },
-            ]}
-          />
-        </Field>
-        <Field label="Fine-tune" value={`${Math.round(style.positionYPct)}% from top`}>
-          <Slider
-            min={5}
-            max={95}
-            step={1}
-            value={style.positionYPct}
-            onChange={(v) => onChange({ positionYPct: v })}
-          />
-        </Field>
-        <p className="text-[10px] leading-relaxed text-neutral-600">
-          Or drag the caption on the video preview to place it anywhere.
-        </p>
-      </section>
       )}
 
       {/* Font */}
