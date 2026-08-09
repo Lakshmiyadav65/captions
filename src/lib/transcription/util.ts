@@ -57,7 +57,7 @@ export function groupWordsIntoSegments(
 }
 
 // Fallback when a provider returns only a plain transcript (no timestamps): split into
-// sentences and distribute them across the known audio duration proportional to length.
+// sentences and distribute them across the known audio duration proportional to word count.
 export function splitTranscriptIntoSegments(
   text: string,
   durationSec: number,
@@ -68,10 +68,13 @@ export function splitTranscriptIntoSegments(
     clean.match(/[^।॥.?!]+[।॥.?!]?/g)?.map((s) => s.trim()).filter(Boolean) ?? [
       clean,
     ];
-  const totalChars = parts.reduce((n, p) => n + p.length, 0) || 1;
+  const wordCounts = parts.map(
+    (p) => Math.max(1, p.split(/\s+/).filter(Boolean).length),
+  );
+  const totalWords = wordCounts.reduce((n, c) => n + c, 0) || 1;
   let t = 0;
-  return parts.map((p) => {
-    const dur = Math.max(0.8, (p.length / totalChars) * durationSec);
+  return parts.map((p, i) => {
+    const dur = Math.max(0.8, (wordCounts[i]! / totalWords) * durationSec);
     const seg: Segment = { start: t, end: Math.min(durationSec, t + dur), text: p };
     t += dur;
     return seg;
@@ -109,7 +112,7 @@ export function estimateWordsPerFrame(segments: Segment[]): number {
 // Break each segment into short caption "frames" of at most `maxWords` words, so lines stay
 // clean and readable (a few words on screen at a time) instead of a whole sentence wrapping
 // over many rows. When word-level timings exist they drive each frame's start/end; otherwise
-// the segment's span is distributed across frames proportionally to their character length.
+// the segment's span is split evenly across frames by word count.
 export function splitSegmentsToMaxWords(
   segments: Segment[],
   maxWords: number,
@@ -138,15 +141,16 @@ export function splitSegmentsToMaxWords(
     }
 
     const groups = chunk(words, maxWords);
-    const totalChars = words.reduce((n, w) => n + w.length, 0) || 1;
     const span = Math.max(0, seg.end - seg.start);
+    // Distribute by word count (not characters) — romanized Telugu char length
+    // poorly tracks spoken duration and often makes early frames lead the audio.
+    const totalWords = words.length || 1;
     let t = seg.start;
     groups.forEach((g, i) => {
-      const gChars = g.reduce((n, w) => n + w.length, 0);
       const end =
         i === groups.length - 1
           ? seg.end
-          : Math.min(seg.end, t + (gChars / totalChars) * span);
+          : Math.min(seg.end, t + (g.length / totalWords) * span);
       out.push({ start: t, end, text: g.join(" ") });
       t = end;
     });
@@ -193,11 +197,10 @@ function flattenSegmentWords(segments: Segment[]): Word[] {
     const toks = seg.text.split(/\s+/).filter(Boolean);
     if (!toks.length) continue;
     const span = Math.max(0, seg.end - seg.start);
-    const totalChars = toks.reduce((n, w) => n + w.length, 0) || 1;
+    const n = toks.length || 1;
     let t = seg.start;
     toks.forEach((text, i) => {
-      const dur = (text.length / totalChars) * span;
-      const end = i === toks.length - 1 ? seg.end : Math.min(seg.end, t + dur);
+      const end = i === toks.length - 1 ? seg.end : Math.min(seg.end, t + span / n);
       out.push({ start: t, end, text });
       t = end;
     });

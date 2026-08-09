@@ -33,6 +33,7 @@ import { AppShell, type ConsoleUser } from "@/components/console/AppShell";
 import { formatTime } from "./EditorTimeline";
 import Link from "next/link";
 import { friendlyJobError } from "@/lib/errors";
+import { withCaptionSyncDelay } from "@/lib/transcription/sync-delay";
 
 const LEFT_W_KEY = "caplio.ed.leftW";
 const RIGHT_W_KEY = "caplio.ed.rightW";
@@ -497,24 +498,26 @@ export function Editor({
 
   const displaySegments = useMemo(() => {
     if (!segments) return [];
-    if (scriptMode === "roman") {
-      return segments.map((s) => ({
-        ...s,
-        text: displayInScript(s.text, "roman"),
-        words: s.words?.map((w) => ({
-          ...w,
-          text: displayInScript(w.text, "roman"),
-        })),
-      }));
-    }
-    return segments.map((s) => ({
-      ...s,
-      text: displayInScript(s.text, "telugu"),
-      words: s.words?.map((w) => ({
-        ...w,
-        text: displayInScript(w.text, "telugu"),
-      })),
-    }));
+    const scripted =
+      scriptMode === "roman"
+        ? segments.map((s) => ({
+            ...s,
+            text: displayInScript(s.text, "roman"),
+            words: s.words?.map((w) => ({
+              ...w,
+              text: displayInScript(w.text, "roman"),
+            })),
+          }))
+        : segments.map((s) => ({
+            ...s,
+            text: displayInScript(s.text, "telugu"),
+            words: s.words?.map((w) => ({
+              ...w,
+              text: displayInScript(w.text, "telugu"),
+            })),
+          }));
+    // Lag captions slightly so frames don't flash before the spoken word.
+    return withCaptionSyncDelay(scripted);
   }, [segments, scriptMode]);
 
   const doExport = (fmt: SubtitleFormat, mime: string) => {
