@@ -24,15 +24,16 @@ import {
   type ScriptDisplay,
 } from "@/lib/transliterate";
 import { stripFillers } from "@/lib/transcript-edit";
-import { friendlyJobError } from "@/lib/errors";
 import { PreviewStage } from "./PreviewStage";
 import { StylePanel } from "./StylePanel";
 import { SubtitleList } from "./SubtitleList";
 import { DictionaryPanel } from "./DictionaryPanel";
 import { QuotaBadge } from "./QuotaBadge";
+import { ProcessingFailed, ProcessingView } from "./ProcessingView";
 import { AppShell, type ConsoleUser } from "@/components/console/AppShell";
 import { formatTime } from "./EditorTimeline";
 import Link from "next/link";
+import { friendlyJobError } from "@/lib/errors";
 
 interface Progress {
   status: string;
@@ -538,93 +539,40 @@ export function Editor({
       <AppShell section="editor" user={user} showSidebar={false}>
         <div className="ed-root">
           <header className="ed-header">
-          <Link href="/library" className="ed-back" aria-label="Back to library">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-              <line x1="10" y1="3" x2="5" y2="8" />
-              <line x1="5" y1="8" x2="10" y2="13" />
-            </svg>
-          </Link>
-          <div className="ed-title-wrap">
-            <h1 className="ed-title">{originalName ?? "Telugu captions"}</h1>
-            <div className="ed-meta">
-              {STATUS_LABEL[progress.status] ?? progress.status}
+            <Link href="/library" className="ed-back" aria-label="Back to library">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <line x1="10" y1="3" x2="5" y2="8" />
+                <line x1="5" y1="8" x2="10" y2="13" />
+              </svg>
+            </Link>
+            <div className="ed-title-wrap">
+              <h1 className="ed-title">{originalName ?? "Telugu captions"}</h1>
+              <div className="ed-meta">
+                {STATUS_LABEL[progress.status] ?? progress.status}
+              </div>
             </div>
-          </div>
-          <div className="ed-header-actions">
-            <QuotaBadge />
-          </div>
+            <div className="ed-header-actions">
+              <QuotaBadge />
+            </div>
           </header>
-          <div className="tc-editor flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-4">
-            {isProcessing && (
-              <div
-                className="mb-6 rounded-xl p-6"
-                style={{ background: "var(--surface)", border: "1px solid var(--line)" }}
-              >
-                <div className="mb-2 flex items-center justify-between text-sm">
-                  <span className="font-medium" style={{ color: "var(--ink)" }}>
-                    {STATUS_LABEL[progress.status] ?? progress.status}
-                  </span>
-                  <span className="tabular-nums" style={{ color: "var(--ink-3)" }}>
-                    {progress.progress}%
-                  </span>
-                </div>
-                <div
-                  className="h-2 w-full overflow-hidden rounded-full"
-                  style={{ background: "var(--track)" }}
-                >
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${progress.progress}%`,
-                      background: "var(--accent)",
-                    }}
-                  />
-                </div>
-                <p className="mt-3 text-xs" style={{ color: "var(--ink-3)" }}>
-                  {progress.provider === "mock"
-                    ? "Using the built-in sample transcript (no ASR API key set)."
-                    : progress.status === "extracting"
-                      ? "Pulling audio from your video — this usually takes a few seconds."
-                      : progress.status === "transcribing"
-                        ? "Transcribing Telugu. Longer clips can take a few minutes — audio is sent in short pieces."
-                        : "Preparing your captions…"}
-                </p>
-              </div>
-            )}
-            {progress.status === "failed" && (
-              <div
-                className="mb-6 rounded-xl p-6 text-sm"
-                style={{
-                  border: "1px solid rgba(240,112,95,.3)",
-                  background: "var(--danger-wash)",
-                  color: "var(--danger)",
-                }}
-              >
-                <p className="font-medium">Processing failed</p>
-                <p className="mt-1" style={{ opacity: 0.85 }}>
-                  {friendlyJobError(progress.error)}
-                </p>
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => void retryJob()}
-                    disabled={retrying}
-                    className="tc-btn tc-btn--sm"
-                  >
-                    {retrying ? "Retrying…" : "Try again"}
-                  </button>
-                  <a href="/#upload" className="text-sm">
-                    Upload a different video
-                  </a>
-                </div>
-                {retryError && (
-                  <p className="mt-2 text-xs" style={{ color: "var(--warn)" }}>
-                    {retryError}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
+          {isProcessing ? (
+            <ProcessingView
+              videoUrl={videoUrl}
+              originalName={originalName}
+              status={progress.status}
+              progress={progress.progress}
+              provider={progress.provider}
+              width={width}
+              height={height}
+            />
+          ) : (
+            <ProcessingFailed
+              error={friendlyJobError(progress.error)}
+              retrying={retrying}
+              retryError={retryError}
+              onRetry={() => void retryJob()}
+            />
+          )}
         </div>
       </AppShell>
     );

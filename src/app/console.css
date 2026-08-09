@@ -1977,6 +1977,304 @@ html[data-console-theme="dark"] .console.console--editor {
   background: var(--ed-bg);
   color: var(--ed-ink);
 }
+
+/* —— Processing / listening stage —— */
+.console .ed-process {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 28px 20px 36px;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(228, 87, 27, 0.1), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 80% 100%, rgba(228, 87, 27, 0.06), transparent 50%),
+    linear-gradient(180deg, #f3efe8 0%, var(--ed-bg) 45%, #ebe6dc 100%);
+}
+.console .ed-process-glow {
+  position: absolute;
+  inset: -20% -10% auto;
+  height: 55%;
+  background: radial-gradient(ellipse at center, rgba(228, 87, 27, 0.14), transparent 68%);
+  pointer-events: none;
+  animation: ed-process-breathe 5.5s ease-in-out infinite;
+}
+.console .ed-process-glyphs {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.console .ed-process-glyph {
+  position: absolute;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-weight: 600;
+  color: rgba(228, 87, 27, 0.14);
+  line-height: 1;
+  animation: ed-process-float 7s ease-in-out infinite;
+  user-select: none;
+}
+.console .ed-process-stage {
+  position: relative;
+  z-index: 1;
+  width: min(440px, 100%);
+}
+.console .ed-process-frame {
+  position: relative;
+  width: 100%;
+  max-height: min(72vh, 720px);
+  margin-inline: auto;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #1b1a18;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 24px 60px rgba(40, 28, 12, 0.18),
+    0 2px 8px rgba(40, 28, 12, 0.08);
+}
+.console .ed-process-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.55;
+  filter: saturate(0.85) contrast(1.05);
+}
+.console .ed-process-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(27, 26, 24, 0.25) 0%, rgba(27, 26, 24, 0.55) 45%, rgba(27, 26, 24, 0.88) 100%),
+    radial-gradient(ellipse 90% 60% at 50% 100%, rgba(228, 87, 27, 0.28), transparent 55%);
+  pointer-events: none;
+}
+.console .ed-process-ring {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  width: min(58%, 220px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid rgba(255, 214, 180, 0.35);
+  box-shadow: 0 0 0 12px rgba(228, 87, 27, 0.06);
+  pointer-events: none;
+  animation: ed-process-pulse 2.4s ease-out infinite;
+}
+.console .ed-process-hud {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 28px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: #fff7f0;
+}
+.console .ed-process-kicker {
+  margin: 0;
+  font-family: var(--mono, "JetBrains Mono", ui-monospace, monospace);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 232, 210, 0.72);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.console .ed-process-title {
+  margin: 0;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-size: clamp(26px, 5vw, 34px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: #fffaf4;
+}
+.console .ed-process-meter {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  margin-top: 6px;
+}
+.console .ed-process-pct {
+  font-family: var(--mono, "JetBrains Mono", ui-monospace, monospace);
+  font-size: clamp(40px, 8vw, 56px);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+  color: #ff8a4c;
+  font-variant-numeric: tabular-nums;
+}
+.console .ed-process-pct small {
+  font-size: 0.42em;
+  margin-left: 2px;
+  color: rgba(255, 196, 150, 0.85);
+}
+.console .ed-process-wave {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 36px;
+  min-width: 0;
+  padding-bottom: 4px;
+}
+.console .ed-process-wave i {
+  flex: 1;
+  display: block;
+  height: calc(var(--h, 0.5) * 100%);
+  min-height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #ffb078, #e4571b);
+  opacity: 0.85;
+  transform-origin: bottom center;
+  animation: ed-process-bar 1.1s ease-in-out infinite alternate;
+}
+.console .ed-process-bar {
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  margin-top: 2px;
+}
+.console .ed-process-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #e4571b, #ff8a4c);
+  box-shadow: 0 0 12px rgba(228, 87, 27, 0.55);
+  transition: width 0.45s ease;
+}
+.console .ed-process-steps {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.console .ed-process-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(255, 232, 210, 0.45);
+}
+.console .ed-process-steps li[data-state="done"] {
+  color: rgba(255, 196, 150, 0.9);
+}
+.console .ed-process-steps li[data-state="active"] {
+  color: #fff7f0;
+}
+.console .ed-process-step-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.console .ed-process-steps li[data-state="done"] .ed-process-step-dot {
+  background: #e4571b;
+}
+.console .ed-process-steps li[data-state="active"] .ed-process-step-dot {
+  background: #ff8a4c;
+  box-shadow: 0 0 0 3px rgba(228, 87, 27, 0.35);
+  animation: ed-process-dot 1.4s ease-in-out infinite;
+}
+.console .ed-process-copy {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: rgba(255, 232, 210, 0.68);
+  max-width: 34ch;
+}
+.console .ed-process--failed {
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 20%, rgba(240, 112, 95, 0.12), transparent 55%),
+    linear-gradient(180deg, #f3efe8 0%, var(--ed-bg) 50%);
+}
+.console .ed-process-fail {
+  position: relative;
+  z-index: 1;
+  width: min(420px, 100%);
+  padding: 28px 8px;
+  text-align: left;
+}
+.console .ed-process--failed .ed-process-kicker {
+  color: var(--danger, #c44b3a);
+}
+.console .ed-process--failed .ed-process-title {
+  color: var(--ed-ink);
+}
+.console .ed-process--failed .ed-process-copy {
+  color: var(--ed-mid);
+  max-width: none;
+  margin-top: 10px;
+}
+.console .ed-process-fail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-top: 18px;
+}
+.console .ed-process-link {
+  font-size: 13px;
+  color: var(--ed-mid);
+  text-decoration: none;
+}
+.console .ed-process-link:hover {
+  color: var(--ed-ink);
+}
+.console .ed-process-retry-err {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--warn, #b07920);
+}
+@keyframes ed-process-breathe {
+  0%, 100% { opacity: 0.65; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@keyframes ed-process-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.35; }
+  50% { transform: translateY(-14px) rotate(6deg); opacity: 0.7; }
+}
+@keyframes ed-process-pulse {
+  0% { transform: translate(-50%, -50%) scale(0.92); opacity: 0.7; }
+  70% { transform: translate(-50%, -50%) scale(1.12); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1.12); opacity: 0; }
+}
+@keyframes ed-process-bar {
+  from { transform: scaleY(0.45); opacity: 0.55; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+@keyframes ed-process-dot {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(228, 87, 27, 0.28); }
+  50% { box-shadow: 0 0 0 5px rgba(228, 87, 27, 0.45); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .console .ed-process-glow,
+  .console .ed-process-glyph,
+  .console .ed-process-ring,
+  .console .ed-process-wave i,
+  .console .ed-process-steps li[data-state="active"] .ed-process-step-dot {
+    animation: none;
+  }
+}
+@media (max-width: 640px) {
+  .console .ed-process {
+    padding: 16px 14px 24px;
+  }
+  .console .ed-process-hud {
+    padding: 22px 16px 16px;
+  }
+  .console .ed-process-wave {
+    height: 28px;
+  }
+}
+
 .console .ed-header {
   flex: none;
   height: 56px;
