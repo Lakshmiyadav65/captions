@@ -2547,7 +2547,7 @@ html[data-console-theme="dark"] .console.console--editor {
   max-width: min(440px, 92%);
   min-height: 0;
   height: 100%;
-  max-height: calc(100% - 56px);
+  max-height: calc(100% - 84px);
   display: flex;
   align-items: stretch;
   justify-content: center;
@@ -2557,6 +2557,70 @@ html[data-console-theme="dark"] .console.console--editor {
 }
 .console .ed-transport {
   flex: none;
+  width: 100%;
+  max-width: min(440px, 92%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.console .ed-scrub {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 6px 0 2px;
+  cursor: pointer;
+}
+.console .ed-scrub-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  margin: 0;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--ed-accent) 0%,
+    var(--ed-accent) var(--ed-scrub-pct, 0%),
+    var(--ed-track) var(--ed-scrub-pct, 0%),
+    var(--ed-track) 100%
+  );
+  outline: none;
+  cursor: pointer;
+}
+.console .ed-scrub-input:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.console .ed-scrub-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ed-accent);
+  border: 2px solid #fffaf4;
+  box-shadow: 0 1px 4px rgba(40, 28, 12, 0.28);
+  cursor: grab;
+}
+.console .ed-scrub-input:active::-webkit-slider-thumb {
+  cursor: grabbing;
+}
+.console .ed-scrub-input::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ed-accent);
+  border: 2px solid #fffaf4;
+  box-shadow: 0 1px 4px rgba(40, 28, 12, 0.28);
+  cursor: grab;
+}
+.console .ed-scrub-input::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: transparent;
+}
+.console .ed-transport-row {
   display: flex;
   align-items: center;
   justify-content: center;

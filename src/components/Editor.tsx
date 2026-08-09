@@ -790,44 +790,69 @@ export function Editor({
                 />
               </div>
               <div className="ed-transport">
-                <div className="ed-transport-btns">
-                  <button type="button" aria-label="Back 5s" onClick={() => seekTo(currentTime - 5)}>
-                    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
-                      <polygon points="12,3 12,13 5,8" />
-                      <rect x="3" y="3" width="1.6" height="10" />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    className="ed-play"
-                    aria-label={playing ? "Pause" : "Play"}
-                    onClick={() => {
-                      void togglePlay();
+                <label className="ed-scrub">
+                  <input
+                    type="range"
+                    className="ed-scrub-input"
+                    min={0}
+                    max={Math.max(duration, 0.1)}
+                    step={0.05}
+                    value={Math.min(currentTime, duration || 0)}
+                    disabled={!duration}
+                    aria-label="Video progress"
+                    aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
+                    onChange={(e) => {
+                      seekTo(Number(e.currentTarget.value));
                     }}
-                  >
-                    {playing ? (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
+                    style={{
+                      ["--ed-scrub-pct" as string]: `${
+                        duration > 0
+                          ? Math.min(100, (currentTime / duration) * 100)
+                          : 0
+                      }%`,
+                    }}
+                  />
+                </label>
+                <div className="ed-transport-row">
+                  <div className="ed-transport-btns">
+                    <button type="button" aria-label="Back 5s" onClick={() => seekTo(currentTime - 5)}>
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                        <polygon points="12,3 12,13 5,8" />
+                        <rect x="3" y="3" width="1.6" height="10" />
                       </svg>
-                    ) : (
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                        <polygon points="4,2.5 13,8 4,13.5" />
+                    </button>
+                    <button
+                      type="button"
+                      className="ed-play"
+                      aria-label={playing ? "Pause" : "Play"}
+                      onClick={() => {
+                        void togglePlay();
+                      }}
+                    >
+                      {playing ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
+                        </svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                          <polygon points="4,2.5 13,8 4,13.5" />
+                        </svg>
+                      )}
+                    </button>
+                    <button type="button" aria-label="Forward 5s" onClick={() => seekTo(currentTime + 5)}>
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                        <polygon points="4,3 4,13 11,8" />
+                        <rect x="11.4" y="3" width="1.6" height="10" />
                       </svg>
-                    )}
-                  </button>
-                  <button type="button" aria-label="Forward 5s" onClick={() => seekTo(currentTime + 5)}>
-                    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
-                      <polygon points="4,3 4,13 11,8" />
-                      <rect x="11.4" y="3" width="1.6" height="10" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="ed-time">
-                  <b>{formatTime(currentTime)}</b>
-                  {" "}
-                  <span>/</span>
-                  {" "}
-                  <span>{formatTime(duration)}</span>
+                    </button>
+                  </div>
+                  <div className="ed-time">
+                    <b>{formatTime(currentTime)}</b>
+                    {" "}
+                    <span>/</span>
+                    {" "}
+                    <span>{formatTime(duration)}</span>
+                  </div>
                 </div>
               </div>
             </section>

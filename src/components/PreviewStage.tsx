@@ -163,7 +163,7 @@ export function PreviewStage({
         setActive((prev) =>
           prev.seg === seg && prev.filled === filled ? prev : { seg, filled },
         );
-        if (onTime && Math.abs(t - lastReport.current) > 0.1) {
+        if (onTime && Math.abs(t - lastReport.current) > 0.04) {
           lastReport.current = t;
           onTime(t);
         }
