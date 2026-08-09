@@ -10,7 +10,8 @@ import { resolveVideoLocal } from "./storage/resolve";
 import { getProvider, isLiveProvider, type Segment, type Word } from "./transcription";
 import { alignWordTimings } from "./transcription/align-timings";
 import { flattenWords, OpenAIProvider } from "./transcription/openai";
-import { offsetSegments, splitSegmentsToMaxWords } from "./transcription/util";
+import { sarvamRuntimeConfig } from "./transcription/sarvam";
+import { offsetSegments, splitSegmentsToMaxWords, dropSegmentsBefore } from "./transcription/util";
 import { romanizeTelugu } from "./transliterate";
 import { applySpelling, BUILTIN_SPELLING } from "./spelling";
 import { getUserSpellingRules } from "./spelling-server";
@@ -83,11 +84,17 @@ async function maybeRefineTimings(
           durationSec: c.durationSec,
         });
         whisperWords.push(
-          ...flattenWords(r).map((w) => ({
-            ...w,
-            start: w.start + c.offsetSec,
-            end: w.end + c.offsetSec,
-          })),
+          ...flattenWords(r)
+            .map((w) => ({
+              ...w,
+              start: w.start + c.offsetSec,
+              end: w.end + c.offsetSec,
+            }))
+            .filter(
+              (w) =>
+                c.keepFromSec == null ||
+                (w.start + w.end) / 2 >= c.keepFromSec,
+            ),
         );
       }
     } else {
@@ -137,6 +144,8 @@ export async function processJob(jobId: string): Promise<void> {
     jobId,
     userId: job.userId ?? undefined,
     provider: provider.name,
+    live: isLiveProvider(provider),
+    ...(provider.name === "sarvam" ? sarvamRuntimeConfig() : {}),
   });
 
   try {
@@ -228,7 +237,12 @@ export async function processJob(jobId: string): Promise<void> {
             language,
             durationSec: c.durationSec,
           });
-          segments.push(...offsetSegments(r.segments, c.offsetSec));
+          const shifted = offsetSegments(r.segments, c.offsetSec);
+          segments.push(
+            ...(c.keepFromSec != null
+              ? dropSegmentsBefore(shifted, c.keepFromSec)
+              : shifted),
+          );
           if (r.language && r.language !== "unknown") detected = r.language;
           await update(jobId, {
             progress: 20 + Math.round(((i + 1) / chunks.length) * 70),
@@ -278,7 +292,12 @@ export async function processJob(jobId: string): Promise<void> {
               language: "en",
               durationSec: c.durationSec,
             });
-            openaiSegments.push(...offsetSegments(r.segments, c.offsetSec));
+            const shifted = offsetSegments(r.segments, c.offsetSec);
+            openaiSegments.push(
+              ...(c.keepFromSec != null
+                ? dropSegmentsBefore(shifted, c.keepFromSec)
+                : shifted),
+            );
           }
         } else {
           const r = await openai.transcribe(audioPath, {

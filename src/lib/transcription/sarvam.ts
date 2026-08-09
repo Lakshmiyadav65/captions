@@ -10,13 +10,25 @@ import {
 } from "./types";
 import { groupWordsIntoSegments, splitTranscriptIntoSegments } from "./util";
 
-// Sarvam AI Speech-to-Text (Saaras v3) — tuned for real, code-mixed Indian-language
+// Sarvam AI Speech-to-Text (Saaras) — tuned for real, code-mixed Indian-language
 // speech. The sync endpoint caps at ~30s of audio, so the worker feeds it ≤28s chunks
-// (maxChunkSeconds). Sarvam returns word-level timestamps as parallel arrays, which we
-// zip and then group into readable subtitle lines.
+// (maxChunkSeconds). Prefer `codemix` so English stays Latin and Telugu stays Telugu —
+// `transcribe` writes English phonetically in Telugu script and destroys accuracy.
 
 const ENDPOINT = "https://api.sarvam.ai/speech-to-text";
 const MAX_ATTEMPTS = 3;
+/** Prefer v4; fall back to v3 if the account/API rejects it. */
+const DEFAULT_MODEL = "saaras:v4";
+const FALLBACK_MODEL = "saaras:v3";
+/** Codemix keeps English as English — critical for Telugu creator speech. */
+const DEFAULT_MODE = "codemix";
+
+export function sarvamRuntimeConfig() {
+  return {
+    model: process.env.SARVAM_MODEL?.trim() || DEFAULT_MODEL,
+    mode: process.env.SARVAM_MODE?.trim() || DEFAULT_MODE,
+  };
+}
 
 function toSarvamLang(code?: string): string {
   if (!code) return "unknown"; // let Sarvam auto-detect
@@ -104,8 +116,9 @@ export class SarvamProvider implements TranscriptionProvider {
   ): Promise<TranscriptionResult> {
     const key = process.env.SARVAM_API_KEY?.trim();
     if (!key) throw new Error("SARVAM_API_KEY is not set");
-    const model = process.env.SARVAM_MODEL || "saaras:v3";
-    const mode = process.env.SARVAM_MODE || "transcribe";
+    let model = sarvamRuntimeConfig().model;
+    const mode = sarvamRuntimeConfig().mode;
+    const modelPinned = Boolean(process.env.SARVAM_MODEL?.trim());
 
     const buf = await readFile(audioPath);
     const filename = basename(audioPath) || "audio.wav";
@@ -167,6 +180,17 @@ export class SarvamProvider implements TranscriptionProvider {
 
       const body = (await res.text()).slice(0, 500);
       lastErr = `Sarvam transcription failed (${res.status}): ${body || res.statusText}`;
+
+      // Auto-selected v4 rejected → retry once with v3.
+      if (
+        !modelPinned &&
+        model === DEFAULT_MODEL &&
+        (res.status === 400 || res.status === 404 || res.status === 422)
+      ) {
+        model = FALLBACK_MODEL;
+        continue;
+      }
+
       if (attempt < MAX_ATTEMPTS && shouldRetry(res.status)) {
         await sleep(700 * attempt);
         continue;

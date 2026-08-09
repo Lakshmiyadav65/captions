@@ -94,6 +94,12 @@ export interface AudioChunk {
   offsetSec: number;
   /** Actual length of this chunk in seconds (chunks may be variable-length). */
   durationSec?: number;
+  /**
+   * Absolute timeline second where this chunk's *owned* content begins.
+   * When audio is padded with lead-in overlap, ASR results before this time are dropped
+   * so boundary words aren't duplicated across adjacent chunks.
+   */
+  keepFromSec?: number;
 }
 
 /**

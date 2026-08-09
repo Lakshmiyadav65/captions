@@ -212,6 +212,9 @@ export function planBoundaries(
 /**
  * Split a WAV into energy-aware chunks written to outDir. Returns each chunk's path and the
  * absolute time offset (seconds) of its start, for stitching segment timings back together.
+ *
+ * Non-first chunks include a short lead-in overlap so words straddling a cut aren't cut off
+ * mid-phoneme. Callers should drop ASR content before `keepFromSec` when stitching.
  */
 export async function chunkAudioByEnergy(
   wavPath: string,
@@ -223,15 +226,27 @@ export async function chunkAudioByEnergy(
   const bounds = planBoundaries(samples, sampleRate, opts);
   await mkdir(outDir, { recursive: true });
 
+  /** Lead-in so the ASR hears the start of words that sit on a cut. */
+  const overlapSec = 0.28;
+  const totalSec = samples.length / sampleRate;
+
   const chunks: AudioChunk[] = [];
   for (let i = 0; i < bounds.length - 1; i++) {
-    const startT = bounds[i];
-    const endT = bounds[i + 1];
-    const from = Math.round(startT * sampleRate);
-    const to = Math.round(endT * sampleRate);
+    const startT = bounds[i]!;
+    const endT = bounds[i + 1]!;
+    const audioStart =
+      i === 0 ? startT : Math.max(0, startT - overlapSec);
+    const audioEnd = Math.min(totalSec, endT);
+    const from = Math.round(audioStart * sampleRate);
+    const to = Math.round(audioEnd * sampleRate);
     const path = join(outDir, `chunk_${String(i).padStart(4, "0")}.wav`);
     await writeFile(path, encodeWav(samples, from, to, sampleRate));
-    chunks.push({ path, offsetSec: startT, durationSec: round3(endT - startT) });
+    chunks.push({
+      path,
+      offsetSec: audioStart,
+      keepFromSec: startT,
+      durationSec: round3(audioEnd - audioStart),
+    });
   }
   return chunks;
 }

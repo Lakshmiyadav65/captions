@@ -238,3 +238,44 @@ export function offsetSegments(segments: Segment[], offsetSec: number): Segment[
     })),
   }));
 }
+
+/**
+ * After stitching a lead-in-overlapped chunk, drop content whose midpoint falls before
+ * `keepFromSec` so boundary words aren't duplicated from the previous chunk.
+ */
+export function dropSegmentsBefore(
+  segments: Segment[],
+  keepFromSec: number,
+): Segment[] {
+  if (!keepFromSec || keepFromSec <= 0) return segments;
+  const out: Segment[] = [];
+  for (const s of segments) {
+    const mid = (s.start + s.end) / 2;
+    if (mid < keepFromSec) continue;
+    if (s.end <= keepFromSec + 0.02) continue;
+
+    if (s.words?.length) {
+      const words = s.words
+        .filter((w) => (w.start + w.end) / 2 >= keepFromSec)
+        .map((w) => ({
+          ...w,
+          start: Math.max(w.start, keepFromSec),
+          end: Math.max(w.end, keepFromSec + 0.05),
+        }));
+      if (!words.length) continue;
+      out.push({
+        start: words[0]!.start,
+        end: Math.max(words[words.length - 1]!.end, words[0]!.start + 0.05),
+        text: words.map((w) => w.text).join(" ").trim(),
+        words,
+      });
+      continue;
+    }
+
+    out.push({
+      ...s,
+      start: Math.max(s.start, keepFromSec),
+    });
+  }
+  return out;
+}
