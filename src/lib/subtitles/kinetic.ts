@@ -4,7 +4,7 @@
 // Premium Style 4 = "flash" (punchy scale pop on each caption frame; density sets word count).
 // Premium Style 5 = "editorial" (blue sans focus + italic serif supports + accent ruler).
 // Styles 3.0 = "atelier" (Klickpin elegant: mixed serif/sans, blue focus, ruler, pill, cascade).
-// Styles 3.0 = "romance" (script support + bold sans focus + tracked trail; Telugu Connects look).
+// Styles 3.0 = "romance" animation powering the Telugu Connects preset (script + bold + trail).
 
 export interface KineticWordPose {
   /** Multiplier on the base caption font size (1 = base). */
@@ -195,7 +195,7 @@ export const ATELIER_ROLL_SCALE = 0.72;
 export const ATELIER_SATELLITE_FONT = "Instrument Serif";
 
 /**
- * Styles 3.0 — Romance (Don’t-fall-in-love reference):
+ * Styles 3.0 — Telugu Connects (Don’t-fall-in-love reference):
  * script supports above/below + large bold white sans focus + optional tracked uppercase trail.
  * Same focus slicing as editorial; spoken word is the bold block.
  */

@@ -515,7 +515,7 @@ function atelierDialogues(
 }
 
 /**
- * Styles 3.0 Romance burn: Great Vibes script supports + bold sans focus + tracked trail.
+ * Styles 3.0 Telugu Connects burn: Great Vibes script supports + bold sans focus + tracked trail.
  */
 function romanceDialogues(
   seg: Segment,

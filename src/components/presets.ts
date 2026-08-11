@@ -507,8 +507,8 @@ export const PRESETS_V3: StylePreset[] = [
     },
   },
   {
-    id: "romance",
-    name: "Romance",
+    id: "telugu-connects",
+    name: "Telugu Connects",
     category: "premium",
     tag: "Premium 3.0",
     sample: "Butterflies",

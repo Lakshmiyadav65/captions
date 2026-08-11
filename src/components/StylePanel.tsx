@@ -743,7 +743,7 @@ export function StylePanel({
               { label: "Flash", value: "flash" },
               { label: "Editorial", value: "editorial" },
               { label: "Atelier (3.0)", value: "atelier" },
-              { label: "Romance (3.0)", value: "romance" },
+              { label: "Telugu Connects", value: "romance" },
               { label: "Typewriter", value: "typewriter" },
             ]}
           />
