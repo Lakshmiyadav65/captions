@@ -40,6 +40,7 @@ import "@fontsource/oswald/400.css";
 import "@fontsource/oswald/700.css";
 import "@fontsource/bebas-neue/400.css";
 import "@fontsource/anton/400.css";
+import "@fontsource/great-vibes/400.css";
 
 // Self-hosted Telugu subtitle fonts (bundled at build time — work offline, no Google CDN).
 import "@fontsource/noto-sans-telugu/400.css";

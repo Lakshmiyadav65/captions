@@ -45,6 +45,8 @@ const LEFT_W_MIN = 240;
 const LEFT_W_MAX = 640;
 const RIGHT_W_MIN = 260;
 const RIGHT_W_MAX = 520;
+/** Set true to re-enable Instagram Reels preview + safe-zone tooling. */
+const INSTAGRAM_PREVIEW_ENABLED = false;
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -845,36 +847,40 @@ export function Editor({
                     : "9:16"}
                 </span>
                 <span style={{ flex: 1 }} />
-                <button
-                  type="button"
-                  className={`ed-chip${instagramPreview ? " is-active" : ""}`}
-                  aria-pressed={instagramPreview}
-                  aria-label={
-                    instagramPreview
-                      ? "Exit Instagram Preview"
-                      : "Open Instagram Preview"
-                  }
-                  onClick={() => {
-                    setInstagramPreview((v) => {
-                      if (v) setSafeZoneEnabled(false);
-                      return !v;
-                    });
-                  }}
-                >
-                  Instagram Preview
-                </button>
-                {instagramPreview && (
-                  <button
-                    type="button"
-                    className={`ed-chip${safeZoneEnabled ? " is-active" : ""}`}
-                    aria-pressed={safeZoneEnabled}
-                    aria-label={
-                      safeZoneEnabled ? "Hide Safe Zone" : "Show Safe Zone"
-                    }
-                    onClick={() => setSafeZoneEnabled((v) => !v)}
-                  >
-                    Safe Zone
-                  </button>
+                {INSTAGRAM_PREVIEW_ENABLED && (
+                  <>
+                    <button
+                      type="button"
+                      className={`ed-chip${instagramPreview ? " is-active" : ""}`}
+                      aria-pressed={instagramPreview}
+                      aria-label={
+                        instagramPreview
+                          ? "Exit Instagram Preview"
+                          : "Open Instagram Preview"
+                      }
+                      onClick={() => {
+                        setInstagramPreview((v) => {
+                          if (v) setSafeZoneEnabled(false);
+                          return !v;
+                        });
+                      }}
+                    >
+                      Instagram Preview
+                    </button>
+                    {instagramPreview && (
+                      <button
+                        type="button"
+                        className={`ed-chip${safeZoneEnabled ? " is-active" : ""}`}
+                        aria-pressed={safeZoneEnabled}
+                        aria-label={
+                          safeZoneEnabled ? "Hide Safe Zone" : "Show Safe Zone"
+                        }
+                        onClick={() => setSafeZoneEnabled((v) => !v)}
+                      >
+                        Safe Zone
+                      </button>
+                    )}
+                  </>
                 )}
                 <button
                   type="button"
@@ -897,12 +903,12 @@ export function Editor({
                   onDuration={setDuration}
                   initialAspect={width && height ? width / height : undefined}
                   onPositionChange={(positionYPct) => patchStyle({ positionYPct })}
-                  instagramPreview={instagramPreview}
-                  safeZoneEnabled={safeZoneEnabled}
+                  instagramPreview={INSTAGRAM_PREVIEW_ENABLED && instagramPreview}
+                  safeZoneEnabled={INSTAGRAM_PREVIEW_ENABLED && safeZoneEnabled}
                   onCaptionVisibility={onCaptionVisibility}
                 />
               </div>
-              {instagramPreview && (
+              {INSTAGRAM_PREVIEW_ENABLED && instagramPreview && (
                 <CaptionVisibilityIndicator level={captionVisibility} />
               )}
               <div className="ed-transport">

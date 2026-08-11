@@ -27,6 +27,8 @@ export interface StylePreset {
   landingAnim?: string;
   /** Styles generation — 2.0 curated viral set, 3.0 premium atelier looks. */
   generation?: "2.0" | "3.0";
+  /** Default words-per-frame when this preset is applied (Styles 3.0). */
+  wordsPerFrame?: number;
   style: SubtitleStyle;
 }
 
@@ -478,6 +480,7 @@ export const PRESETS_V3: StylePreset[] = [
     tag: "Premium 3.0",
     sample: "anywhere",
     generation: "3.0",
+    wordsPerFrame: 3,
     landingAnim: "cinema",
     style: {
       ...DEFAULT_STYLE,
@@ -500,6 +503,39 @@ export const PRESETS_V3: StylePreset[] = [
       karaoke: false,
       emphasisMode: "off",
       animation: "atelier",
+      textEffect: "none",
+    },
+  },
+  {
+    id: "romance",
+    name: "Romance",
+    category: "premium",
+    tag: "Premium 3.0",
+    sample: "Butterflies",
+    generation: "3.0",
+    wordsPerFrame: 2,
+    landingAnim: "cinema",
+    style: {
+      ...DEFAULT_STYLE,
+      fontFamily: "Montserrat",
+      fontWeight: 700,
+      fontSizePct: 5.2,
+      color: "#FFFFFF",
+      highlightColor: "#FFFFFF",
+      outlineWidth: 0,
+      shadow: true,
+      glowStrength: 0,
+      backgroundOpacity: 0,
+      boxMode: "none",
+      positionYPct: 52,
+      maxWidthPct: 88,
+      letterSpacingEm: -0.04,
+      lineHeight: 0.95,
+      textCase: "none",
+      uppercase: false,
+      karaoke: false,
+      emphasisMode: "off",
+      animation: "romance",
       textEffect: "none",
     },
   },

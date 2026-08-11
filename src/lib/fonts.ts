@@ -37,6 +37,7 @@ export const ENGLISH_FONTS: CaptionFont[] = [
   { id: "oswald", label: "Oswald", family: "Oswald", category: "display", script: "latin", note: "Condensed impact" },
   { id: "bebas-neue", label: "Bebas Neue", family: "Bebas Neue", category: "display", script: "latin", note: "Tall all-caps display" },
   { id: "anton", label: "Anton", family: "Anton", category: "display", script: "latin", note: "Heavy poster weight" },
+  { id: "great-vibes", label: "Great Vibes", family: "Great Vibes", category: "handwriting", script: "latin", note: "Romantic script — Romance style supports" },
 ];
 
 export const TELUGU_FONTS: CaptionFont[] = [

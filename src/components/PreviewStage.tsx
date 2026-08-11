@@ -176,7 +176,8 @@ export function PreviewStage({
             style.animation === "scatter" ||
             style.animation === "hook" ||
             style.animation === "editorial" ||
-            style.animation === "atelier")
+            style.animation === "atelier" ||
+            style.animation === "romance")
             ? filledCount(tokenizeSegment(seg), t)
             : 0;
         // Only re-render when the active line or the filled-word count actually changes.

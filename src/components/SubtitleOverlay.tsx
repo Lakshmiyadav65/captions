@@ -32,10 +32,17 @@ import {
   isFlash,
   isHook,
   isKinetic,
+  isRomance,
   isScatter,
   kineticFocusIndex,
   kineticGapPct,
   kineticPoses,
+  ROMANCE_FOCUS_SCALE,
+  ROMANCE_SCRIPT_FONT,
+  ROMANCE_SCRIPT_SCALE,
+  ROMANCE_TRAIL_SCALE,
+  ROMANCE_TRAIL_TRACKING_EM,
+  romanceLayout,
   scatterPoses,
   scatterStageHeightPct,
 } from "@/lib/subtitles/kinetic";
@@ -100,6 +107,8 @@ function animationClass(style: SubtitleStyle): string {
     case "editorial":
       return "cap-anim-fade";
     case "atelier":
+      return "cap-anim-kinetic";
+    case "romance":
       return "cap-anim-kinetic";
     case "typewriter":
       return "cap-anim-typewriter";
@@ -178,6 +187,7 @@ export function SubtitleOverlay({
   const useFlash = hasText && isFlash(style) && !specialFill;
   const useEditorial = hasText && isEditorial(style) && !specialFill;
   const useAtelier = hasText && isAtelier(style) && !specialFill;
+  const useRomance = hasText && isRomance(style) && !specialFill;
   const useKaraoke =
     hasText &&
     style.karaoke &&
@@ -187,7 +197,8 @@ export function SubtitleOverlay({
     !useHook &&
     !useFlash &&
     !useEditorial &&
-    !useAtelier;
+    !useAtelier &&
+    !useRomance;
   const useEmphasis =
     hasText &&
     isEmphasisOn(style) &&
@@ -197,7 +208,8 @@ export function SubtitleOverlay({
     !useHook &&
     !useFlash &&
     !useEditorial &&
-    !useAtelier;
+    !useAtelier &&
+    !useRomance;
   // Karaoke/emphasis emit one <span> per word. Use a wrapping flex row with
   // flex: 0 0 auto on each word so they never shrink mid-glyph, and justify
   // center so multi-word phrases stay in the middle of the frame.
@@ -631,6 +643,106 @@ export function SubtitleOverlay({
           }}
         >
           {body}
+        </span>
+      );
+    }
+  } else if (useRomance) {
+    const tokens = tokenizeSegment(segment!);
+    if (tokens.length) {
+      const focus = kineticFocusIndex(tokens.length, filled);
+      const layout = romanceLayout(tokens.length, focus);
+      const baseFs = px(style.fontSizePct);
+      const gap = px(kineticGapPct(style.fontSizePct) * 0.35);
+      const softShadow = style.shadow
+        ? `0 ${2 * scale}px ${8 * scale}px rgba(0,0,0,0.55), 0 ${1 * scale}px ${2 * scale}px rgba(0,0,0,0.35)`
+        : "none";
+
+      const scriptLine = (
+        indices: number[],
+        key: string,
+        opts: { rotateDeg?: number; yEm?: number } = {},
+      ) =>
+        indices.length === 0 ? null : (
+          <span
+            key={key}
+            className="cap-kinetic-word"
+            style={{
+              display: "block",
+              fontFamily: fontStack(ROMANCE_SCRIPT_FONT),
+              fontSize: baseFs * ROMANCE_SCRIPT_SCALE,
+              fontWeight: 400,
+              color: style.color,
+              letterSpacing: "0.02em",
+              lineHeight: 0.9,
+              whiteSpace: "nowrap",
+              marginBottom: opts.yEm ? undefined : -gap * 0.6,
+              marginTop: opts.yEm ? -gap * 0.4 : undefined,
+              transform: `rotate(${opts.rotateDeg ?? -8}deg)`,
+              textShadow: softShadow,
+            }}
+          >
+            {indices.map((i) => applyTextCase(tokens[i]!.text, "lower")).join(" ")}
+          </span>
+        );
+
+      const trailLine =
+        layout.after.length === 0 ? null : layout.before.length > 0 ? (
+          <span
+            key="trail"
+            className="cap-kinetic-word"
+            style={{
+              display: "block",
+              fontFamily: fontStack(style.fontFamily),
+              fontSize: baseFs * ROMANCE_TRAIL_SCALE,
+              fontWeight: 500,
+              color: style.color,
+              letterSpacing: `${ROMANCE_TRAIL_TRACKING_EM}em`,
+              lineHeight: 1.2,
+              whiteSpace: "nowrap",
+              textTransform: "uppercase",
+              marginTop: gap * 0.35,
+              textShadow: softShadow,
+            }}
+          >
+            {layout.after.map((i) => applyTextCase(tokens[i]!.text, "upper")).join(" ")}
+          </span>
+        ) : (
+          scriptLine(layout.after, "after-script", { rotateDeg: 6, yEm: 0.2 })
+        );
+
+      content = (
+        <span
+          className="cap-romance"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 0,
+            width: "100%",
+            pointerEvents: "none",
+          }}
+        >
+          {scriptLine(layout.before, "before", { rotateDeg: -8 })}
+          <span
+            key={`focus-${focus}`}
+            className="cap-kinetic-word"
+            style={{
+              display: "inline-block",
+              fontFamily: fontStack(style.fontFamily),
+              fontSize: baseFs * ROMANCE_FOCUS_SCALE,
+              fontWeight: Math.max(700, style.fontWeight),
+              color: style.color,
+              letterSpacing: `${style.letterSpacingEm}em`,
+              lineHeight: 0.92,
+              whiteSpace: "nowrap",
+              textShadow: softShadow,
+              transition: "font-size 0.18s cubic-bezier(0.22, 1.15, 0.36, 1)",
+            }}
+          >
+            {applyTextCase(tokens[layout.focus]!.text, "title")}
+          </span>
+          {trailLine}
         </span>
       );
     }

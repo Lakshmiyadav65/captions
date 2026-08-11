@@ -4,6 +4,7 @@
 // Premium Style 4 = "flash" (punchy scale pop on each caption frame; density sets word count).
 // Premium Style 5 = "editorial" (blue sans focus + italic serif supports + accent ruler).
 // Styles 3.0 = "atelier" (Klickpin elegant: mixed serif/sans, blue focus, ruler, pill, cascade).
+// Styles 3.0 = "romance" (script support + bold sans focus + tracked trail; Telugu Connects look).
 
 export interface KineticWordPose {
   /** Multiplier on the base caption font size (1 = base). */
@@ -124,6 +125,10 @@ export function isAtelier(style: { animation?: string }): boolean {
   return style.animation === "atelier";
 }
 
+export function isRomance(style: { animation?: string }): boolean {
+  return style.animation === "romance";
+}
+
 /** Premium modes that need per-word fill tracking. */
 export function isKineticMode(style: { animation?: string }): boolean {
   return (
@@ -131,7 +136,8 @@ export function isKineticMode(style: { animation?: string }): boolean {
     isScatter(style) ||
     isHook(style) ||
     isEditorial(style) ||
-    isAtelier(style)
+    isAtelier(style) ||
+    isRomance(style)
   );
 }
 
@@ -187,6 +193,22 @@ export const ATELIER_FOCUS_SCALE = 1.42;
 export const ATELIER_SATELLITE_SCALE = 0.42;
 export const ATELIER_ROLL_SCALE = 0.72;
 export const ATELIER_SATELLITE_FONT = "Instrument Serif";
+
+/**
+ * Styles 3.0 — Romance (Don’t-fall-in-love reference):
+ * script supports above/below + large bold white sans focus + optional tracked uppercase trail.
+ * Same focus slicing as editorial; spoken word is the bold block.
+ */
+export function romanceLayout(tokenCount: number, focus = 0) {
+  return editorialLayout(tokenCount, focus);
+}
+
+export const ROMANCE_FOCUS_SCALE = 1.38;
+export const ROMANCE_SCRIPT_SCALE = 0.52;
+export const ROMANCE_TRAIL_SCALE = 0.34;
+export const ROMANCE_SCRIPT_FONT = "Great Vibes";
+/** Tracked trail letter-spacing (em). */
+export const ROMANCE_TRAIL_TRACKING_EM = 0.42;
 
 /** Vertical gap between stacked words, as % of video height (Style 1 / 3). */
 export function kineticGapPct(fontSizePct: number): number {

@@ -26,8 +26,15 @@ import {
   isFlash,
   isHook,
   isKinetic,
+  isRomance,
   isScatter,
   kineticPoses,
+  ROMANCE_FOCUS_SCALE,
+  ROMANCE_SCRIPT_FONT,
+  ROMANCE_SCRIPT_SCALE,
+  ROMANCE_TRAIL_SCALE,
+  ROMANCE_TRAIL_TRACKING_EM,
+  romanceLayout,
   scatterPoses,
 } from "./kinetic";
 
@@ -182,6 +189,8 @@ function entranceTags(style: SubtitleStyle): string {
       return "{\\fad(140,100)}";
     case "atelier":
       return "{\\fad(120,90)\\fscx92\\fscy92\\t(0,220,\\fscx100\\fscy100)}";
+    case "romance":
+      return "{\\fad(120,80)\\fscx92\\fscy92\\t(0,200,\\fscx100\\fscy100)}";
     default:
       return "";
   }
@@ -298,6 +307,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
       const plainFx = !prism && !ember && !negative;
       if (isAtelier(style) && plainFx) {
         return atelierDialogues(s, style, PLAY_W, PLAY_H);
+      }
+      if (isRomance(style) && plainFx) {
+        return romanceDialogues(s, style, PLAY_W, PLAY_H);
       }
       if (isEditorial(style) && plainFx) {
         return editorialDialogues(s, style, PLAY_W, PLAY_H);
@@ -491,6 +503,64 @@ function atelierDialogues(
       parts.push(`{\\c${focusCol}\\fs${focusFs}\\b1}${wordAt(layout.focus)}{\\b0}`);
       if (layout.after.length) {
         parts.push(`{\\c${white}\\fs${Math.round(satFs * 1.2)}\\i1}${layout.after.map(wordAt).join(" ")}{\\i0}`);
+      }
+    }
+
+    lines.push(
+      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${prefix}${parts.join("\\N")}`,
+    );
+  });
+
+  return lines;
+}
+
+/**
+ * Styles 3.0 Romance burn: Great Vibes script supports + bold sans focus + tracked trail.
+ */
+function romanceDialogues(
+  seg: Segment,
+  style: SubtitleStyle,
+  playW: number,
+  playH: number,
+): string[] {
+  const tokens = tokenizeSegment(seg);
+  const prefix = overrideBlock(style, playW, playH);
+  if (!tokens.length) {
+    const body = applyTextCase(seg.text, "title").replace(/\r?\n/g, "\\N");
+    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${body}`];
+  }
+
+  const baseFs = styleAssFontSize(style, playH);
+  const scriptFs = Math.max(8, Math.round(baseFs * ROMANCE_SCRIPT_SCALE));
+  const focusFs = Math.max(10, Math.round(baseFs * ROMANCE_FOCUS_SCALE));
+  const trailFs = Math.max(7, Math.round(baseFs * ROMANCE_TRAIL_SCALE));
+  const white = assColor(style.color, 0);
+  const scriptFn = ROMANCE_SCRIPT_FONT;
+  const focusFn = style.fontFamily;
+  const trailSpacing = Math.round(ROMANCE_TRAIL_TRACKING_EM * trailFs);
+  const lines: string[] = [];
+
+  tokens.forEach((tk, focus) => {
+    const layout = romanceLayout(tokens.length, focus);
+    const t0 = tk.start;
+    const t1 = focus < tokens.length - 1 ? tokens[focus + 1]!.start : seg.end;
+    if (t1 <= t0) return;
+
+    const parts: string[] = [];
+    if (layout.before.length) {
+      const text = layout.before.map((i) => applyTextCase(tokens[i]!.text, "lower")).join(" ");
+      parts.push(`{\\fn${scriptFn}\\fs${scriptFs}\\b0\\c${white}}${text}`);
+    }
+    parts.push(
+      `{\\fn${focusFn}\\fs${focusFs}\\b1\\c${white}}${applyTextCase(tokens[layout.focus]!.text, "title")}`,
+    );
+    if (layout.after.length) {
+      if (layout.before.length > 0) {
+        const text = layout.after.map((i) => applyTextCase(tokens[i]!.text, "upper")).join(" ");
+        parts.push(`{\\fn${focusFn}\\fs${trailFs}\\b0\\fsp${trailSpacing}\\c${white}}${text}`);
+      } else {
+        const text = layout.after.map((i) => applyTextCase(tokens[i]!.text, "lower")).join(" ");
+        parts.push(`{\\fn${scriptFn}\\fs${scriptFs}\\b0\\c${white}}${text}`);
       }
     }
 

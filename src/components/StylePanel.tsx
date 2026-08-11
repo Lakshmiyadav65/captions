@@ -328,8 +328,12 @@ export function StylePanel({
 
   const applyPreset = (p: StylePreset) => {
     onApplyPreset({ ...p.style });
-    if (p.generation === "3.0" && onWordsPerFrameChange) {
-      onWordsPerFrameChange(3);
+    if (onWordsPerFrameChange) {
+      if (typeof p.wordsPerFrame === "number") {
+        onWordsPerFrameChange(p.wordsPerFrame);
+      } else if (p.generation === "3.0") {
+        onWordsPerFrameChange(3);
+      }
     }
   };
 
@@ -739,6 +743,7 @@ export function StylePanel({
               { label: "Flash", value: "flash" },
               { label: "Editorial", value: "editorial" },
               { label: "Atelier (3.0)", value: "atelier" },
+              { label: "Romance (3.0)", value: "romance" },
               { label: "Typewriter", value: "typewriter" },
             ]}
           />
