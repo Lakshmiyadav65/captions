@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, describe, it } from "node:test";
 import { prisma } from "./db";
-import { config } from "./config";
+import { config, publicConfig } from "./config";
 import { PLANS } from "./plans";
 import {
   InsufficientCreditsError,
@@ -14,15 +14,16 @@ import {
 } from "./credits";
 import { handleGetBalance, handleUseMinutes } from "./credits-api";
 import { assertWithinQuota, getUserLimits } from "./quota";
-import { round1 } from "./credits-catalog";
+import { allocationForEmail, round1 } from "./credits-catalog";
 
-const FREE = config.limits.freeCaptionMinutes;
+const FREE = config.limits.freeUsageMinutes;
+const TEST_MINUTES = config.limits.testUserFreeMinutes;
 const ids: string[] = [];
 
-async function makeUser(plan: "free" | "creator" | "pro" = "free") {
+async function makeUser(plan: "free" | "creator" | "pro" = "free", email?: string) {
   const user = await prisma.user.create({
     data: {
-      email: `free-min-test-${crypto.randomUUID()}@t.local`,
+      email: email ?? `free-min-test-${crypto.randomUUID()}@t.local`,
       plan,
     },
   });
@@ -48,11 +49,34 @@ after(async () => {
 
 describe("TEST 1 — New User Free Allocation", () => {
   it("allocates configured free minutes exactly once", async () => {
+    assert.equal(FREE, 120);
     const user = await makeUser();
     const balance = await getAvailableMinutes(user.id);
     assert.equal(balance, FREE);
     assert.equal(typeof balance, "number");
     assert.ok(balance >= 0);
+  });
+});
+
+describe("TEST 1b — Test user allocation", () => {
+  it("allocates exactly 5 minutes to the designated test email", async () => {
+    assert.equal(TEST_MINUTES, 5);
+    const prev = process.env.TEST_USER_EMAIL;
+    const email = `test-friend-${crypto.randomUUID()}@t.local`;
+    process.env.TEST_USER_EMAIL = email;
+    try {
+      const user = await makeUser("free", email);
+      const balance = await getAvailableMinutes(user.id);
+      assert.equal(balance, 5);
+      assert.notEqual(balance, FREE);
+      const res = await handleGetBalance(user.id);
+      assert.equal(res.status, 200);
+      if (!("available_minutes" in res.body)) throw new Error("expected balance");
+      assert.equal(res.body.available_minutes, 5);
+    } finally {
+      if (prev === undefined) delete process.env.TEST_USER_EMAIL;
+      else process.env.TEST_USER_EMAIL = prev;
+    }
   });
 });
 
@@ -73,6 +97,33 @@ describe("TEST 2 — No Duplicate Free Allocation", () => {
     const grants = (await listTransactions(user.id)).filter((t) => t.type === "GRANT");
     assert.equal(grants.length, 1);
     assert.equal(grants[0]!.minutes, FREE);
+  });
+});
+
+describe("TEST 2b — Test user no duplicate allocation", () => {
+  it("does not increase the 5-minute test-user balance on refresh or re-init", async () => {
+    const prev = process.env.TEST_USER_EMAIL;
+    const email = `test-friend-${crypto.randomUUID()}@t.local`;
+    process.env.TEST_USER_EMAIL = email;
+    try {
+      const user = await makeUser("free", email);
+      const first = await getAvailableMinutes(user.id);
+      assert.equal(first, 5);
+      const again = await Promise.all([
+        getAvailableMinutes(user.id),
+        grantFreeMinutesOnce(user.id),
+        handleGetBalance(user.id).then((r) => r.body.available_minutes),
+      ]);
+      for (const n of again) {
+        assert.equal(n, 5);
+      }
+      const grants = (await listTransactions(user.id)).filter((t) => t.type === "GRANT");
+      assert.equal(grants.length, 1);
+      assert.equal(grants[0]!.minutes, 5);
+    } finally {
+      if (prev === undefined) delete process.env.TEST_USER_EMAIL;
+      else process.env.TEST_USER_EMAIL = prev;
+    }
   });
 });
 
@@ -294,5 +345,30 @@ describe("TEST 15 — Existing feature regression", () => {
     const quota = await assertWithinQuota(creator.id);
     assert.equal(quota.ok, true);
     assert.equal(config.outputMode === "translit" || config.outputMode === "transcribe", true);
+  });
+});
+
+describe("TEST 16 — Public config must not leak test-user secrets", () => {
+  it("omits TEST_USER_EMAIL and allocation amounts from the browser config", () => {
+    const pub = publicConfig();
+    const json = JSON.stringify(pub);
+    assert.equal("testUserEmail" in pub, false);
+    assert.equal(json.includes("TEST_USER"), false);
+    assert.equal("freeUsageMinutes" in pub, false);
+  });
+});
+
+describe("allocationForEmail", () => {
+  it("never lets the caller choose 5 vs 120 — only the configured email gets 5", () => {
+    const settings = {
+      testUserEmail: "friend@example.com",
+      testMinutes: 5,
+      normalMinutes: 120,
+    };
+    assert.equal(allocationForEmail("friend@example.com", settings), 5);
+    assert.equal(allocationForEmail("FRIEND@example.com", settings), 5);
+    assert.equal(allocationForEmail("someone@example.com", settings), 120);
+    assert.equal(allocationForEmail(null, settings), 120);
+    assert.equal(allocationForEmail("friend@example.com", { ...settings, testUserEmail: "" }), 120);
   });
 });

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { PLANS, type PlanId } from "@/lib/plans";
 import { AppShell, type ConsoleUser } from "@/components/console/AppShell";
+import { formatAvailableMinutes } from "@/lib/credits-display";
 
 type Usage = {
   plan: PlanId;
@@ -25,33 +26,15 @@ type Txn = {
   status: string;
 };
 
-const PREPAID_PACKS = [
-  {
-    id: "minutes_5" as const,
-    name: "5 Minutes",
-    description: "Perfect for trying captions without a subscription.",
-    button: "Buy 5 Minutes",
-  },
-  {
-    id: "minutes_10" as const,
-    name: "10 Minutes",
-    description: "More minutes for your next batch of videos.",
-    button: "Buy 10 Minutes",
-    recommended: true,
-  },
-];
-
 export function SettingsClient({ user }: { user: ConsoleUser | null }) {
   const searchParams = useSearchParams();
   const isSettingsTab = searchParams.get("tab") === "settings";
   const creditsStatus = searchParams.get("credits");
-  const buyPack = searchParams.get("buy");
   const [usage, setUsage] = useState<Usage | null>(null);
   const [txns, setTxns] = useState<Txn[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const buyOnce = useRef(false);
 
   const refreshUsage = () =>
     fetch("/api/billing/usage")
@@ -142,34 +125,6 @@ export function SettingsClient({ user }: { user: ConsoleUser | null }) {
     }
   };
 
-  const buyMinutes = async (packId: "minutes_5" | "minutes_10") => {
-    setBusy(packId);
-    setError(null);
-    try {
-      const res = await fetch("/api/credits/purchase", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pack_id: packId }),
-      });
-      const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error ?? "Checkout failed");
-      window.location.href = data.url;
-    } catch (e) {
-      setNotice(null);
-      setError(e instanceof Error ? e.message : "Checkout failed");
-      setBusy(null);
-    }
-  };
-
-  useEffect(() => {
-    if (buyOnce.current) return;
-    if (buyPack === "minutes_5" || buyPack === "minutes_10") {
-      buyOnce.current = true;
-      void buyMinutes(buyPack);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buyPack]);
-
   const portal = async () => {
     setBusy("portal");
     setError(null);
@@ -199,7 +154,7 @@ export function SettingsClient({ user }: { user: ConsoleUser | null }) {
             <p>
               {isSettingsTab
                 ? "Defaults apply to every new project. Export and plan live here."
-                : "Free for getting started. Buy prepaid minutes or upgrade when you need more."}
+                : "Free for getting started. Upgrade when you need more minutes."}
             </p>
           </div>
 
@@ -264,46 +219,11 @@ export function SettingsClient({ user }: { user: ConsoleUser | null }) {
                     <b>Caption Minutes</b>
                     <span>
                       {usage
-                        ? prepaid > 0
-                          ? `${prepaid} min available · Never expires`
-                          : "You're out of caption minutes."
+                        ? `${formatAvailableMinutes(prepaid)} · Never expires`
                         : "Loading…"}
                     </span>
                   </span>
-                  <a href="#prepaid" className="tc-btn tc-btn--primary tc-btn--sm">
-                    {prepaid > 0 ? "Buy More Minutes" : "Buy Minutes"}
-                  </a>
                 </div>
-              </div>
-
-              <div className="tc-card-plain" id="prepaid">
-                <div className="tc-card-head">
-                  <b>Prepaid Minutes</b>
-                  <span>Buy minutes once. Use them whenever you need.</span>
-                </div>
-                {PREPAID_PACKS.map((pack) => (
-                  <div className="tc-row" key={pack.id}>
-                    <span>
-                      <b>
-                        {pack.name}
-                        {pack.recommended ? " · BEST VALUE" : ""}
-                      </b>
-                      <span>{pack.description}</span>
-                    </span>
-                    <button
-                      type="button"
-                      className={`tc-btn tc-btn--sm${pack.recommended ? " tc-btn--primary" : ""}`}
-                      disabled={!usage?.stripeEnabled || busy !== null}
-                      onClick={() => void buyMinutes(pack.id)}
-                    >
-                      {busy === pack.id
-                        ? "Redirecting…"
-                        : usage?.stripeEnabled
-                          ? pack.button
-                          : "Stripe off"}
-                    </button>
-                  </div>
-                ))}
               </div>
 
               <div className="tc-card-plain">
@@ -358,7 +278,7 @@ export function SettingsClient({ user }: { user: ConsoleUser | null }) {
                 <div className="tc-card-plain">
                   <div className="tc-card-head">
                     <b>Minute history</b>
-                    <span>Purchases and usage on your prepaid balance</span>
+                    <span>Free allocation and usage on your caption-minute balance</span>
                   </div>
                   {txns.slice(0, 12).map((t) => (
                     <div className="tc-row" key={t.id}>
@@ -401,8 +321,8 @@ export function SettingsClient({ user }: { user: ConsoleUser | null }) {
                   lineHeight: 1.5,
                 }}
               >
-                Prepaid minutes never expire. Monthly plan minutes still apply first; extra
-                processing uses your prepaid balance.
+                Caption minutes never expire. Monthly plan minutes still apply first for
+                paid plans; extra processing uses your remaining free balance.
               </p>
               <Link
                 href="/library"

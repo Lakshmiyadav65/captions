@@ -3,6 +3,7 @@ import { prisma } from "./db";
 import { isPlanId, PLANS, type PlanId } from "./plans";
 import { log } from "./log";
 import { getAvailableMinutes } from "./credits";
+import { INSUFFICIENT_MINUTES_MESSAGE } from "./credits-catalog";
 
 // Per-user guardrails for a hosted, multi-tenant deployment: cap concurrent jobs and
 // monthly transcription minutes. Paid Razorpay plans will raise limits via User.plan.
@@ -11,7 +12,6 @@ export interface QuotaResult {
   ok: boolean;
   reason?: string;
   code?: "quota_active_jobs" | "quota_minutes" | "quota_analyses" | "quota_generations";
-  buyHref?: string;
 }
 
 /** Vercel Hobby caps inline ASR at ~300s — anything still "active" past this is stuck. */
@@ -97,8 +97,7 @@ export async function assertWithinQuota(userId: string): Promise<QuotaResult> {
       return {
         ok: false,
         code: "quota_minutes",
-        buyHref: "/billing#prepaid",
-        reason: "You don't have enough caption minutes for this video.",
+        reason: INSUFFICIENT_MINUTES_MESSAGE,
       };
     }
     return { ok: true };
@@ -107,8 +106,7 @@ export async function assertWithinQuota(userId: string): Promise<QuotaResult> {
     return {
       ok: false,
       code: "quota_minutes",
-      buyHref: "/billing#prepaid",
-      reason: "You don't have enough caption minutes for this video.",
+      reason: INSUFFICIENT_MINUTES_MESSAGE,
     };
   }
 

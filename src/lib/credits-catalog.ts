@@ -45,17 +45,36 @@ export function prepaidMinutesNeeded(
   return Math.max(0, Math.round((videoMinutes - remaining) * 10) / 10);
 }
 
+export const INSUFFICIENT_MINUTES_MESSAGE =
+  "You don't have enough caption minutes for this video.";
+
 export class InsufficientCreditsError extends Error {
   readonly code = "quota_minutes" as const;
   constructor(message?: string) {
-    super(
-      message ??
-        "You don't have enough caption minutes for this video.",
-    );
+    super(message ?? INSUFFICIENT_MINUTES_MESSAGE);
     this.name = "InsufficientCreditsError";
   }
 }
 
 export function round1(n: number): number {
   return Math.round(n * 10) / 10;
+}
+
+export type FreeUsageSettings = {
+  testUserEmail: string;
+  testMinutes: number;
+  normalMinutes: number;
+};
+
+/** Server-side allocation. The client cannot choose 5 vs 120. */
+export function allocationForEmail(
+  email: string | null | undefined,
+  settings: FreeUsageSettings,
+): number {
+  const addr = (email ?? "").trim().toLowerCase();
+  const test = settings.testUserEmail.trim().toLowerCase();
+  if (test && addr && addr === test) {
+    return round1(Math.max(0, settings.testMinutes));
+  }
+  return round1(Math.max(0, settings.normalMinutes));
 }

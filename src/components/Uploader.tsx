@@ -2,7 +2,6 @@
 
 import { useRef, useState, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { upload as blobUpload } from "@vercel/blob/client";
 
 const VIDEO_EXT = /\.(mp4|mov|mkv|webm|avi|m4v|mpg|mpeg|wmv|flv)$/i;
@@ -264,10 +263,7 @@ export function Uploader({ tone = "dark", canUpload = true, variant = "default" 
         </div>
         {error ? (
           <p className="lp-uploader-error">
-            {error}{" "}
-            {/enough caption minutes|Buy more minutes/i.test(error) ? (
-              <Link href="/billing#prepaid">Buy More Minutes</Link>
-            ) : null}
+            {error}
           </p>
         ) : null}
       </div>
@@ -371,12 +367,7 @@ export function Uploader({ tone = "dark", canUpload = true, variant = "default" 
       {error && (
         <div className={["mt-3 text-sm", light ? "text-red-600" : "text-red-400"].join(" ")}>
           <p>
-            {error}{" "}
-            {/enough caption minutes|Buy more minutes/i.test(error) ? (
-              <Link href="/billing#prepaid" className="underline">
-                Buy More Minutes
-              </Link>
-            ) : null}
+            {error}
           </p>
         </div>
       )}

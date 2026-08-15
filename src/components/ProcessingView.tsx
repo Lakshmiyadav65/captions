@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "next/link";
 
 const STEPS = [
   { id: "queued", label: "Queued" },
@@ -195,11 +194,7 @@ export function ProcessingFailed({
         <h2 className="ed-process-title">Processing failed</h2>
         <p className="ed-process-copy">{error}</p>
         <div className="ed-process-fail-actions">
-          {error && /caption minutes|Buy more minutes/i.test(error) ? (
-            <Link href="/billing#prepaid" className="tc-btn tc-btn--primary">
-              Buy More Minutes
-            </Link>
-          ) : (
+          {error && /caption minutes/i.test(error) ? null : (
             <button
               type="button"
               onClick={onRetry}

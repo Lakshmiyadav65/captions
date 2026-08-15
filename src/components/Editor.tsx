@@ -27,6 +27,7 @@ import { PreviewStage } from "./PreviewStage";
 import { StylePanel } from "./StylePanel";
 import { SubtitleList } from "./SubtitleList";
 import { QuotaBadge } from "./QuotaBadge";
+import { notifyCreditsChanged } from "@/lib/credits-display";
 import { ProcessingFailed, ProcessingView } from "./ProcessingView";
 import { CaptionVisibilityIndicator } from "./instagram/CaptionVisibilityIndicator";
 import { AppShell, type ConsoleUser } from "@/components/console/AppShell";
@@ -336,13 +337,15 @@ export function Editor({
     const apply = (data: Progress) => {
       if (cancelled) return;
       setProgress(data);
-      if (data.status === "done") {
+        if (data.status === "done") {
         if (!finished) void loadTranscript();
         finished = true;
         stop();
+        notifyCreditsChanged();
       } else if (data.status === "failed") {
         finished = true;
         stop();
+        notifyCreditsChanged();
       }
     };
 

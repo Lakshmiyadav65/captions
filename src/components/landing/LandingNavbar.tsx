@@ -5,12 +5,11 @@ import Link from "next/link";
 import { signOutAction } from "@/app/actions/auth";
 import type { LandingUser } from "@/components/landing/types";
 import { ThemeToggle } from "@/components/landing/ThemeToggle";
+import { DASHBOARD_PATH, dashboardSignInHref } from "@/lib/credits-display";
 
 export type { LandingUser };
 
 const SIGN_IN_HREF = `/signin?next=${encodeURIComponent("/?start=1")}`;
-const DASHBOARD_HREF = "/library";
-const DASHBOARD_SIGN_IN_HREF = `/signin?next=${encodeURIComponent(DASHBOARD_HREF)}`;
 
 function initials(user: LandingUser): string {
   const name = (user.name ?? "").trim();
@@ -128,7 +127,7 @@ export function LandingNavbar({
 
         <div className="nav-actions">
           <Link
-            href={user || canStart ? DASHBOARD_HREF : DASHBOARD_SIGN_IN_HREF}
+            href={user || canStart ? DASHBOARD_PATH : dashboardSignInHref()}
             className="nav-dashboard-cta"
           >
             Open Dashboard

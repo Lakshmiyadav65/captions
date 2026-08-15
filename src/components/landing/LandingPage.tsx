@@ -587,62 +587,6 @@ function PricingSection({ canStart }: { canStart: boolean }) {
             </StartLink>
           </div>
         </div>
-
-        <div className="lp-prepaid" id="prepaid">
-          <div className="lp-section-intro lp-center-copy">
-            <h3 className="lp-display-sm" style={{ fontSize: "clamp(1.6rem, 3vw, 2rem)" }}>
-              Prepaid Minutes
-            </h3>
-            <p className="lp-section-lead">Buy minutes once. Use them whenever you need.</p>
-          </div>
-          <div className="lp-prepaid-grid">
-            <div className="lp-price-card">
-              <div className="lp-price-head">
-                <span className="lp-mono-tag">Prepaid</span>
-                <p className="lp-price">
-                  5<span> minutes</span>
-                </p>
-              </div>
-              <p className="lp-prepaid-copy">Perfect for trying captions without a subscription.</p>
-              <ul className="lp-price-features">
-                <li><CheckIcon /> 5 minutes of caption processing</li>
-                <li><CheckIcon /> No subscription</li>
-                <li><CheckIcon /> Never expires</li>
-                <li><CheckIcon /> Use anytime</li>
-              </ul>
-              <Link
-                href={canStart ? "/billing?buy=minutes_5#prepaid" : `/signin?next=${encodeURIComponent("/billing?buy=minutes_5")}`}
-                className="lp-btn-ghost"
-              >
-                Buy 5 Minutes
-              </Link>
-            </div>
-            <div className="lp-price-card lp-price-featured">
-              <div className="lp-price-head">
-                <span className="lp-best-badge">Best value</span>
-                <span className="lp-mono-tag">Prepaid</span>
-                <p className="lp-price lp-price-light">
-                  10<span> minutes</span>
-                </p>
-              </div>
-              <p className="lp-prepaid-copy lp-prepaid-copy-light">
-                More minutes for your next batch of videos.
-              </p>
-              <ul className="lp-price-features lp-price-features-light">
-                <li><CheckIcon light /> 10 minutes of caption processing</li>
-                <li><CheckIcon light /> No subscription</li>
-                <li><CheckIcon light /> Never expires</li>
-                <li><CheckIcon light /> Use anytime</li>
-              </ul>
-              <Link
-                href={canStart ? "/billing?buy=minutes_10#prepaid" : `/signin?next=${encodeURIComponent("/billing?buy=minutes_10")}`}
-                className="lp-btn-light"
-              >
-                Buy 10 Minutes
-              </Link>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   );

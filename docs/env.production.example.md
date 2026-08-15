@@ -41,14 +41,18 @@ OUTPUT_MODE=translit
 SUBTITLE_MAX_WORDS=2
 TIMING_PROVIDER=openai
 
-# --- Launch quotas (tight for magazine day) ---
+# --- Launch quotas ---
 MAX_UPLOAD_MB=100
 MAX_VIDEO_MINUTES=5
 QUOTA_MONTHLY_MINUTES=90
-FREE_CAPTION_MINUTES=10
 QUOTA_MAX_ACTIVE_JOBS=2
 RATE_LIMIT_UPLOAD_PER_MINUTE=3
 RATE_LIMIT_UPLOAD_PER_HOUR=15
+
+# One-time free caption minutes (no purchase). Server-side only — never expose TEST_USER_EMAIL to the browser.
+FREE_USAGE_MINUTES=120
+TEST_USER_FREE_USAGE_MINUTES=5
+TEST_USER_EMAIL=
 
 # --- Workers ---
 WORKER_CONCURRENCY=2

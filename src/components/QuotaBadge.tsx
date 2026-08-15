@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CREDITS_CHANGED_EVENT, formatAvailableMinutes } from "@/lib/credits-display";
 
 type Usage = {
   plan: string;
@@ -14,8 +15,8 @@ type Usage = {
 export function QuotaBadge() {
   const [usage, setUsage] = useState<Usage | null>(null);
 
-  useEffect(() => {
-    void fetch("/api/billing/usage")
+  const load = () =>
+    fetch("/api/billing/usage")
       .then(async (res) => {
         if (!res.ok) return null;
         return (await res.json()) as Usage;
@@ -24,6 +25,12 @@ export function QuotaBadge() {
         if (data) setUsage(data);
       })
       .catch(() => {});
+
+  useEffect(() => {
+    void load();
+    const onCredits = () => void load();
+    window.addEventListener(CREDITS_CHANGED_EVENT, onCredits);
+    return () => window.removeEventListener(CREDITS_CHANGED_EVENT, onCredits);
   }, []);
 
   if (!usage) {
@@ -51,10 +58,10 @@ export function QuotaBadge() {
         background: "var(--surface)",
         color: "var(--ink-2)",
       }}
-      title="Prepaid caption minutes — never expire"
+      title="Caption minutes — never expire"
     >
       <span className="font-medium" style={{ color: "var(--ink)" }}>
-        {prepaid} min available
+        {formatAvailableMinutes(prepaid)}
       </span>
     </span>
   );

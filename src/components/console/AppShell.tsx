@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { ConsoleThemeToggle } from "@/components/console/ConsoleThemeToggle";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { CREDITS_CHANGED_EVENT, formatAvailableMinutes } from "@/lib/credits-display";
 
 export type ConsoleUser = {
   name?: string | null;
@@ -133,12 +134,17 @@ function AppShellInner({
   const [editorHref, setEditorHref] = useState("/library");
 
   useEffect(() => {
-    void fetch("/api/billing/usage")
-      .then(async (res) => (res.ok ? ((await res.json()) as Usage) : null))
-      .then((data) => {
-        if (data) setUsage(data);
-      })
-      .catch(() => {});
+    const load = () =>
+      fetch("/api/billing/usage")
+        .then(async (res) => (res.ok ? ((await res.json()) as Usage) : null))
+        .then((data) => {
+          if (data) setUsage(data);
+        })
+        .catch(() => {});
+    void load();
+    const onCredits = () => void load();
+    window.addEventListener(CREDITS_CHANGED_EVENT, onCredits);
+    return () => window.removeEventListener(CREDITS_CHANGED_EVENT, onCredits);
   }, []);
 
   useEffect(() => {
@@ -239,8 +245,7 @@ function AppShellInner({
               <div className="tc-side-meter-row">
                 <b>Caption Minutes</b>
                 <span className="mono">
-                  {usage.prepaidMinutes ?? 0}
-                  <em> min</em>
+                  {formatAvailableMinutes(usage.prepaidMinutes ?? 0)}
                 </span>
               </div>
               <div className="tc-side-meter-row tc-side-meter-row--muted">
@@ -263,12 +268,6 @@ function AppShellInner({
               >
                 <i style={{ width: `${minutesPct}%` }} />
               </div>
-              <Link
-                href="/billing#prepaid"
-                className="tc-btn tc-btn--outline tc-btn--sm tc-side-upgrade"
-              >
-                {(usage.prepaidMinutes ?? 0) > 0 ? "Buy More Minutes" : "Buy Minutes"}
-              </Link>
             </div>
           ) : (
             <div className="tc-side-meter-row tc-side-meter-row--muted">

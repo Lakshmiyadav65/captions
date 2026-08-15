@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   const quota = await assertWithinQuota(userId);
   if (!quota.ok) {
     return NextResponse.json(
-      { error: quota.reason, code: quota.code, buyHref: quota.buyHref },
+      { error: quota.reason, code: quota.code },
       { status: 429 },
     );
   }

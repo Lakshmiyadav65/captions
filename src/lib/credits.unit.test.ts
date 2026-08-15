@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   CREDIT_PACKS,
+  allocationForEmail,
   isCreditPackId,
   minutesFromDurationSec,
   prepaidMinutesNeeded,
@@ -25,6 +26,28 @@ describe("minutesFromDurationSec", () => {
   it("returns 0 for empty duration", () => {
     assert.equal(minutesFromDurationSec(0), 0);
     assert.equal(minutesFromDurationSec(-4), 0);
+  });
+});
+
+describe("allocationForEmail", () => {
+  const settings = {
+    testUserEmail: "friend@example.com",
+    testMinutes: 5,
+    normalMinutes: 120,
+  };
+
+  it("gives the designated test user 5 minutes", () => {
+    assert.equal(allocationForEmail("friend@example.com", settings), 5);
+  });
+
+  it("gives every other user 120 minutes", () => {
+    assert.equal(allocationForEmail("creator@example.com", settings), 120);
+    assert.equal(allocationForEmail(undefined, settings), 120);
+  });
+
+  it("ignores a client-chosen minutes value because none is accepted", () => {
+    assert.equal(allocationForEmail("creator@example.com", settings), settings.normalMinutes);
+    assert.notEqual(allocationForEmail("creator@example.com", settings), 999999);
   });
 });
 

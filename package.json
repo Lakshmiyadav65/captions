@@ -14,7 +14,7 @@
     "db:generate": "prisma generate",
     "db:postgres": "node scripts/use-postgres.mjs",
     "blob:cleanup": "node scripts/cleanup-vercel-blob.mjs",
-    "test": "tsx --test src/lib/credits.unit.test.ts src/lib/credits.free.test.ts"
+    "test": "tsx --test src/lib/credits.unit.test.ts src/lib/credits.free.test.ts src/lib/credits-display.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",

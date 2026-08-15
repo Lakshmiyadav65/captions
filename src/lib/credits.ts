@@ -3,6 +3,7 @@ import { config } from "./config";
 import {
   CREDIT_PACKS,
   InsufficientCreditsError,
+  allocationForEmail,
   isCreditPackId,
   minutesFromDurationSec,
   prepaidMinutesNeeded,
@@ -14,6 +15,7 @@ import { prisma } from "./db";
 export {
   CREDIT_PACKS,
   InsufficientCreditsError,
+  allocationForEmail,
   isCreditPackId,
   minutesFromDurationSec,
   prepaidMinutesNeeded,
@@ -30,12 +32,38 @@ export async function getAvailableMinutes(userId: string): Promise<number> {
   return grantFreeMinutesOnce(userId);
 }
 
+export function freeUsageSettings() {
+  const envTest = Number(process.env.TEST_USER_FREE_USAGE_MINUTES);
+  const envNormal = Number(
+    process.env.FREE_USAGE_MINUTES ?? process.env.FREE_CAPTION_MINUTES,
+  );
+  return {
+    testUserEmail: (process.env.TEST_USER_EMAIL ?? config.limits.testUserEmail).trim(),
+    testMinutes:
+      Number.isFinite(envTest) && envTest > 0
+        ? envTest
+        : config.limits.testUserFreeMinutes,
+    normalMinutes:
+      Number.isFinite(envNormal) && envNormal > 0
+        ? envNormal
+        : config.limits.freeUsageMinutes,
+  };
+}
+
+export async function grantAmountForUserId(userId: string): Promise<number> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  return allocationForEmail(user?.email, freeUsageSettings());
+}
+
 /**
  * Give the configured free caption minutes exactly once per user.
  * Concurrent callers cannot double-grant: CreditBalance.userId is the primary key.
  */
 export async function grantFreeMinutesOnce(userId: string): Promise<number> {
-  const amount = round1(Math.max(0, config.limits.freeCaptionMinutes));
+  const amount = await grantAmountForUserId(userId);
   const existing = await prisma.creditBalance.findUnique({
     where: { userId },
     select: { availableMinutes: true },
@@ -43,9 +71,33 @@ export async function grantFreeMinutesOnce(userId: string): Promise<number> {
 
   if (existing) {
     const current = round1(Math.max(0, existing.availableMinutes));
-    if (current > 0) return current;
-    const ledgerCount = await prisma.creditTransaction.count({ where: { userId } });
-    if (ledgerCount > 0) return current;
+    const ledger = await prisma.creditTransaction.findMany({
+      where: { userId },
+      select: { type: true },
+    });
+    const hasActivity = ledger.some((t) => t.type !== "GRANT");
+    const hasGrant = ledger.some((t) => t.type === "GRANT");
+    if (hasGrant && !hasActivity && current !== amount) {
+      await prisma.$transaction(async (tx) => {
+        await tx.creditBalance.update({
+          where: { userId },
+          data: { availableMinutes: amount },
+        });
+        await tx.creditTransaction.create({
+          data: {
+            userId,
+            type: "ADJUSTMENT",
+            minutes: round1(amount - current),
+            balanceBefore: current,
+            balanceAfter: amount,
+            description: "Free usage policy alignment",
+            status: "COMPLETED",
+          },
+        });
+      });
+      return amount;
+    }
+    if (current > 0 || ledger.length > 0) return current;
 
     const claimed = await prisma.$transaction(async (tx) => {
       const stillEmpty = await tx.creditTransaction.count({ where: { userId } });
