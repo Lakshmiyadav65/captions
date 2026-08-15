@@ -25,24 +25,16 @@ function CharminarIcon() {
 export function HyderabadMark({
   variant = "default",
 }: {
-  variant?: "default" | "hero" | "nav";
+  variant?: "default" | "hero";
 }) {
-  const compact = variant === "nav";
   return (
-    <span
-      className={`lp-city-mark lp-city-mark--${variant}`}
-      title={compact ? "Made in Hyderabad for Telugu creators" : undefined}
-    >
+    <span className={`lp-city-mark lp-city-mark--${variant}`}>
       <span className="lp-city-mark-icon" aria-hidden>
         <CharminarIcon />
       </span>
       <span className="lp-city-mark-copy">
         <b>Made in Hyderabad</b>
-        {compact ? (
-          <small className="sr-only">Made for Telugu creators</small>
-        ) : (
-          <small>made for Telugu creators</small>
-        )}
+        <small>made for Telugu creators</small>
       </span>
     </span>
   );

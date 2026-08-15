@@ -260,14 +260,6 @@ html[data-landing-theme="dark"] .landing-page .navbar {
   flex-shrink: 0;
 }
 
-.nav-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  flex-shrink: 1;
-}
-
 .nav-logo-img {
   height: 32px;
   width: auto;
@@ -1825,29 +1817,6 @@ html[data-landing-theme="dark"] .landing-page .lp-footer-col a {
   letter-spacing: 0.1em;
 }
 
-.lp-city-mark--nav {
-  padding: 4px 10px 4px 4px;
-  gap: 8px;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.24) inset,
-    0 6px 14px -10px rgba(222, 82, 39, 0.7);
-}
-
-.lp-city-mark--nav .lp-city-mark-icon {
-  width: 24px;
-  height: 24px;
-}
-
-.lp-city-mark--nav .lp-city-mark-icon svg {
-  width: 13px;
-  height: 13px;
-}
-
-.lp-city-mark--nav b {
-  font-size: 0.78rem;
-  line-height: 1;
-}
-
 .landing-page[data-theme="dark"] .lp-city-mark,
 html[data-landing-theme="dark"] .landing-page .lp-city-mark {
   box-shadow:
@@ -1900,12 +1869,6 @@ html[data-landing-theme="dark"] .landing-page .lp-city-mark--hero {
   font-size: 12px;
   font-weight: 600;
   margin-bottom: 14px;
-}
-
-@media (max-width: 1080px) {
-  .lp-city-mark--nav {
-    display: none;
-  }
 }
 
 @media (max-width: 860px) {
