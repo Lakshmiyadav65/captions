@@ -6,6 +6,7 @@ import { signOutAction } from "@/app/actions/auth";
 import type { LandingUser } from "@/components/landing/types";
 import { ThemeToggle } from "@/components/landing/ThemeToggle";
 import { DASHBOARD_PATH, dashboardSignInHref } from "@/lib/credits-display";
+import { HyderabadMark } from "@/components/landing/HyderabadMark";
 
 export type { LandingUser };
 
@@ -112,10 +113,13 @@ export function LandingNavbar({
   return (
     <header className="navbar">
       <div className="container nav-container">
-        <Link href="/" className="logo">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Caplio" className="nav-logo-img" />
-        </Link>
+        <div className="nav-brand">
+          <Link href="/" className="logo">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Caplio" className="nav-logo-img" />
+          </Link>
+          <HyderabadMark variant="nav" />
+        </div>
 
         <nav className="nav-links">
           <a href={uploadHref === "#upload" ? "#upload" : "/#upload"}>Product</a>

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Uploader } from "@/components/Uploader";
 import { LandingNavbar } from "@/components/landing/LandingNavbar";
+import { HyderabadMark } from "@/components/landing/HyderabadMark";
 import type { LandingUser } from "@/components/landing/types";
 import { getPresetById, PRESETS } from "@/components/presets";
 
@@ -260,6 +261,7 @@ function Hero({ canStart }: { canStart: boolean }) {
     <section className="lp-hero" id="top">
       <div className="lp-container">
         <div className="lp-hero-copy">
+          <HyderabadMark variant="hero" />
           <h1 className="lp-display">
             Create <span className="lp-accent">Telugu</span> Captions in Seconds.
           </h1>
@@ -688,24 +690,7 @@ function Footer() {
         </div>
         <div className="lp-footer-bottom">
           <span>© 2026 Telugu Captions</span>
-          <span className="lp-footer-mark">
-            <span className="lp-footer-mark-icon" aria-hidden>
-              <svg viewBox="0 0 32 32" fill="none">
-                <path
-                  d="M6 28V14.5L8.2 12.2V8.5L10 6.8V10h2.2V6.2L16 3l3.8 3.2V10H22V6.8L23.8 8.5v3.7L26 14.5V28"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinejoin="round"
-                />
-                <path d="M11.2 28v-6.2c0-2.6 1.9-4.2 4.8-4.2s4.8 1.6 4.8 4.2V28" stroke="currentColor" strokeWidth="1.7" />
-                <path d="M6 28h20M8.4 18.2h15.2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-              </svg>
-            </span>
-            <span className="lp-footer-mark-copy">
-              <b>Made in Hyderabad</b>
-              <small>made for Telugu creators</small>
-            </span>
-          </span>
+          <HyderabadMark />
         </div>
       </div>
     </footer>
