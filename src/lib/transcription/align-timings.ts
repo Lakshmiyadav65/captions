@@ -8,10 +8,10 @@ import type { Segment, Word } from "./types";
 //    Telugu/English code-mix where token counts differ).
 // 2) Fill unmatched runs by interpolating between anchored neighbors on the Whisper
 //    timeline (falls back to index-fraction mapping when nothing matched).
-// 3) Nudge each word start slightly later — Whisper marks acoustic onset, which reads
-//    early for on-screen captions.
+// 3) Use Whisper start times as-is. A previous 80ms onset nudge stacked with a
+//    display delay and made captions trail the voice.
 
-const START_LAG_SEC = 0.08;
+const START_LAG_SEC = 0;
 
 function displayTokens(text: string): string[] {
   return text.split(/\s+/).filter(Boolean);
@@ -39,6 +39,7 @@ function tokensSimilar(a: string, b: string): boolean {
 }
 
 function lagStart(start: number, end: number): number {
+  if (START_LAG_SEC <= 0) return start;
   const lag = Math.min(START_LAG_SEC, Math.max(0, (end - start) * 0.25));
   return Math.min(end - 0.04, start + lag);
 }

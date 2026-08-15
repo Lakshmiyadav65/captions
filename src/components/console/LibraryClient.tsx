@@ -91,14 +91,13 @@ export function LibraryClient({
   const [tab, setTab] = useState<Tab>(() => {
     if (urlFilter === "done") return "done";
     if (urlFilter === "draft") return "draft";
-    if (urlFilter === "work") return "work";
     return "all";
   });
 
   useEffect(() => {
     if (urlFilter === "done") setTab("done");
     else if (urlFilter === "draft") setTab("draft");
-    else if (urlFilter === "work") setTab("work");
+    else setTab("all");
   }, [urlFilter]);
 
   useEffect(() => {
@@ -266,14 +265,6 @@ export function LibraryClient({
       user={user}
       title="Projects"
       headSearch={!showHome ? search : undefined}
-      headActions={
-        !showHome ? (
-          <Link href="/library?view=new" className="tc-btn tc-btn--primary">
-            <span aria-hidden>+</span>
-            New project
-          </Link>
-        ) : undefined
-      }
       hideTopBar={showHome}
     >
       <div className="tc-home">
@@ -290,10 +281,6 @@ export function LibraryClient({
                   {minutesLeft != null ? ` · ${minutesLeft} minutes left this month` : ""}
                 </p>
               </div>
-              <Link href="/library?view=new" className="tc-btn tc-btn--primary">
-                <span aria-hidden>+</span>
-                New project
-              </Link>
             </section>
 
             <div className="tc-hero-row">
@@ -330,7 +317,6 @@ export function LibraryClient({
                   [
                     { id: "all" as const, label: "All" },
                     { id: "draft" as const, label: "Draft" },
-                    { id: "work" as const, label: "Rendering" },
                     { id: "done" as const, label: "Exported" },
                   ]
                 ).map((opt) => (
@@ -370,9 +356,6 @@ export function LibraryClient({
                 ? "Finish captioning a draft and hit Export — burned-in MP4s land here."
                 : "Upload a video to start captioning."}
             </p>
-            <Link href="/library?view=new" className="tc-btn tc-btn--primary tc-btn--sm">
-              New project
-            </Link>
           </div>
         ) : (
           <div className="tc-project-grid">

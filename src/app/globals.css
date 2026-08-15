@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Telugu subtitle fonts are declared in fonts.css (bundled in a later step). */
+/* App styles: fonts, then console/editor. */
 @import "./fonts.css";
 @import "./console.css";
 

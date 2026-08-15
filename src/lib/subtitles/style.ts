@@ -19,6 +19,10 @@ export type CaptionAnimation =
   | "editorial"
   | "atelier"
   | "romance"
+  | "shamani"
+  | "pinterest"
+  | "pinterest3"
+  | "pinterest4"
   | "typewriter";
 
 /** Special glyph treatments beyond flat fill (preview-rich; ASS approximates). */

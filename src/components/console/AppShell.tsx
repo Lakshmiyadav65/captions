@@ -28,6 +28,56 @@ function displayName(user: ConsoleUser | null): string {
   return "Creator";
 }
 
+function NavIcon({
+  name,
+}: {
+  name: "projects" | "editor" | "plan" | "settings";
+}) {
+  const common = {
+    width: 16,
+    height: 16,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.7,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true as const,
+  };
+
+  if (name === "projects") {
+    return (
+      <svg {...common}>
+        <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+        <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+        <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+        <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+      </svg>
+    );
+  }
+  if (name === "editor") {
+    return (
+      <svg {...common}>
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z" />
+      </svg>
+    );
+  }
+  if (name === "plan") {
+    return (
+      <svg {...common}>
+        <path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.9 7.2 18l.9-5.4L4.2 8.7l5.4-.8L12 3z" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...common}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" />
+    </svg>
+  );
+}
+
 export function AppShell(props: {
   children: ReactNode;
   user?: ConsoleUser | null;
@@ -153,26 +203,20 @@ function AppShellInner({
 
       <nav className="tc-side-nav" aria-label="Main">
         <Link href="/library" aria-current={isProjects ? "page" : undefined}>
-          <span className="tc-side-glyph" aria-hidden>
-            ▦
+          <span className="tc-side-ico" aria-hidden>
+            <NavIcon name="projects" />
           </span>
           Projects
         </Link>
-        <Link href="/library?view=new" aria-current={isNew ? "page" : undefined}>
-          <span className="tc-side-glyph" aria-hidden>
-            +
-          </span>
-          New project
-        </Link>
         <Link href={editorHref} aria-current={isEditor ? "page" : undefined}>
-          <span className="tc-side-glyph" aria-hidden>
-            ✎
+          <span className="tc-side-ico" aria-hidden>
+            <NavIcon name="editor" />
           </span>
           Editor
         </Link>
         <Link href="/billing" aria-current={isPlan ? "page" : undefined}>
-          <span className="tc-side-glyph" aria-hidden>
-            ◈
+          <span className="tc-side-ico" aria-hidden>
+            <NavIcon name="plan" />
           </span>
           Plan
         </Link>
@@ -180,50 +224,63 @@ function AppShellInner({
           href="/billing?tab=settings"
           aria-current={isSettings ? "page" : undefined}
         >
-          <span className="tc-side-glyph" aria-hidden>
-            ⚙
+          <span className="tc-side-ico" aria-hidden>
+            <NavIcon name="settings" />
           </span>
           Settings
         </Link>
       </nav>
 
-      <div className="tc-side-usage">
-        {usage ? (
-          <div className="tc-side-meter">
-            <div className="tc-side-meter-row">
-              <b>{usage.planLabel}</b>
-              <span className="mono">
-                {usage.usedMinutes}/{usage.monthlyMinutes}
-              </span>
+      <div className="tc-side-foot">
+        <div className="tc-side-usage">
+          {usage ? (
+            <div className="tc-side-meter">
+              <div className="tc-side-meter-row">
+                <b>{usage.planLabel}</b>
+                <span className="mono">
+                  {usage.usedMinutes}
+                  <em>/{usage.monthlyMinutes} min</em>
+                </span>
+              </div>
+              <div
+                className="tc-side-bar"
+                role="progressbar"
+                aria-valuenow={minutesPct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Minutes used"
+              >
+                <i style={{ width: `${minutesPct}%` }} />
+              </div>
+              <Link
+                href="/billing"
+                className="tc-btn tc-btn--outline tc-btn--sm tc-side-upgrade"
+              >
+                Upgrade
+              </Link>
             </div>
-            <div className="tc-side-bar">
-              <i style={{ width: `${minutesPct}%` }} />
-            </div>
-            <Link href="/billing" className="tc-btn tc-btn--outline tc-btn--sm tc-side-upgrade">
-              Upgrade
-            </Link>
-          </div>
-        ) : (
-          <div className="tc-side-meter-row" style={{ color: "var(--ink-3)" }}>
-            Loading usage…
-          </div>
-        )}
-      </div>
-
-      <Link href="/billing?tab=settings" className="tc-side-user">
-        <span className="tc-side-av">
-          {user?.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={user.image} alt="" />
           ) : (
-            initials(user)
+            <div className="tc-side-meter-row tc-side-meter-row--muted">
+              Loading usage…
+            </div>
           )}
-        </span>
-        <span className="tc-side-user-meta">
-          <b>{displayName(user)}</b>
-          <small>{user?.email ?? usage?.planLabel ?? "Account"}</small>
-        </span>
-      </Link>
+        </div>
+
+        <Link href="/billing?tab=settings" className="tc-side-user">
+          <span className="tc-side-av">
+            {user?.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.image} alt="" />
+            ) : (
+              initials(user)
+            )}
+          </span>
+          <span className="tc-side-user-meta">
+            <b>{displayName(user)}</b>
+            <small>{user?.email ?? usage?.planLabel ?? "Account"}</small>
+          </span>
+        </Link>
+      </div>
     </aside>
   );
 

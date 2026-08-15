@@ -1,11 +1,8 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { ENGLISH_FONTS, TELUGU_FONTS, fontStack } from "@/lib/fonts";
+import { useState, type CSSProperties, type ReactNode } from "react";
+import { ENGLISH_FONTS, TELUGU_FONTS, fontStack, type CaptionFont } from "@/lib/fonts";
 import type {
-  BoxMode,
-  CaptionAnimation,
-  EmphasisMode,
   SubtitleStyle,
   TextAlign,
   TextCase,
@@ -14,10 +11,8 @@ import type {
 import { effectiveBoxMode, effectiveTextCase } from "@/lib/subtitles/style";
 import {
   matchingPresetId,
-  PRESET_CATEGORIES,
   PRESETS,
   PRESETS_V3,
-  type PresetCategory,
   type StylePreset,
 } from "./presets";
 
@@ -51,6 +46,8 @@ function Slider({
   onChange: (v: number) => void;
   disabled?: boolean;
 }) {
+  const span = max - min || 1;
+  const pct = Math.min(100, Math.max(0, ((value - min) / span) * 100));
   return (
     <input
       type="range"
@@ -60,7 +57,8 @@ function Slider({
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(parseFloat(e.target.value))}
-      className="w-full accent-[var(--ed-accent,#e4571b)] disabled:opacity-40"
+      className="ed-range w-full disabled:opacity-40"
+      style={{ "--ed-range": `${pct}%` } as CSSProperties}
     />
   );
 }
@@ -154,6 +152,93 @@ function Segmented<T extends string | number>({
   );
 }
 
+const FEATURED_ENGLISH_IDS = [
+  "geist",
+  "instrument-serif",
+  "anton",
+  "manrope",
+  "open-sans",
+  "oswald",
+] as const;
+
+const FEATURED_TELUGU_IDS = [
+  "noto",
+  "mandali",
+  "mallanna",
+  "ntr",
+  "gidugu",
+  "suranna",
+] as const;
+
+function splitFonts(all: CaptionFont[], featuredIds: readonly string[]) {
+  const featured = featuredIds
+    .map((id) => all.find((f) => f.id === id))
+    .filter((f): f is CaptionFont => Boolean(f));
+  const rest = all.filter((f) => !featuredIds.includes(f.id));
+  return { featured, rest };
+}
+
+function FontGrid({
+  fonts,
+  featuredIds,
+  sample,
+  value,
+  onChange,
+}: {
+  fonts: CaptionFont[];
+  featuredIds: readonly string[];
+  sample: string;
+  value: string;
+  onChange: (family: string) => void;
+}) {
+  const { featured, rest } = splitFonts(fonts, featuredIds);
+  const restSelected = rest.some((f) => f.family === value);
+  return (
+    <div className="ed-font-grid">
+      <div className="ed-font-featured">
+        {featured.map((f) => {
+          const active = value === f.family;
+          return (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => onChange(f.family)}
+              title={f.note}
+              className={`ed-font-tile${active ? " is-active" : ""}`}
+            >
+              <span className="ed-font-sample" style={{ fontFamily: fontStack(f.family) }}>
+                {sample}
+              </span>
+              <span className="ed-font-label">{f.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      {rest.length > 0 && (
+        <label className="ed-font-more">
+          <select
+            value={restSelected ? value : ""}
+            onChange={(e) => {
+              if (e.target.value) onChange(e.target.value);
+            }}
+            aria-label="More typefaces"
+          >
+            <option value="">More</option>
+            {rest.map((f) => (
+              <option key={f.id} value={f.family}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+          <span className="ed-font-more-v" aria-hidden>
+            v
+          </span>
+        </label>
+      )}
+    </div>
+  );
+}
+
 function hexToRgba(hex: string, a: number): string {
   const h = hex.replace("#", "").padEnd(6, "0");
   const r = parseInt(h.slice(0, 2), 16);
@@ -241,47 +326,26 @@ function PresetCard({
     <button
       type="button"
       onClick={onSelect}
-      className={`group flex flex-col overflow-hidden rounded-[10px] border text-left transition ${
-        active
-          ? "border-[var(--ed-accent,#e4571b)] ring-1 ring-[var(--ed-accent-line,#f6d6c2)]"
-          : "border-[var(--ed-line,#e7e3db)] hover:border-[#d9d4ca] hover:shadow-[0_8px_24px_-12px_rgba(40,30,15,0.28)]"
-      }`}
+      className={`ed-preset-card${active ? " is-active" : ""}`}
     >
-      <div
-        className="relative flex h-14 items-center justify-center overflow-hidden px-2"
-        style={{
-          background: prism
-            ? "linear-gradient(160deg, #64748b 0%, #334155 45%, #1e293b 100%)"
-            : negative
-              ? "linear-gradient(160deg, #e2e8f0 0%, #64748b 55%, #0f172a 100%)"
-              : "radial-gradient(120% 120% at 50% 0%, #334155 0%, #0f172a 75%)",
-        }}
-      >
+      <div className="ed-preset-preview">
         {box === "bar" && showBox && (
           <div
-            className="absolute inset-x-0"
+            className="ed-preset-bar"
             style={{
               top: s.positionYPct < 40 ? "18%" : "62%",
-              height: "38%",
               background: hexToRgba(s.backgroundColor, s.backgroundOpacity),
             }}
           />
         )}
         <span
-          className={`relative z-[1] max-w-full truncate px-1.5 text-[11px] font-semibold leading-none ${
-            showBox && box !== "bar" ? "inline-flex items-center pt-[5px] pb-[3px]" : "py-0.5 leading-tight"
-          }`}
+          className={`ed-preset-sample${showBox && box !== "bar" ? " has-box" : ""}`}
           style={sampleStyle}
         >
           {preset.sample ?? "Aa"}
         </span>
       </div>
-      <div className="flex items-center justify-between gap-2 border-t border-[var(--ed-line-soft,#f1efe9)] bg-[var(--ed-chip,#fbfaf8)] px-2 py-1.5">
-        <div className="truncate text-[11px] font-medium text-[var(--ed-ink,#1b1a18)]">{preset.name}</div>
-        <div className="shrink-0 truncate text-[10px] text-[var(--ed-muted,#9a958c)]">
-          {preset.tag ?? preset.category}
-        </div>
-      </div>
+      <span className="ed-preset-name">{preset.name}</span>
     </button>
   );
 }
@@ -303,28 +367,11 @@ export function StylePanel({
   /** Editor right-rail tabs: preset | text | effect | all (legacy full panel). */
   panel?: "preset" | "text" | "effect" | "all";
 }) {
-  const [category, setCategory] = useState<PresetCategory | "all">("all");
+  const [tier, setTier] = useState<"basic" | "advanced">("advanced");
   const activeId = matchingPresetId(style);
 
-  const filteredV2 = useMemo(
-    () =>
-      category === "all" || category === "premium"
-        ? category === "premium"
-          ? []
-          : PRESETS
-        : PRESETS.filter((p) => p.category === category),
-    [category],
-  );
-
-  const filteredV3 = useMemo(
-    () =>
-      category === "all" || category === "premium"
-        ? PRESETS_V3
-        : PRESETS_V3.filter((p) => p.category === category),
-    [category],
-  );
-
-  const boxMode = effectiveBoxMode(style);
+  const filteredV2 = tier === "basic" ? PRESETS : [];
+  const filteredV3 = tier === "advanced" ? PRESETS_V3 : [];
 
   const applyPreset = (p: StylePreset) => {
     onApplyPreset({ ...p.style });
@@ -342,117 +389,64 @@ export function StylePanel({
   const showEffect = panel === "all" || panel === "effect";
 
   return (
-    <div className="space-y-6">
-      {/* Caption density — how many words share each on-screen frame */}
+    <div className="ed-style-panel">
       {showPreset && wordsPerFrame !== undefined && onWordsPerFrameChange && (
         <section className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          <h3 className="text-xs font-semibold text-neutral-500">
             Words per frame
           </h3>
-          <Field label="Caption density" value={`${wordsPerFrame} word${wordsPerFrame === 1 ? "" : "s"}`}>
-            <Segmented
-              value={wordsPerFrame}
-              onChange={onWordsPerFrameChange}
-              options={[1, 2, 3, 4, 5, 6].map((n) => ({
-                label: String(n),
-                value: n,
-              }))}
-            />
-          </Field>
-          <p className="text-[10px] leading-relaxed text-neutral-600">
-            Fewer words feel punchier; more words show longer phrases at once.
-            Changing this rebuilds your caption lines.
-          </p>
+          <Segmented
+            value={wordsPerFrame}
+            onChange={onWordsPerFrameChange}
+            options={[1, 2, 3, 4, 5, 6, 8, 10, 12].map((n) => ({
+              label: String(n),
+              value: n,
+            }))}
+          />
         </section>
       )}
 
-      {/* Caption position — Top / Middle / Bottom + fine-tune on the Style tab */}
       {showPreset && (
         <section className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            Caption position
+          <h3 className="text-xs font-semibold text-neutral-500">
+            Font size
           </h3>
-          <div className="flex gap-2">
-            {(
-              [
-                { label: "Top", y: 16 },
-                { label: "Middle", y: 50 },
-                { label: "Bottom", y: 78 },
-              ] as const
-            ).map((p) => (
-              <button
-                key={p.label}
-                type="button"
-                onClick={() => onChange({ positionYPct: p.y })}
-                className={`flex-1 rounded-md border px-2 py-2 text-xs font-medium transition ${
-                  Math.abs((style.positionYPct ?? 78) - p.y) < 8
-                    ? "border-[var(--ed-accent-line,#f6d6c2)] bg-[var(--ed-accent-wash,#fdefe7)] text-[var(--ed-accent-deep,#c9490f)]"
-                    : "border-[var(--ed-line,#e7e3db)] bg-[var(--ed-chip,#fbfaf8)] text-[var(--ed-mid,#6e6a62)]"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-          <Field
-            label="Fine tune"
-            value={`${Math.round(style.positionYPct ?? 78)}% from top`}
-          >
-            <Slider
-              min={8}
-              max={92}
-              step={1}
-              value={style.positionYPct ?? 78}
-              onChange={(v) => onChange({ positionYPct: v })}
-            />
-          </Field>
-          <p className="text-[10px] leading-relaxed text-neutral-600">
-            Or drag the caption on the video preview to place it anywhere.
-          </p>
+          <Slider
+            min={1}
+            max={10}
+            step={0.1}
+            value={Math.min(style.fontSizePct, 10)}
+            onChange={(v) => onChange({ fontSizePct: v })}
+          />
         </section>
       )}
 
-      {/* Preset filters */}
       {showPreset && (
       <section className="space-y-2">
-        <div className="flex flex-wrap gap-1">
-          {PRESET_CATEGORIES.filter((c) => c.id !== "premium").map((c) => (
+        <div className="ed-tier" role="group" aria-label="Preset set">
+          {(
+            [
+              { id: "basic" as const, label: "Basic" },
+              { id: "advanced" as const, label: "Advanced" },
+            ]
+          ).map((c) => (
             <button
               key={c.id}
               type="button"
-              onClick={() => setCategory(c.id)}
-              className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
-                category === c.id
-                  ? "bg-[var(--ed-accent,#e4571b)] text-white"
-                  : "bg-[var(--ed-chip,#fbfaf8)] text-[var(--ed-soft,#736e66)] hover:text-[var(--ed-ink,#1b1a18)]"
-              }`}
+              aria-pressed={tier === c.id}
+              onClick={() => setTier(c.id)}
             >
               {c.label}
             </button>
           ))}
-          <button
-            type="button"
-            onClick={() => setCategory("premium")}
-            className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
-              category === "premium"
-                ? "bg-[var(--ed-ink,#1b1a18)] text-white"
-                : "bg-[var(--ed-chip,#fbfaf8)] text-[var(--ed-accent-deep,#c9490f)] hover:text-[var(--ed-ink,#1b1a18)]"
-            }`}
-          >
-            3.0
-          </button>
         </div>
       </section>
       )}
 
-      {/* Presets — Styles 2.0 */}
-      {showPreset && filteredV2.length > 0 && (
-        <section className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            Styles 2.0
-          </h3>
-          <div className="grid grid-cols-2 gap-2">
-            {filteredV2.map((p: StylePreset) => (
+      {showPreset && filteredV3.length > 0 && (
+        <section className="ed-preset-section">
+          <div className="ed-preset-grid">
+            {filteredV3.map((p: StylePreset) => (
               <PresetCard
                 key={p.id}
                 preset={p}
@@ -464,18 +458,10 @@ export function StylePanel({
         </section>
       )}
 
-      {/* Presets — Styles 3.0 Premium */}
-      {showPreset && filteredV3.length > 0 && (
-        <section className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-500/90">
-            Styles 3.0 · Premium
-          </h3>
-          <p className="text-[10px] leading-relaxed text-neutral-600">
-            Elegant mixed-type captions — blue focus word, italic serif supports, and
-            automatic layout shifts as speech advances.
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {filteredV3.map((p: StylePreset) => (
+      {showPreset && filteredV2.length > 0 && (
+        <section className="ed-preset-section">
+          <div className="ed-preset-grid">
+            {filteredV2.map((p: StylePreset) => (
               <PresetCard
                 key={p.id}
                 preset={p}
@@ -490,88 +476,68 @@ export function StylePanel({
       {/* Text case — top of Text tab */}
       {showText && (
         <section className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          <h3 className="text-xs font-semibold text-neutral-500">
             Text case
           </h3>
-          <Field label="Text case">
-            <Segmented
-              value={style.textCase ?? (style.uppercase ? "upper" : "none")}
-              onChange={(v) =>
-                onChange({
-                  textCase: v as TextCase,
-                  uppercase: v === "upper",
-                })
-              }
-              options={[
-                { label: "As typed", value: "none" },
-                { label: "Sentence", value: "sentence" },
-                { label: "Title", value: "title" },
-                { label: "lower", value: "lower" },
-                { label: "UPPER", value: "upper" },
-              ]}
-            />
-          </Field>
-          <p className="text-[10px] leading-relaxed text-neutral-600">
-            Sentence = first letter capital, rest lower. Title = Each Word Capitalized.
-          </p>
+          <Segmented
+            value={style.textCase ?? (style.uppercase ? "upper" : "none")}
+            onChange={(v) =>
+              onChange({
+                textCase: v as TextCase,
+                uppercase: v === "upper",
+              })
+            }
+            options={[
+              { label: "As typed", value: "none" },
+              { label: "Sentence", value: "sentence" },
+              { label: "Title", value: "title" },
+              { label: "lower", value: "lower" },
+              { label: "UPPER", value: "upper" },
+            ]}
+          />
+        </section>
+      )}
+
+      {showText && (
+        <section className="space-y-2">
+          <h3 className="text-xs font-semibold text-neutral-500">
+            Weight
+          </h3>
+          <Segmented
+            value={style.fontWeight}
+            onChange={(v) => onChange({ fontWeight: v })}
+            options={[
+              { label: "Regular", value: 400 },
+              { label: "Medium", value: 500 },
+              { label: "Bold", value: 700 },
+            ]}
+          />
         </section>
       )}
 
       {/* Font */}
       {showText && (
       <section className="space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+        <h3 className="text-xs font-semibold text-neutral-500">
           Font
         </h3>
         <Field label="English typefaces">
-          <div className="grid grid-cols-2 gap-2">
-            {ENGLISH_FONTS.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => onChange({ fontFamily: f.family })}
-                title={f.note}
-                className={`rounded-lg border px-3 py-2 text-left transition ${
-                  style.fontFamily === f.family
-                    ? "border-[var(--ed-accent,#e4571b)] bg-[var(--ed-accent-wash,#fdefe7)]"
-                    : "border-[var(--ed-line,#e8e4de)] bg-[var(--ed-chip,#fbfaf8)] hover:border-[var(--ed-soft,#736e66)]"
-                }`}
-              >
-                <div
-                  className="text-lg leading-tight text-[var(--ed-ink,#1b1a18)]"
-                  style={{ fontFamily: fontStack(f.family) }}
-                >
-                  Aa Bb
-                </div>
-                <div className="mt-0.5 text-[11px] text-[var(--ed-muted,#a39d93)]">{f.label}</div>
-              </button>
-            ))}
-          </div>
+          <FontGrid
+            fonts={ENGLISH_FONTS}
+            featuredIds={FEATURED_ENGLISH_IDS}
+            sample="Aa Bb"
+            value={style.fontFamily}
+            onChange={(family) => onChange({ fontFamily: family })}
+          />
         </Field>
         <Field label="Telugu typefaces">
-          <div className="grid grid-cols-2 gap-2">
-            {TELUGU_FONTS.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => onChange({ fontFamily: f.family })}
-                title={f.note}
-                className={`rounded-lg border px-3 py-2 text-left transition ${
-                  style.fontFamily === f.family
-                    ? "border-[var(--ed-accent,#e4571b)] bg-[var(--ed-accent-wash,#fdefe7)]"
-                    : "border-[var(--ed-line,#e8e4de)] bg-[var(--ed-chip,#fbfaf8)] hover:border-[var(--ed-soft,#736e66)]"
-                }`}
-              >
-                <div
-                  className="text-lg leading-tight text-[var(--ed-ink,#1b1a18)]"
-                  style={{ fontFamily: fontStack(f.family) }}
-                >
-                  తెలుగు
-                </div>
-                <div className="mt-0.5 text-[11px] text-[var(--ed-muted,#a39d93)]">{f.label}</div>
-              </button>
-            ))}
-          </div>
+          <FontGrid
+            fonts={TELUGU_FONTS}
+            featuredIds={FEATURED_TELUGU_IDS}
+            sample="తెలుగు"
+            value={style.fontFamily}
+            onChange={(family) => onChange({ fontFamily: family })}
+          />
         </Field>
 
         <Field
@@ -586,28 +552,13 @@ export function StylePanel({
             onChange={(v) => onChange({ fontSizePct: v })}
           />
         </Field>
-        <p className="text-[10px] leading-relaxed text-neutral-600">
-          Size 1–10. Best looking captions are usually around 3–4.
-        </p>
-
-        <Field label="Weight">
-          <Segmented
-            value={style.fontWeight}
-            onChange={(v) => onChange({ fontWeight: v })}
-            options={[
-              { label: "Regular", value: 400 },
-              { label: "Medium", value: 500 },
-              { label: "Bold", value: 700 },
-            ]}
-          />
-        </Field>
       </section>
       )}
 
       {/* Colors */}
       {showText && (
       <section className="space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+        <h3 className="text-xs font-semibold text-neutral-500">
           Colors
         </h3>
         <Field label="Text color">
@@ -629,10 +580,6 @@ export function StylePanel({
             }}
           />
         </Field>
-        <p className="text-[10px] leading-relaxed text-neutral-600">
-          Hook / Atelier accent, karaoke fill, and auto emphasis. Pick a
-          swatch or any custom color.
-        </p>
         <Field label="Outline color">
           <ColorInput value={style.outlineColor} onChange={(v) => onChange({ outlineColor: v })} />
         </Field>
@@ -656,7 +603,7 @@ export function StylePanel({
       {/* Effects */}
       {showEffect && (
       <section className="space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+        <h3 className="text-xs font-semibold text-neutral-500">
           Effects
         </h3>
         <Field label="Text effect">
@@ -671,10 +618,6 @@ export function StylePanel({
             ]}
           />
         </Field>
-        <p className="text-[10px] leading-relaxed text-neutral-600">
-          Prism / Negative / Ember are richest in the live preview. Burned MP4 uses a close ASS
-          approximation.
-        </p>
         <Field label="Glow strength" value={`${(style.glowStrength ?? 0).toFixed(0)}`}>
           <Slider
             min={0}
@@ -692,154 +635,13 @@ export function StylePanel({
             />
           </Field>
         )}
-        <Field label="Box style">
-          <Segmented
-            value={boxMode}
-            onChange={(v) => {
-              const mode = v as BoxMode;
-              onChange({
-                boxMode: mode,
-                backgroundOpacity:
-                  mode === "none"
-                    ? 0
-                    : style.backgroundOpacity > 0
-                      ? style.backgroundOpacity
-                      : 0.75,
-              });
-            }}
-            options={[
-              { label: "None", value: "none" },
-              { label: "Inline", value: "inline" },
-              { label: "Pill", value: "pill" },
-              { label: "Bar", value: "bar" },
-            ]}
-          />
-        </Field>
-        <p className="text-[10px] leading-relaxed text-neutral-600">
-          Pill corners are preview-only; burned MP4 uses a rectangular ASS box.
-        </p>
-        {boxMode === "pill" && (
-          <Field label="Pill radius" value={`${(style.boxRadiusPct ?? 1.2).toFixed(1)}%`}>
-            <Slider
-              min={0.5}
-              max={4}
-              step={0.1}
-              value={style.boxRadiusPct ?? 1.2}
-              onChange={(v) => onChange({ boxRadiusPct: v })}
-            />
-          </Field>
-        )}
-        <Field label="Entrance">
-          <Segmented
-            value={(style.animation ?? "none") as CaptionAnimation}
-            onChange={(v) => onChange({ animation: v as CaptionAnimation })}
-            options={[
-              { label: "None", value: "none" },
-              { label: "Fade", value: "fade" },
-              { label: "Pop", value: "pop" },
-              { label: "Kinetic", value: "kinetic" },
-              { label: "Scatter", value: "scatter" },
-              { label: "Hook", value: "hook" },
-              { label: "Flash", value: "flash" },
-              { label: "Editorial", value: "editorial" },
-              { label: "Atelier (3.0)", value: "atelier" },
-              { label: "Telugu Connects", value: "romance" },
-              { label: "Typewriter", value: "typewriter" },
-            ]}
-          />
-        </Field>
-      </section>
-      )}
-
-      {/* Karaoke + keyword emphasis */}
-      {showEffect && (
-      <section className="space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-          Word-by-word (karaoke)
-        </h3>
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-neutral-400">
-            Highlight each word as spoken
-          </span>
-          <Segmented
-            value={style.karaoke ? "on" : "off"}
-            onChange={(v) =>
-              onChange(
-                v === "on"
-                  ? { karaoke: true, emphasisMode: "off" }
-                  : { karaoke: false },
-              )
-            }
-            options={[
-              { label: "On", value: "on" },
-              { label: "Off", value: "off" },
-            ]}
-          />
-        </div>
-        <p className="text-[10px] leading-relaxed text-neutral-600">
-          Spoken words fill with the accent color; upcoming words stay dim. Turns off keyword
-          emphasis so the progressive fill is easy to see.
-        </p>
-        <Field label="Keyword emphasis">
-          <Segmented
-            value={(style.emphasisMode ?? "off") as EmphasisMode}
-            onChange={(v) => onChange({ emphasisMode: v as EmphasisMode })}
-            options={[
-              { label: "Off", value: "off" },
-              { label: "Auto", value: "auto" },
-            ]}
-          />
-        </Field>
-        <p className="text-[10px] leading-relaxed text-neutral-600">
-          Auto paints keywords in the accent color (Tharun Speaks look). While karaoke is on,
-          spoken-word fill takes priority over Auto. Change the color under Colors → Keyword
-          accent.
-        </p>
-        {(style.karaoke ||
-          (style.emphasisMode ?? "off") === "auto" ||
-          (style.animation ?? "none") === "hook") && (
-          <Field label="Accent / highlight color">
-            <KeywordColorPicker
-              value={style.highlightColor}
-              onChange={(hex) => {
-                if ((style.animation ?? "none") === "hook" || (style.glowStrength ?? 0) > 0) {
-                  onChange({ highlightColor: hex, glowColor: hex });
-                } else {
-                  onChange({ highlightColor: hex });
-                }
-              }}
-            />
-          </Field>
-        )}
-      </section>
-      )}
-
-      {/* Background box color/opacity */}
-      {showEffect && (
-      <section className="space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-          Background box
-        </h3>
-        <Field label="Box color">
-          <ColorInput value={style.backgroundColor} onChange={(v) => onChange({ backgroundColor: v })} />
-        </Field>
-        <Field label="Box opacity" value={`${Math.round(style.backgroundOpacity * 100)}%`}>
-          <Slider
-            min={0}
-            max={1}
-            step={0.05}
-            value={style.backgroundOpacity}
-            disabled={boxMode === "none"}
-            onChange={(v) => onChange({ backgroundOpacity: v })}
-          />
-        </Field>
       </section>
       )}
 
       {/* Layout */}
       {showText && (
       <section className="space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+        <h3 className="text-xs font-semibold text-neutral-500">
           Layout
         </h3>
         <Field label="Alignment">

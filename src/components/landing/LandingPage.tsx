@@ -14,11 +14,6 @@ const SIGN_IN_HREF = `/signin?next=${encodeURIComponent("/?start=1")}`;
 /** Hero style demos — videos in /public/styles, mapped to Styles 2.0 preset IDs. */
 const STRIP_STYLES = [
   {
-    id: "cinema",
-    name: "Cinema",
-    src: "/styles/cinetop.mp4",
-  },
-  {
     id: "karaoke",
     name: "Karaoke",
     src: "/styles/karaoke.mp4",
@@ -34,11 +29,6 @@ const STRIP_STYLES = [
     /** Same Styles 2.0 preset — longer demo clip. */
     presetId: "negative",
     src: "/styles/negative-style.mp4",
-  },
-  {
-    id: "glow",
-    name: "Glow",
-    src: "/styles/premium-style-5.mp4",
   },
 ] as const;
 
@@ -60,11 +50,10 @@ function readStoredStyleId(): string {
   if (stored && STRIP_STYLES.some((s) => s.id === stored)) return stored;
   // Migrate older strip IDs from pre–Styles 2.0.
   const legacy: Record<string, string> = {
-    "live-cinetop": "cinema",
+    "live-cinetop": "karaoke",
     "live-karaoke": "karaoke",
     "live-negative": "negative",
     "live-negative-style": "negative-long",
-    "premium-5": "glow",
   };
   if (stored && legacy[stored] && STRIP_STYLES.some((s) => s.id === legacy[stored])) {
     return legacy[stored]!;
@@ -80,24 +69,11 @@ const LANDING_SAMPLES: Record<string, ReactNode> = {
     </span>
   ),
   bold: <span className="lp-anim lp-anim-bold lp-style-bold">this is how you</span>,
-  minimal: <span className="lp-anim lp-anim-minimal lp-style-minimal">this is how you</span>,
   highlight: (
     <span className="lp-anim lp-anim-highlight">
       <span>this</span> <span>is</span> <span>how</span> <span>you</span>
     </span>
   ),
-  punch: <span className="lp-anim lp-anim-punch lp-style-punch">you</span>,
-  glow: <span className="lp-anim lp-anim-glow lp-style-glow">this is how you</span>,
-  outline: <span className="lp-anim lp-anim-outline lp-style-outline">you</span>,
-  type: (
-    <span className="lp-anim lp-anim-type lp-style-type">
-      <span className="lp-type-text">this is how you</span>
-      <span className="lp-type-cursor" aria-hidden>
-        |
-      </span>
-    </span>
-  ),
-  cinema: <span className="lp-anim lp-anim-cinema lp-style-cinema">this is how you</span>,
   karaoke: (
     <span className="lp-anim lp-anim-karaoke">
       <span>this</span> <span>is</span> <span>how</span> <span>you</span> <span>go</span>
@@ -106,14 +82,6 @@ const LANDING_SAMPLES: Record<string, ReactNode> = {
   blur: (
     <span className="lp-anim lp-anim-blur">
       <span>this</span> <span>is</span> <span>how</span> <span>you</span>
-    </span>
-  ),
-  motion: (
-    <span className="lp-anim lp-anim-motion lp-style-motion">
-      <span>this</span>
-      <span>is</span>
-      <span>how</span>
-      <span>you</span>
     </span>
   ),
 };
@@ -127,50 +95,34 @@ const STYLE_PREVIEWS = PRESETS.map((p) => {
     tag: p.tag ?? p.category,
     anim,
     sample: LANDING_SAMPLES[anim] ?? LANDING_SAMPLES.classic,
-    extra: !["classic", "bold", "minimal", "highlight", "punch", "glow", "outline", "typewriter"].includes(
-      p.id,
-    ),
+    extra: !["classic", "bold", "highlight"].includes(p.id),
   };
 });
 
 const REELS = [
   {
     n: 1,
-    src: "/styles/cinetop.mp4",
-    creator: "@ravi.cooks",
-    style: "Cinema",
-    presetId: "cinema",
-  },
-  {
-    n: 2,
     src: "/styles/karaoke.mp4",
     creator: "@teluguhacks",
     style: "Karaoke",
     presetId: "karaoke",
   },
   {
-    n: 3,
+    n: 2,
     src: "/styles/negative.mp4",
     creator: "@sirichats",
     style: "Negative",
     presetId: "negative",
   },
   {
-    n: 4,
+    n: 3,
     src: "/styles/negative-style.mp4",
     creator: "@filmnotes.te",
     style: "Negative",
     presetId: "negative",
   },
   {
-    n: 5,
-    src: "/styles/premium-style-5.mp4",
-    creator: "@moneytelugu",
-    style: "Glow",
-    presetId: "glow",
-  },
-  {
-    n: 6,
+    n: 4,
     src: "/styles/karaoke.mp4",
     creator: "@dailytelugu",
     style: "Karaoke",

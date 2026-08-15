@@ -98,11 +98,6 @@ export function DictionaryPanel({
 
       {open && (
         <div className="mt-3 space-y-3">
-          <p className="text-[10px] leading-relaxed text-neutral-600">
-            Word fixes you teach while editing captions. Applied on new jobs and
-            on demand here.
-          </p>
-
           {signedOut && (
             <p className="text-xs text-amber-200/90">
               Sign in to save and manage a personal dictionary.
@@ -113,11 +108,7 @@ export function DictionaryPanel({
 
           {loading && !rules.length ? (
             <p className="text-xs text-neutral-500">Loading…</p>
-          ) : !signedOut && rules.length === 0 ? (
-            <p className="text-xs text-neutral-500">
-              Edit a caption word to teach the dictionary.
-            </p>
-          ) : (
+          ) : !signedOut && rules.length === 0 ? null : (
             <ul className="max-h-40 space-y-1 overflow-y-auto overscroll-contain pr-0.5">
               {rules.map((r) => (
                 <li

@@ -26,16 +26,47 @@ import {
   isFlash,
   isHook,
   isKinetic,
+  isPinterest,
+  isPinterest3,
+  isPinterest4,
   isRomance,
   isScatter,
+  isShamani,
   kineticPoses,
+  PINTEREST_FONT,
+  PINTEREST_SUPPORT_SCALE,
+  PINTEREST3_AFTER_SCALE,
+  PINTEREST3_FONT,
+  PINTEREST3_SUPPORT_SCALE,
+  PINTEREST4_AFTER_SCALE,
+  PINTEREST4_HERO_SCALE,
+  PINTEREST4_SANS,
+  PINTEREST4_SERIF,
+  PINTEREST4_SUPPORT_SCALE,
+  pinterest3FitScale,
+  pinterest3Lockup,
+  pinterest4FitScale,
+  pinterest4Lockup,
+  pinterestFitScale,
+  pinterestLockup,
   ROMANCE_FOCUS_SCALE,
   ROMANCE_SCRIPT_FONT,
   ROMANCE_SCRIPT_SCALE,
   ROMANCE_TRAIL_SCALE,
   ROMANCE_TRAIL_TRACKING_EM,
-  romanceLayout,
+  captionFitScaleMany,
+  romanceDisplayWord,
+  romanceFitScale,
+  romanceLockup,
+  romanceTokenFill,
   scatterPoses,
+  SHAMANI_BODY_FONT,
+  SHAMANI_BODY_SCALE,
+  SHAMANI_FOCUS_WIDTH_PCT,
+  SHAMANI_HEADER_FONT,
+  SHAMANI_REVEAL_LAG_SEC,
+  shamaniFitScale,
+  shamaniReveal,
 } from "./kinetic";
 
 // ASS (Advanced SubStation Alpha) carries full styling, so an exported .ass reproduces
@@ -155,6 +186,28 @@ function anchorPoint(
   return { x: Math.round(playW / 2), y, an: 5 };
 }
 
+/** Shrink captions so the longest word still fits in the frame (preview + burn). */
+function assFitScale(
+  texts: string[],
+  fontPx: number,
+  playW: number,
+  maxWidthPct: number,
+): number {
+  const maxW = playW * (Math.min(maxWidthPct || 90, 92) / 100);
+  return captionFitScaleMany(texts, fontPx, maxW);
+}
+
+function fittedBaseFs(
+  style: SubtitleStyle,
+  playH: number,
+  playW: number,
+  words: string[],
+  renderMul = 1,
+): number {
+  const base = styleAssFontSize(style, playH);
+  return base * assFitScale(words, base * renderMul, playW, style.maxWidthPct);
+}
+
 /** Merge \\an/\\pos with entrance (and optional extra) override tags into one block. */
 function overrideBlock(
   style: SubtitleStyle,
@@ -172,25 +225,33 @@ function overrideBlock(
 function entranceTags(style: SubtitleStyle): string {
   switch (style.animation) {
     case "fade":
-      return "{\\fad(200,150)}";
+      return "{\\fad(80,120)}";
     case "pop":
-      // Brief scale-up from 85% → 100% over ~300ms, then hold.
-      return "{\\fscx85\\fscy85\\t(0,300,\\fscx100\\fscy100)}";
+      // Brief scale-up from 90% → 100% so the word is readable immediately.
+      return "{\\fscx90\\fscy90\\t(0,140,\\fscx100\\fscy100)}";
     case "kinetic":
-      return "{\\fad(120,80)}";
+      return "{\\fad(70,80)}";
     case "scatter":
-      return "{\\fad(120,80)}";
+      return "{\\fad(70,80)}";
     case "hook":
-      return "{\\fad(120,80)}";
+      return "{\\fad(70,80)}";
     case "flash":
       // Snappy scale pop on each caption frame (density controls word count).
-      return "{\\fscx80\\fscy80\\t(0,160,\\fscx100\\fscy100)}";
+      return "{\\fscx88\\fscy88\\t(0,120,\\fscx100\\fscy100)}";
     case "editorial":
-      return "{\\fad(140,100)}";
+      return "{\\fad(80,100)}";
     case "atelier":
-      return "{\\fad(120,90)\\fscx92\\fscy92\\t(0,220,\\fscx100\\fscy100)}";
+      return "{\\fad(70,80)\\fscx94\\fscy94\\t(0,140,\\fscx100\\fscy100)}";
     case "romance":
-      return "{\\fad(120,80)\\fscx92\\fscy92\\t(0,200,\\fscx100\\fscy100)}";
+      return "{\\fad(70,80)\\fscx94\\fscy94\\t(0,140,\\fscx100\\fscy100)}";
+    case "shamani":
+      return "{\\fad(70,80)}";
+    case "pinterest":
+      return "{\\fad(80,100)}";
+    case "pinterest3":
+      return "{\\fad(80,100)}";
+    case "pinterest4":
+      return "{\\fad(80,100)}";
     default:
       return "";
   }
@@ -262,6 +323,14 @@ export function toASS(
     shadow = style.shadow ? 2 : 0;
     primaryColor = assColor("#FFFFFF", 0);
     secondaryColor = primaryColor;
+  } else if (isShamani(style)) {
+    // Soft black drop-shadow only — keep captions readable without a heavy halo.
+    outline = 0;
+    outlineCol = assColor("#000000", 0);
+    backCol = assColor("#000000", 60);
+    shadow = 2;
+    primaryColor = assColor(style.color, 0);
+    secondaryColor = primaryColor;
   } else if (glow > 0) {
     outline = Math.max(style.outlineWidth, Math.round(glow * 1.5));
     outlineCol = assColor(style.glowColor || style.color, 60);
@@ -281,7 +350,11 @@ export function toASS(
   }
 
   // Bar: tighter left/right margins so the opaque box reads wider (band-like).
-  const maxW = isBar ? Math.max(style.maxWidthPct, 96) : style.maxWidthPct;
+  const maxW = isBar
+    ? Math.max(style.maxWidthPct, 96)
+    : isShamani(style)
+      ? Math.min(style.maxWidthPct || SHAMANI_FOCUS_WIDTH_PCT, SHAMANI_FOCUS_WIDTH_PCT)
+      : style.maxWidthPct;
   const marginLR = Math.round(((100 - maxW) / 2 / 100) * PLAY_W);
   const bold = style.fontWeight >= 600 ? -1 : 0;
   const spacing = Math.round(style.letterSpacingEm * cssPx);
@@ -311,6 +384,18 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
       if (isRomance(style) && plainFx) {
         return romanceDialogues(s, style, PLAY_W, PLAY_H);
       }
+      if (isShamani(style) && plainFx) {
+        return shamaniDialogues(s, style, PLAY_W, PLAY_H);
+      }
+      if (isPinterest(style) && plainFx) {
+        return pinterestDialogues(s, style, PLAY_W, PLAY_H);
+      }
+      if (isPinterest3(style) && plainFx) {
+        return pinterest3Dialogues(s, style, PLAY_W, PLAY_H);
+      }
+      if (isPinterest4(style) && plainFx) {
+        return pinterest4Dialogues(s, style, PLAY_W, PLAY_H);
+      }
       if (isEditorial(style) && plainFx) {
         return editorialDialogues(s, style, PLAY_W, PLAY_H);
       }
@@ -334,8 +419,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
       } else {
         body = applyTextCase(s.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
       }
+      const fit = assFitScale(
+        s.text.split(/\s+/).filter(Boolean),
+        cssPx,
+        PLAY_W,
+        style.maxWidthPct,
+      );
+      const fitTag = fit < 0.995 ? `\\fs${Math.round(fontSize * fit)}` : "";
       return [
-        `Dialogue: 0,${assTime(s.start)},${assTime(s.end)},Default,,0,0,0,,${overrideBlock(style, PLAY_W, PLAY_H)}${body}`,
+        `Dialogue: 0,${assTime(s.start)},${assTime(s.end)},Default,,0,0,0,,${overrideBlock(style, PLAY_W, PLAY_H, fitTag)}${body}`,
       ];
     })
     .join("\n");
@@ -361,7 +453,13 @@ function kineticDialogues(
   }
 
   const caseMode = effectiveTextCase(style);
-  const baseFs = styleAssFontSize(style, playH);
+  const baseFs = fittedBaseFs(
+    style,
+    playH,
+    playW,
+    tokens.map((t) => t.text),
+    1.22,
+  );
   const lines: string[] = [];
 
   tokens.forEach((tk, focus) => {
@@ -403,11 +501,17 @@ function scatterDialogues(
   const tokens = tokenizeSegment(seg);
   if (!tokens.length) {
     const body = applyTextCase(seg.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
-    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,{\\fad(120,80)}${body}`];
+    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,{\\fad(70,80)}${body}`];
   }
 
   const caseMode = effectiveTextCase(style);
-  const baseFs = styleAssFontSize(style, playH);
+  const baseFs = fittedBaseFs(
+    style,
+    playH,
+    playW,
+    tokens.map((t) => t.text),
+    1.22,
+  );
   const anchorY = (style.positionYPct / 100) * playH;
   const lines: string[] = [];
 
@@ -426,7 +530,7 @@ function scatterDialogues(
       const x = Math.round(playW / 2 + (pose.xPct / 100) * playW);
       const y = Math.round(anchorY + (pose.yPct / 100) * playH);
       const fs = Math.max(8, Math.round(baseFs * pose.scale));
-      const tags = `{\\an5\\pos(${x},${y})\\fs${fs}\\fad(100,60)}`;
+      const tags = `{\\an5\\pos(${x},${y})\\fs${fs}\\fad(70,60)}`;
       lines.push(
         `Dialogue: ${i},${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${tags}${word}`,
       );
@@ -452,7 +556,13 @@ function atelierDialogues(
     return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${body}`];
   }
 
-  const baseFs = styleAssFontSize(style, playH);
+  const baseFs = fittedBaseFs(
+    style,
+    playH,
+    playW,
+    tokens.map((t) => t.text),
+    ATELIER_FOCUS_SCALE,
+  );
   const satFs = Math.max(8, Math.round(baseFs * ATELIER_SATELLITE_SCALE));
   const focusFs = Math.max(10, Math.round(baseFs * ATELIER_FOCUS_SCALE));
   const rollFs = Math.max(8, Math.round(baseFs * ATELIER_ROLL_SCALE));
@@ -515,7 +625,8 @@ function atelierDialogues(
 }
 
 /**
- * Styles 3.0 Telugu Connects burn: Great Vibes script supports + bold sans focus + tracked trail.
+ * Styles 3.0 Telugu Connects burn: static lockup with karaoke / Auto emphasis colors.
+ * Karaoke slices time so spoken words fill with the accent; layout never rearranges.
  */
 function romanceDialogues(
   seg: Segment,
@@ -530,46 +641,404 @@ function romanceDialogues(
     return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${body}`];
   }
 
-  const baseFs = styleAssFontSize(style, playH);
+  const layout = romanceLockup(tokens.map((tk) => tk.text));
+  const baseFs0 = styleAssFontSize(style, playH);
+  const soloScript = layout.solo === "script";
+  const heroText = applyTextCase(
+    romanceDisplayWord(tokens[layout.focus]!.text),
+    soloScript ? "lower" : "title",
+  );
+  const scriptText = layout.before
+    .map((i) => applyTextCase(romanceDisplayWord(tokens[i]!.text), "lower"))
+    .join(" ");
+  const afterText = layout.after
+    .map((i) =>
+      applyTextCase(
+        romanceDisplayWord(tokens[i]!.text),
+        layout.afterStyle === "trail" ? "upper" : "lower",
+      ),
+    )
+    .join(" ");
+  const fit = romanceFitScale({
+    hero: heroText,
+    heroFontPx: baseFs0 * (soloScript ? ROMANCE_SCRIPT_SCALE * 1.35 : ROMANCE_FOCUS_SCALE),
+    heroTrackingEm: soloScript ? 0.02 : style.letterSpacingEm,
+    script: scriptText,
+    scriptFontPx: baseFs0 * ROMANCE_SCRIPT_SCALE,
+    trail: layout.afterStyle === "trail" ? afterText : "",
+    trailFontPx: baseFs0 * ROMANCE_TRAIL_SCALE,
+    trailTrackingEm: ROMANCE_TRAIL_TRACKING_EM,
+    maxWidthPx: playW * (Math.min(style.maxWidthPct, 92) / 100),
+  });
+  const baseFs = baseFs0 * fit;
   const scriptFs = Math.max(8, Math.round(baseFs * ROMANCE_SCRIPT_SCALE));
   const focusFs = Math.max(10, Math.round(baseFs * ROMANCE_FOCUS_SCALE));
   const trailFs = Math.max(7, Math.round(baseFs * ROMANCE_TRAIL_SCALE));
-  const white = assColor(style.color, 0);
+  const baseCol = assColor(style.color, 0);
+  const accentCol = assColor(style.highlightColor, 0);
+  const dimCol = assColor(style.color, 0x80);
   const scriptFn = ROMANCE_SCRIPT_FONT;
   const focusFn = style.fontFamily;
   const trailSpacing = Math.round(ROMANCE_TRAIL_TRACKING_EM * trailFs);
-  const lines: string[] = [];
 
-  tokens.forEach((tk, focus) => {
-    const layout = romanceLayout(tokens.length, focus);
-    const t0 = tk.start;
-    const t1 = focus < tokens.length - 1 ? tokens[focus + 1]!.start : seg.end;
-    if (t1 <= t0) return;
+  const colorFor = (i: number, filled: number) => {
+    const fill = romanceTokenFill(i, tokens[i]!.text, filled, style);
+    if (fill === "accent") return accentCol;
+    if (fill === "dim") return dimCol;
+    return baseCol;
+  };
 
+  const wordAt = (i: number, mode: "lower" | "upper" | "title") =>
+    applyTextCase(romanceDisplayWord(tokens[i]!.text), mode);
+
+  const lockupText = (filled: number) => {
     const parts: string[] = [];
     if (layout.before.length) {
-      const text = layout.before.map((i) => applyTextCase(tokens[i]!.text, "lower")).join(" ");
-      parts.push(`{\\fn${scriptFn}\\fs${scriptFs}\\b0\\c${white}}${text}`);
+      const text = layout.before
+        .map((i) => `{\\c${colorFor(i, filled)}}${wordAt(i, "lower")}`)
+        .join(" ");
+      parts.push(`{\\fn${scriptFn}\\fs${scriptFs}\\b0}${text}`);
     }
-    parts.push(
-      `{\\fn${focusFn}\\fs${focusFs}\\b1\\c${white}}${applyTextCase(tokens[layout.focus]!.text, "title")}`,
-    );
+    if (soloScript) {
+      parts.push(
+        `{\\fn${scriptFn}\\fs${Math.round(scriptFs * 1.35)}\\b0\\c${colorFor(layout.focus, filled)}}${wordAt(layout.focus, "lower")}`,
+      );
+    } else {
+      parts.push(
+        `{\\fn${focusFn}\\fs${focusFs}\\b1\\c${colorFor(layout.focus, filled)}}${wordAt(layout.focus, "title")}`,
+      );
+    }
     if (layout.after.length) {
-      if (layout.before.length > 0) {
-        const text = layout.after.map((i) => applyTextCase(tokens[i]!.text, "upper")).join(" ");
-        parts.push(`{\\fn${focusFn}\\fs${trailFs}\\b0\\fsp${trailSpacing}\\c${white}}${text}`);
+      if (layout.afterStyle === "trail") {
+        const text = layout.after
+          .map((i) => `{\\c${colorFor(i, filled)}}${wordAt(i, "upper")}`)
+          .join(" ");
+        parts.push(`{\\fn${focusFn}\\fs${trailFs}\\b0\\fsp${trailSpacing}}${text}`);
       } else {
-        const text = layout.after.map((i) => applyTextCase(tokens[i]!.text, "lower")).join(" ");
-        parts.push(`{\\fn${scriptFn}\\fs${scriptFs}\\b0\\c${white}}${text}`);
+        const text = layout.after
+          .map((i) => `{\\c${colorFor(i, filled)}}${wordAt(i, "lower")}`)
+          .join(" ");
+        parts.push(`{\\fn${scriptFn}\\fs${scriptFs}\\b0}${text}`);
       }
     }
+    return parts.join("\\N");
+  };
 
+  if (!style.karaoke) {
+    return [
+      `Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${lockupText(tokens.length)}`,
+    ];
+  }
+
+  return tokens.flatMap((tk, i) => {
+    const t0 = tk.start;
+    const t1 = i < tokens.length - 1 ? tokens[i + 1]!.start : seg.end;
+    if (t1 <= t0) return [];
+    return [
+      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${prefix}${lockupText(i + 1)}`,
+    ];
+  });
+}
+
+/**
+ * Raj Shamani burn: first 4 words lock as Oswald caps; remaining on Inter
+ * lowercase at 50%. Stay inside the 80% focus band (10% | 80% | 10%).
+ * Light black shadow only.
+ */
+function shamaniDialogues(
+  seg: Segment,
+  style: SubtitleStyle,
+  playW: number,
+  playH: number,
+): string[] {
+  const tokens = tokenizeSegment(seg);
+  const prefix = overrideBlock(style, playW, playH, "\\bord0\\shad2");
+  if (!tokens.length) {
+    const body = applyTextCase(seg.text, "upper").replace(/\r?\n/g, "\\N");
+    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${body}`];
+  }
+
+  const reveal0 = shamaniReveal(tokens.length, tokens.length);
+  const headerFull = tokens
+    .slice(0, reveal0.headerCount)
+    .map((t) => applyTextCase(t.text, "upper"))
+    .join(" ");
+  const bodyFull = tokens
+    .slice(reveal0.headerCount)
+    .map((t) => applyTextCase(t.text, "lower"))
+    .join(" ");
+
+  const baseFs0 = styleAssFontSize({ ...style, fontFamily: SHAMANI_HEADER_FONT }, playH);
+  const focusPct = Math.min(style.maxWidthPct || SHAMANI_FOCUS_WIDTH_PCT, SHAMANI_FOCUS_WIDTH_PCT);
+  const maxW = playW * (focusPct / 100);
+  const fit = shamaniFitScale({
+    header: headerFull,
+    body: bodyFull,
+    baseFontPx: baseFs0,
+    maxWidthPx: maxW,
+  });
+  const baseFs = Math.max(10, Math.round(baseFs0 * fit));
+  const bodyFs = Math.max(7, Math.round(baseFs * SHAMANI_BODY_SCALE));
+  const accentCol = assColor(style.highlightColor, 0);
+  const whiteCol = assColor(style.color, 0);
+
+  const lockupText = (filled: number) => {
+    const reveal = shamaniReveal(tokens.length, filled);
+    const parts: string[] = [];
+    if (reveal.headerShown > 0) {
+      const text = tokens
+        .slice(0, reveal.headerShown)
+        .map((t) => applyTextCase(t.text, "upper"))
+        .join(" ");
+      parts.push(
+        `{\\fn${SHAMANI_HEADER_FONT}\\fs${baseFs}\\b0\\c${accentCol}\\bord0\\shad2}${text}`,
+      );
+    }
+    if (reveal.bodyShown > 0) {
+      const text = tokens
+        .slice(reveal.headerCount, reveal.headerCount + reveal.bodyShown)
+        .map((t) => applyTextCase(t.text, "lower"))
+        .join(" ");
+      parts.push(
+        `{\\fn${SHAMANI_BODY_FONT}\\fs${bodyFs}\\b0\\c${whiteCol}\\bord0\\shad2}${text}`,
+      );
+    }
+    return parts.join("\\N");
+  };
+
+  const lines: string[] = [];
+  const lag = SHAMANI_REVEAL_LAG_SEC;
+  tokens.forEach((tk, i) => {
+    const t0 = tk.start + lag;
+    const t1 = i < tokens.length - 1 ? tokens[i + 1]!.start + lag : seg.end;
+    const start = Math.max(seg.start, Math.min(t0, t1 - 0.05));
+    const end = Math.min(seg.end, Math.max(t1, start + 0.08));
+    if (end <= start) return;
     lines.push(
-      `Dialogue: 0,${assTime(t0)},${assTime(t1)},Default,,0,0,0,,${prefix}${parts.join("\\N")}`,
+      `Dialogue: 0,${assTime(start)},${assTime(end)},Default,,0,0,0,,${prefix}${lockupText(i + 1)}`,
     );
   });
 
   return lines;
+}
+
+/**
+ * Pinterest 2 burn: small serif lead-in + oversized serif hero, all lowercase.
+ * Hero fills with the accent once those words are spoken (karaoke).
+ */
+function pinterestDialogues(
+  seg: Segment,
+  style: SubtitleStyle,
+  playW: number,
+  playH: number,
+): string[] {
+  const tokens = tokenizeSegment(seg);
+  const prefix = overrideBlock(style, playW, playH, "\\bord0\\shad0");
+  if (!tokens.length) {
+    const body = applyTextCase(seg.text, "lower").replace(/\r?\n/g, "\\N");
+    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${body}`];
+  }
+
+  const layout = pinterestLockup(tokens.map((t) => t.text));
+  const supportText = layout.support
+    .map((i) => applyTextCase(tokens[i]!.text, "lower"))
+    .join(" ");
+  const heroText = layout.hero
+    .map((i) => applyTextCase(tokens[i]!.text, "lower"))
+    .join(" ");
+
+  const baseFs0 = styleAssFontSize({ ...style, fontFamily: PINTEREST_FONT }, playH);
+  const maxW = playW * (Math.min(style.maxWidthPct || 86, 88) / 100);
+  const fit = pinterestFitScale({
+    support: supportText,
+    hero: heroText,
+    baseFontPx: baseFs0,
+    maxWidthPx: maxW,
+  });
+  const heroFs = Math.max(12, Math.round(baseFs0 * fit));
+  const supportFs = Math.max(8, Math.round(heroFs * PINTEREST_SUPPORT_SCALE));
+  const whiteCol = assColor(style.color, 0);
+  const accentCol = assColor(style.highlightColor, 0);
+  const fn = PINTEREST_FONT;
+
+  const lockupText = (heroAccent: boolean) => {
+    const parts: string[] = [];
+    if (supportText) {
+      parts.push(`{\\fn${fn}\\fs${supportFs}\\b0\\c${whiteCol}}${supportText}`);
+    }
+    if (heroText) {
+      parts.push(
+        `{\\fn${fn}\\fs${heroFs}\\b0\\c${heroAccent ? accentCol : whiteCol}}${heroText}`,
+      );
+    }
+    return parts.join("\\N");
+  };
+
+  if (!style.karaoke || layout.hero.length === 0) {
+    return [
+      `Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${lockupText(false)}`,
+    ];
+  }
+
+  const heroStart = tokens[layout.hero[0]!]!.start;
+  const lines: string[] = [];
+  if (heroStart > seg.start + 0.04) {
+    lines.push(
+      `Dialogue: 0,${assTime(seg.start)},${assTime(heroStart)},Default,,0,0,0,,${prefix}${lockupText(false)}`,
+    );
+  }
+  lines.push(
+    `Dialogue: 0,${assTime(Math.max(seg.start, heroStart))},${assTime(seg.end)},Default,,0,0,0,,${prefix}${lockupText(true)}`,
+  );
+  return lines;
+}
+
+/**
+ * Pinterest 3 burn: staggered bold sans — small lead-in, huge hero, small trail.
+ */
+function pinterest3Dialogues(
+  seg: Segment,
+  style: SubtitleStyle,
+  playW: number,
+  playH: number,
+): string[] {
+  const tokens = tokenizeSegment(seg);
+  const prefix = overrideBlock(style, playW, playH, "\\bord0\\shad0");
+  if (!tokens.length) {
+    const body = applyTextCase(seg.text, "lower").replace(/\r?\n/g, "\\N");
+    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${body}`];
+  }
+
+  const layout = pinterest3Lockup(tokens.map((t) => t.text));
+  const wordAt = (i: number) =>
+    applyTextCase(tokens[i]!.text, i === 0 ? "title" : "lower");
+  const beforeText = layout.before.map(wordAt).join(" ");
+  const heroText = layout.hero.map(wordAt).join(" ");
+  const afterText = layout.after.map(wordAt).join(" ");
+
+  const baseFs0 = styleAssFontSize({ ...style, fontFamily: PINTEREST3_FONT }, playH);
+  const maxW = playW * (Math.min(style.maxWidthPct || 88, 90) / 100);
+  const fit = pinterest3FitScale({
+    before: beforeText,
+    hero: heroText,
+    after: afterText,
+    baseFontPx: baseFs0,
+    maxWidthPx: maxW,
+  });
+  const heroFs = Math.max(12, Math.round(baseFs0 * fit));
+  const beforeFs = Math.max(8, Math.round(heroFs * PINTEREST3_SUPPORT_SCALE));
+  const afterFs = Math.max(8, Math.round(heroFs * PINTEREST3_AFTER_SCALE));
+  const white = assColor(style.color, 0);
+  const ghost = assColor(style.color, 0xb0);
+  const fn = PINTEREST3_FONT;
+
+  const parts: string[] = [];
+  if (layout.ghost && heroText) {
+    parts.push(`{\\fn${fn}\\fs${heroFs}\\b1\\c${ghost}\\fsp-2}${heroText.toLowerCase()}`);
+    if (beforeText) {
+      parts.push(`{\\fn${fn}\\fs${beforeFs}\\b1\\c${white}}${beforeText}`);
+    }
+  } else {
+    if (beforeText) {
+      parts.push(`{\\fn${fn}\\fs${beforeFs}\\b1\\c${white}}${beforeText}`);
+    }
+    if (heroText) {
+      parts.push(`{\\fn${fn}\\fs${heroFs}\\b1\\c${white}\\fsp-2}${heroText}`);
+    }
+    if (afterText) {
+      parts.push(`{\\fn${fn}\\fs${afterFs}\\b1\\c${white}}${afterText}`);
+    }
+  }
+
+  return [
+    `Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${parts.join("\\N")}`,
+  ];
+}
+
+/**
+ * Pinterest 4 burn: bold sans stack + optional italic serif punch, white glow.
+ * Lines appear as their words are spoken (same lockup as the preview).
+ */
+function pinterest4Dialogues(
+  seg: Segment,
+  style: SubtitleStyle,
+  playW: number,
+  playH: number,
+): string[] {
+  const tokens = tokenizeSegment(seg);
+  const glow = "\\bord2\\blur2\\shad0\\3c&H00FFFFFF&";
+  const prefix = overrideBlock(style, playW, playH, glow);
+  if (!tokens.length) {
+    const body = applyTextCase(seg.text, effectiveTextCase(style)).replace(/\r?\n/g, "\\N");
+    return [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${body}`];
+  }
+
+  const layout = pinterest4Lockup(tokens.map((t) => t.text));
+  const caseMode = effectiveTextCase(style);
+  const wordAt = (i: number) =>
+    applyTextCase(tokens[i]!.text, caseMode === "sentence" && i > 0 ? "lower" : caseMode);
+  const join = (idxs: number[]) => idxs.map(wordAt).join(" ");
+  const beforeAll = join(layout.before);
+  const heroAll = join(layout.hero);
+  const afterAll = join(layout.after);
+  const compact = layout.before.length === 0 && layout.after.length === 0;
+
+  const cssBase = cssFontPx({ ...style, fontFamily: PINTEREST4_SANS }, playH);
+  const maxW = playW * (Math.min(style.maxWidthPct || 86, 88) / 100);
+  const fit = pinterest4FitScale({
+    before: beforeAll,
+    hero: heroAll,
+    after: afterAll,
+    baseFontPx: cssBase,
+    maxWidthPx: maxW,
+  });
+  const heroMul = compact ? 1 : PINTEREST4_HERO_SCALE;
+  const beforeFs = assFontSizePx(cssBase * PINTEREST4_SUPPORT_SCALE * fit, PINTEREST4_SANS);
+  const heroFs = assFontSizePx(cssBase * heroMul * fit, layout.serifHero ? PINTEREST4_SERIF : PINTEREST4_SANS);
+  const afterFs = assFontSizePx(cssBase * PINTEREST4_AFTER_SCALE * fit, PINTEREST4_SANS);
+  const white = assColor(style.color, 0);
+  const sans = PINTEREST4_SANS;
+  const serif = PINTEREST4_SERIF;
+
+  const line = (kind: "before" | "hero" | "after", text: string): string => {
+    if (kind === "before") {
+      return `{\\fn${sans}\\fs${beforeFs}\\b1\\i0\\c${white}}${text}`;
+    }
+    if (kind === "hero") {
+      return layout.serifHero
+        ? `{\\fn${serif}\\fs${heroFs}\\b0\\i1\\c${white}}${text}`
+        : `{\\fn${sans}\\fs${heroFs}\\b1\\i0\\c${white}}${text}`;
+    }
+    const ital = layout.serifHero ? "\\i1" : "\\i0";
+    return `{\\fn${sans}\\fs${afterFs}\\b1${ital}\\c${white}}${text}`;
+  };
+
+  const lockupText = (shown: number) => {
+    const vis = (idxs: number[]) => idxs.filter((i) => i < shown);
+    const parts: string[] = [];
+    const b = join(vis(layout.before));
+    const h = join(vis(layout.hero));
+    const a = join(vis(layout.after));
+    if (b) parts.push(line("before", b));
+    if (h) parts.push(line("hero", h));
+    if (a) parts.push(line("after", a));
+    return parts.join("\\N");
+  };
+
+  const lines: string[] = [];
+  tokens.forEach((tk, i) => {
+    const t0 = tk.start;
+    const t1 = i < tokens.length - 1 ? tokens[i + 1]!.start : seg.end;
+    if (t1 <= t0) return;
+    const body = lockupText(i + 1);
+    if (!body) return;
+    lines.push(
+      `Dialogue: 0,${assTime(Math.max(seg.start, t0))},${assTime(Math.min(seg.end, t1))},Default,,0,0,0,,${prefix}${body}`,
+    );
+  });
+  return lines.length
+    ? lines
+    : [`Dialogue: 0,${assTime(seg.start)},${assTime(seg.end)},Default,,0,0,0,,${prefix}${lockupText(tokens.length)}`];
 }
 
 /**
@@ -589,7 +1058,13 @@ function editorialDialogues(
   }
 
   const caseMode = effectiveTextCase(style);
-  const baseFs = styleAssFontSize(style, playH);
+  const baseFs = fittedBaseFs(
+    style,
+    playH,
+    playW,
+    tokens.map((t) => t.text),
+    EDITORIAL_FOCUS_SCALE,
+  );
   const satFs = Math.max(8, Math.round(baseFs * EDITORIAL_SATELLITE_SCALE));
   const focusFs = Math.max(10, Math.round(baseFs * EDITORIAL_FOCUS_SCALE));
   const white = assColor(style.color, 0);
@@ -644,7 +1119,13 @@ function flashDialogues(
   // Flash scale pop lives in entranceTags; bump \\fs to match preview FLASH_SCALE.
   const prefix = overrideBlock(style, playW, playH);
   const caseMode = effectiveTextCase(style);
-  const baseFs = styleAssFontSize(style, playH);
+  const baseFs = fittedBaseFs(
+    style,
+    playH,
+    playW,
+    tokens.map((t) => t.text),
+    FLASH_SCALE,
+  );
   const fs = Math.max(10, Math.round(baseFs * FLASH_SCALE));
   const white = assColor(style.color, 0);
   const accent = assColor(style.highlightColor, 0);
@@ -690,7 +1171,13 @@ function hookDialogues(
   }
 
   const caseMode = effectiveTextCase(style);
-  const baseFs = styleAssFontSize(style, playH);
+  const baseFs = fittedBaseFs(
+    style,
+    playH,
+    playW,
+    tokens.map((t) => t.text),
+    HOOK_FOCUS_SCALE,
+  );
   const satFs = Math.max(8, Math.round(baseFs * HOOK_SATELLITE_SCALE));
   const focusFs = Math.max(10, Math.round(baseFs * HOOK_FOCUS_SCALE));
   const white = assColor(style.color, 0);

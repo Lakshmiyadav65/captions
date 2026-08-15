@@ -26,7 +26,6 @@ import {
 import { PreviewStage } from "./PreviewStage";
 import { StylePanel } from "./StylePanel";
 import { SubtitleList } from "./SubtitleList";
-import { DictionaryPanel } from "./DictionaryPanel";
 import { QuotaBadge } from "./QuotaBadge";
 import { ProcessingFailed, ProcessingView } from "./ProcessingView";
 import { CaptionVisibilityIndicator } from "./instagram/CaptionVisibilityIndicator";
@@ -191,8 +190,6 @@ export function Editor({
   const [exportError, setExportError] = useState<string | null>(null);
   /** Word fixes auto-learned when the user edits a caption line. */
   const [learned, setLearned] = useState<SpellRule[] | null>(null);
-  /** Bump to refresh DictionaryPanel after auto-learn. */
-  const [dictRefresh, setDictRefresh] = useState(0);
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
   /** Bumped on retry so the SSE effect re-subscribes after a failure. */
@@ -470,7 +467,6 @@ export function Editor({
             })),
           }));
           setLearned(rules);
-          setDictRefresh((n) => n + 1);
           setTimeout(() => setLearned(null), 4000);
         } finally {
           learnBusy.current = false;
@@ -528,7 +524,7 @@ export function Editor({
               text: displayInScript(w.text, "telugu"),
             })),
           }));
-    // Lag captions slightly so frames don't flash before the spoken word.
+    // Keep starts on the spoken word; hold each line long enough to read.
     return withCaptionSyncDelay(scripted);
   }, [segments, scriptMode]);
 
@@ -789,11 +785,6 @@ export function Editor({
                       {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Save"}
                     </button>
                   </div>
-                  <div className="ed-keys">
-                    <span>J / K</span> next · prev
-                    <span>S</span> split
-                    <span>M</span> merge
-                  </div>
                 </div>
                 <div className="ed-panel-body">
                   {isMock && (
@@ -990,7 +981,7 @@ export function Editor({
                 aria-valuemax={RIGHT_W_MAX}
                 onPointerDown={(e) => beginResize("right", e)}
               />
-              <div className="ed-tabs" role="tablist">
+              <div className="ed-tabs" role="tablist" data-active={styleTab}>
                 {(
                   [
                     { id: "preset" as const, label: "Style" },
@@ -1010,7 +1001,7 @@ export function Editor({
                   </button>
                 ))}
               </div>
-              <div className="ed-panel-body ed-inspector">
+              <div className="ed-panel-body ed-inspector" key={styleTab}>
                 <StylePanel
                   style={style}
                   onChange={patchStyle}
@@ -1019,17 +1010,6 @@ export function Editor({
                   onWordsPerFrameChange={onWordsPerFrameChange}
                   panel={styleTab}
                 />
-                {styleTab === "text" && (
-                  <DictionaryPanel
-                    segments={segments}
-                    refreshToken={dictRefresh}
-                    onApplySegments={(next) => {
-                      setSegments(next);
-                      baselineRef.current = next.map((s) => ({ ...s, text: s.text }));
-                      schedulePersist(next);
-                    }}
-                  />
-                )}
               </div>
             </aside>
           </div>

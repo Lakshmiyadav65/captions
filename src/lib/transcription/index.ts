@@ -7,6 +7,7 @@ export * from "./types";
 export { alignWordTimings } from "./align-timings";
 export { flattenWords } from "./openai";
 export { CAPTION_SYNC_DELAY_SEC, withCaptionSyncDelay } from "./sync-delay";
+export { extendCaptionHolds } from "./util";
 
 // Picks the transcription backend from env. Set ASR_PROVIDER=sarvam|openai|mock, or leave
 // it unset/"auto" to use whichever API key is present (preferring Sarvam for Telugu).

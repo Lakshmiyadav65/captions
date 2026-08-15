@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type CSSProperties, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { fontStack } from "@/lib/fonts";
 import {
   applyTextCase,
@@ -32,19 +32,47 @@ import {
   isFlash,
   isHook,
   isKinetic,
+  isPinterest,
+  isPinterest3,
+  isPinterest4,
   isRomance,
   isScatter,
+  isShamani,
   kineticFocusIndex,
   kineticGapPct,
   kineticPoses,
+  PINTEREST_FONT,
+  PINTEREST_SUPPORT_SCALE,
+  PINTEREST3_AFTER_SCALE,
+  PINTEREST3_FONT,
+  PINTEREST3_SUPPORT_SCALE,
+  pinterest3FitScale,
+  pinterest3Lockup,
+  PINTEREST4_AFTER_SCALE,
+  PINTEREST4_HERO_SCALE,
+  PINTEREST4_SANS,
+  PINTEREST4_SERIF,
+  PINTEREST4_SUPPORT_SCALE,
+  pinterest4FitScale,
+  pinterest4Lockup,
+  pinterestFitScale,
+  pinterestLockup,
   ROMANCE_FOCUS_SCALE,
   ROMANCE_SCRIPT_FONT,
   ROMANCE_SCRIPT_SCALE,
   ROMANCE_TRAIL_SCALE,
   ROMANCE_TRAIL_TRACKING_EM,
-  romanceLayout,
+  romanceDisplayWord,
+  romanceLockup,
+  romanceTokenFill,
   scatterPoses,
   scatterStageHeightPct,
+  SHAMANI_BODY_FONT,
+  SHAMANI_BODY_SCALE,
+  SHAMANI_FOCUS_WIDTH_PCT,
+  SHAMANI_HEADER_FONT,
+  shamaniFitScale,
+  shamaniReveal,
 } from "@/lib/subtitles/kinetic";
 import type { Segment } from "@/lib/transcription/types";
 
@@ -90,6 +118,20 @@ function buildTextShadow(style: SubtitleStyle, scale: number, prism: boolean): s
   return parts.length ? parts.join(", ") : "none";
 }
 
+/** Light dark shadow behind Shamani text — just enough for contrast. */
+function buildShamaniShadow(style: SubtitleStyle, scale: number, accentGlow: boolean): string {
+  const parts = [
+    `0 ${1.2 * scale}px ${3 * scale}px rgba(0,0,0,0.55)`,
+    `0 ${2 * scale}px ${6 * scale}px rgba(0,0,0,0.35)`,
+  ];
+  if (accentGlow && (style.glowStrength ?? 0) > 0) {
+    const c = style.glowColor || style.highlightColor || "#FFD400";
+    const g = Math.max(0.3, style.glowStrength ?? 0.5) * scale;
+    parts.push(`0 0 ${g * 2}px ${hexToRgba(c, 0.35)}`);
+  }
+  return parts.join(", ");
+}
+
 function animationClass(style: SubtitleStyle): string {
   switch (style.animation) {
     case "fade":
@@ -110,6 +152,14 @@ function animationClass(style: SubtitleStyle): string {
       return "cap-anim-kinetic";
     case "romance":
       return "cap-anim-kinetic";
+    case "shamani":
+      return "cap-anim-kinetic";
+    case "pinterest":
+      return "cap-anim-fade";
+    case "pinterest3":
+      return "cap-anim-fade";
+    case "pinterest4":
+      return "cap-anim-fade";
     case "typewriter":
       return "cap-anim-typewriter";
     default:
@@ -125,12 +175,15 @@ export function SubtitleOverlay({
   segment,
   style,
   height,
+  width,
   filled = 0,
   onPositionChange,
 }: {
   segment: Segment | null;
   style: SubtitleStyle;
   height: number;
+  /** Video frame width in px (used to keep any caption lockup inside the frame). */
+  width?: number;
   /** Number of leading words already spoken (only used when style.karaoke). */
   filled?: number;
   /** Drag-to-reposition: vertical % from top of the video frame (5–95). */
@@ -138,6 +191,27 @@ export function SubtitleOverlay({
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
+  const fitRef = useRef<HTMLDivElement>(null);
+  const [fitScale, setFitScale] = useState(1);
+
+  useLayoutEffect(() => {
+    const el = fitRef.current;
+    if (!el) {
+      setFitScale(1);
+      return;
+    }
+    // Focus band: keep captions inside maxWidthPct (Shamani = 80% → 10% | 80% | 10%).
+    const focusPct =
+      style.animation === "shamani"
+        ? Math.min(style.maxWidthPct || 80, 80)
+        : style.maxWidthPct || 90;
+    const max =
+      el.clientWidth ||
+      (width && width > 0 ? width * (focusPct / 100) : 0);
+    const w = el.scrollWidth;
+    const next = max > 0 && w > max + 1 ? Math.max(0.55, (max / w) * 0.96) : 1;
+    setFitScale((prev) => (Math.abs(prev - next) < 0.01 ? prev : next));
+  });
 
   if (height <= 0) return null;
 
@@ -188,6 +262,13 @@ export function SubtitleOverlay({
   const useEditorial = hasText && isEditorial(style) && !specialFill;
   const useAtelier = hasText && isAtelier(style) && !specialFill;
   const useRomance = hasText && isRomance(style) && !specialFill;
+  const useShamani = hasText && isShamani(style) && !specialFill;
+  const usePinterest = hasText && isPinterest(style) && !specialFill;
+  const usePinterest3 = hasText && isPinterest3(style) && !specialFill;
+  const usePinterest4 = hasText && isPinterest4(style) && !specialFill;
+  const focusWidthPct = isShamani(style)
+    ? Math.min(style.maxWidthPct || SHAMANI_FOCUS_WIDTH_PCT, SHAMANI_FOCUS_WIDTH_PCT)
+    : style.maxWidthPct;
   const useKaraoke =
     hasText &&
     style.karaoke &&
@@ -198,7 +279,11 @@ export function SubtitleOverlay({
     !useFlash &&
     !useEditorial &&
     !useAtelier &&
-    !useRomance;
+    !useRomance &&
+    !useShamani &&
+    !usePinterest &&
+    !usePinterest3 &&
+    !usePinterest4;
   const useEmphasis =
     hasText &&
     isEmphasisOn(style) &&
@@ -209,7 +294,11 @@ export function SubtitleOverlay({
     !useFlash &&
     !useEditorial &&
     !useAtelier &&
-    !useRomance;
+    !useRomance &&
+    !useShamani &&
+    !usePinterest &&
+    !usePinterest3 &&
+    !usePinterest4;
   // Karaoke/emphasis emit one <span> per word. Use a wrapping flex row with
   // flex: 0 0 auto on each word so they never shrink mid-glyph, and justify
   // center so multi-word phrases stay in the middle of the frame.
@@ -649,18 +738,38 @@ export function SubtitleOverlay({
   } else if (useRomance) {
     const tokens = tokenizeSegment(segment!);
     if (tokens.length) {
-      const focus = kineticFocusIndex(tokens.length, filled);
-      const layout = romanceLayout(tokens.length, focus);
+      const layout = romanceLockup(tokens.map((tk) => tk.text));
       const baseFs = px(style.fontSizePct);
-      const gap = px(kineticGapPct(style.fontSizePct) * 0.35);
+      const overlap = baseFs * 0.22;
+      const accent = style.highlightColor || "#FF8A00";
+      const karaokeFilled = style.karaoke ? filled : tokens.length;
       const softShadow = style.shadow
-        ? `0 ${2 * scale}px ${8 * scale}px rgba(0,0,0,0.55), 0 ${1 * scale}px ${2 * scale}px rgba(0,0,0,0.35)`
+        ? `0 ${2 * scale}px ${10 * scale}px rgba(0,0,0,0.65), 0 ${1 * scale}px ${2 * scale}px rgba(0,0,0,0.4)`
         : "none";
+
+      const tokenPaint = (i: number) => {
+        const fill = romanceTokenFill(i, tokens[i]!.text, karaokeFilled, style);
+        return {
+          color: fill === "accent" ? accent : style.color,
+          opacity: fill === "dim" ? 0.45 : 1,
+        };
+      };
+
+      const scriptWords = (indices: number[], caseMode: "lower" | "upper") =>
+        indices.map((i, n) => {
+          const paint = tokenPaint(i);
+          return (
+            <span key={i} style={{ color: paint.color, opacity: paint.opacity }}>
+              {applyTextCase(romanceDisplayWord(tokens[i]!.text), caseMode)}
+              {n < indices.length - 1 ? " " : ""}
+            </span>
+          );
+        });
 
       const scriptLine = (
         indices: number[],
         key: string,
-        opts: { rotateDeg?: number; yEm?: number } = {},
+        opts: { rotateDeg?: number; overlap?: "above" | "below"; nudgeEm?: number } = {},
       ) =>
         indices.length === 0 ? null : (
           <span
@@ -668,81 +777,535 @@ export function SubtitleOverlay({
             className="cap-kinetic-word"
             style={{
               display: "block",
+              position: "relative",
+              zIndex: 2,
               fontFamily: fontStack(ROMANCE_SCRIPT_FONT),
               fontSize: baseFs * ROMANCE_SCRIPT_SCALE,
               fontWeight: 400,
-              color: style.color,
               letterSpacing: "0.02em",
-              lineHeight: 0.9,
+              lineHeight: 0.75,
               whiteSpace: "nowrap",
-              marginBottom: opts.yEm ? undefined : -gap * 0.6,
-              marginTop: opts.yEm ? -gap * 0.4 : undefined,
-              transform: `rotate(${opts.rotateDeg ?? -8}deg)`,
+              marginBottom: opts.overlap === "above" ? -overlap : 0,
+              marginTop: opts.overlap === "below" ? -overlap * 0.35 : 0,
+              transform: `rotate(${opts.rotateDeg ?? -7}deg) translateX(${opts.nudgeEm ?? 0.15}em)`,
               textShadow: softShadow,
             }}
           >
-            {indices.map((i) => applyTextCase(tokens[i]!.text, "lower")).join(" ")}
+            {scriptWords(indices, "lower")}
           </span>
         );
 
       const trailLine =
-        layout.after.length === 0 ? null : layout.before.length > 0 ? (
-          <span
-            key="trail"
-            className="cap-kinetic-word"
-            style={{
-              display: "block",
-              fontFamily: fontStack(style.fontFamily),
-              fontSize: baseFs * ROMANCE_TRAIL_SCALE,
-              fontWeight: 500,
-              color: style.color,
-              letterSpacing: `${ROMANCE_TRAIL_TRACKING_EM}em`,
-              lineHeight: 1.2,
-              whiteSpace: "nowrap",
-              textTransform: "uppercase",
-              marginTop: gap * 0.35,
-              textShadow: softShadow,
-            }}
-          >
-            {layout.after.map((i) => applyTextCase(tokens[i]!.text, "upper")).join(" ")}
-          </span>
-        ) : (
-          scriptLine(layout.after, "after-script", { rotateDeg: 6, yEm: 0.2 })
-        );
+        layout.after.length === 0
+          ? null
+          : layout.afterStyle === "trail" ? (
+              <span
+                key="trail"
+                className="cap-kinetic-word"
+                style={{
+                  display: "block",
+                  fontFamily: fontStack(style.fontFamily),
+                  fontSize: baseFs * ROMANCE_TRAIL_SCALE,
+                  fontWeight: 500,
+                  letterSpacing: `${ROMANCE_TRAIL_TRACKING_EM}em`,
+                  lineHeight: 1,
+                  whiteSpace: "nowrap",
+                  textTransform: "uppercase",
+                  marginTop: overlap * 0.15,
+                  textShadow: softShadow,
+                }}
+              >
+                {scriptWords(layout.after, "upper")}
+              </span>
+            ) : (
+              scriptLine(layout.after, "after-script", {
+                rotateDeg: 5,
+                overlap: "below",
+                nudgeEm: 0.25,
+              })
+            );
+
+      const focusPaint = tokenPaint(layout.focus);
+      const soloScript = layout.solo === "script";
+      const heroText = applyTextCase(
+        romanceDisplayWord(tokens[layout.focus]!.text),
+        soloScript ? "lower" : "title",
+      );
 
       content = (
         <span
           className="cap-romance"
           style={{
-            display: "flex",
+            display: "inline-flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
             gap: 0,
-            width: "100%",
+            maxWidth: "100%",
             pointerEvents: "none",
           }}
         >
-          {scriptLine(layout.before, "before", { rotateDeg: -8 })}
+          {scriptLine(layout.before, "before", { overlap: "above", nudgeEm: -0.2 })}
           <span
-            key={`focus-${focus}`}
+            key={`focus-${layout.focus}`}
             className="cap-kinetic-word"
             style={{
               display: "inline-block",
-              fontFamily: fontStack(style.fontFamily),
-              fontSize: baseFs * ROMANCE_FOCUS_SCALE,
-              fontWeight: Math.max(700, style.fontWeight),
-              color: style.color,
-              letterSpacing: `${style.letterSpacingEm}em`,
-              lineHeight: 0.92,
+              position: "relative",
+              zIndex: 1,
+              fontFamily: fontStack(soloScript ? ROMANCE_SCRIPT_FONT : style.fontFamily),
+              fontSize: baseFs * (soloScript ? ROMANCE_SCRIPT_SCALE * 1.35 : ROMANCE_FOCUS_SCALE),
+              fontWeight: soloScript ? 400 : Math.max(700, style.fontWeight),
+              color: focusPaint.color,
+              opacity: focusPaint.opacity,
+              letterSpacing: soloScript ? "0.02em" : `${style.letterSpacingEm}em`,
+              lineHeight: 0.85,
               whiteSpace: "nowrap",
               textShadow: softShadow,
-              transition: "font-size 0.18s cubic-bezier(0.22, 1.15, 0.36, 1)",
             }}
           >
-            {applyTextCase(tokens[layout.focus]!.text, "title")}
+            {heroText}
           </span>
           {trailLine}
+        </span>
+      );
+    }
+  } else if (useShamani) {
+    const tokens = tokenizeSegment(segment!);
+    if (tokens.length) {
+      const filledN = Math.min(Math.max(filled, 0), tokens.length);
+      const reveal = shamaniReveal(tokens.length, filledN);
+      const headerWords = tokens.slice(0, reveal.headerCount);
+      const bodyWords = tokens.slice(reveal.headerCount);
+      const headerFull = headerWords
+        .map((t) => applyTextCase(t.text, "upper"))
+        .join(" ");
+      const bodyFull = bodyWords
+        .map((t) => applyTextCase(t.text, "lower"))
+        .join(" ");
+      const headerText = headerWords
+        .slice(0, reveal.headerShown)
+        .map((t) => applyTextCase(t.text, "upper"))
+        .join(" ");
+      const bodyText = bodyWords
+        .slice(0, reveal.bodyShown)
+        .map((t) => applyTextCase(t.text, "lower"))
+        .join(" ");
+
+      const baseFs0 = px(style.fontSizePct);
+      // P0: stay inside the 80% focus band (10% | 80% | 10%). Shrink font only if needed.
+      const focusPct = Math.min(style.maxWidthPct || SHAMANI_FOCUS_WIDTH_PCT, SHAMANI_FOCUS_WIDTH_PCT);
+      const maxW =
+        width && width > 0 ? width * (focusPct / 100) : baseFs0 * 12;
+      const fit = shamaniFitScale({
+        header: headerFull,
+        body: bodyFull,
+        baseFontPx: baseFs0,
+        maxWidthPx: maxW,
+      });
+      const baseFs = baseFs0 * fit;
+      const accent = style.highlightColor || "#FFD400";
+      const headerShadow = buildShamaniShadow(style, scale, true);
+      const bodyShadow = buildShamaniShadow(style, scale, false);
+
+      content = (
+        <span
+          className="cap-shamani"
+          style={{
+            display: "inline-flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: baseFs * 0.14,
+            maxWidth: "100%",
+            width: "100%",
+            pointerEvents: "none",
+            textAlign: "center",
+            overflow: "hidden",
+          }}
+        >
+          {reveal.headerShown > 0 ? (
+            <span
+              className="cap-kinetic-word"
+              style={{
+                display: "block",
+                fontFamily: fontStack(SHAMANI_HEADER_FONT),
+                fontSize: baseFs,
+                fontWeight: 400,
+                color: accent,
+                letterSpacing: `${style.letterSpacingEm}em`,
+                lineHeight: 1,
+                whiteSpace: "nowrap",
+                textTransform: "uppercase",
+                textShadow: headerShadow,
+                maxWidth: "100%",
+              }}
+            >
+              {headerText}
+            </span>
+          ) : null}
+          {reveal.bodyShown > 0 ? (
+            <span
+              className="cap-kinetic-word"
+              style={{
+                display: "block",
+                fontFamily: fontStack(SHAMANI_BODY_FONT),
+                fontSize: baseFs * SHAMANI_BODY_SCALE,
+                fontWeight: 400,
+                color: style.color,
+                letterSpacing: "0.01em",
+                lineHeight: 1.1,
+                whiteSpace: "nowrap",
+                textTransform: "lowercase",
+                textShadow: bodyShadow,
+                maxWidth: "100%",
+              }}
+            >
+              {bodyText}
+            </span>
+          ) : null}
+        </span>
+      );
+    }
+  } else if (usePinterest) {
+    const tokens = tokenizeSegment(segment!);
+    if (tokens.length) {
+      const layout = pinterestLockup(tokens.map((t) => t.text));
+      const supportText = layout.support
+        .map((i) => applyTextCase(tokens[i]!.text, "lower"))
+        .join(" ");
+      const heroText = layout.hero
+        .map((i) => applyTextCase(tokens[i]!.text, "lower"))
+        .join(" ");
+      const baseFs0 = px(style.fontSizePct);
+      const maxW =
+        width && width > 0
+          ? width * (Math.min(style.maxWidthPct || 86, 88) / 100)
+          : baseFs0 * 12;
+      const fit = pinterestFitScale({
+        support: supportText,
+        hero: heroText,
+        baseFontPx: baseFs0,
+        maxWidthPx: maxW,
+      });
+      const baseFs = baseFs0 * fit;
+      const accent = style.highlightColor || "#C8FF00";
+      const heroSpoken =
+        !style.karaoke ||
+        layout.hero.some((i) => i < Math.min(Math.max(filled, 0), tokens.length));
+      const heroColor = heroSpoken && style.karaoke ? accent : style.color;
+
+      content = (
+        <span
+          className="cap-pinterest"
+          style={{
+            display: "inline-flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 0,
+            maxWidth: "100%",
+            width: "100%",
+            pointerEvents: "none",
+            textAlign: "center",
+          }}
+        >
+          {layout.support.length > 0 ? (
+            <span
+              style={{
+                display: "block",
+                fontFamily: fontStack(PINTEREST_FONT),
+                fontSize: baseFs * PINTEREST_SUPPORT_SCALE,
+                fontWeight: 400,
+                color: style.color,
+                letterSpacing: "0.01em",
+                lineHeight: 0.95,
+                whiteSpace: "nowrap",
+                textTransform: "lowercase",
+              }}
+            >
+              {supportText}
+            </span>
+          ) : null}
+          {layout.hero.length > 0 ? (
+            <span
+              style={{
+                display: "block",
+                fontFamily: fontStack(PINTEREST_FONT),
+                fontSize: baseFs,
+                fontWeight: 400,
+                color: heroColor,
+                letterSpacing: "-0.02em",
+                lineHeight: 0.85,
+                whiteSpace: "nowrap",
+                textTransform: "lowercase",
+                marginTop: layout.support.length ? -baseFs * 0.06 : 0,
+              }}
+            >
+              {heroText}
+            </span>
+          ) : null}
+        </span>
+      );
+    }
+  } else if (usePinterest3) {
+    const tokens = tokenizeSegment(segment!);
+    if (tokens.length) {
+      const layout = pinterest3Lockup(tokens.map((t) => t.text));
+      const wordAt = (i: number) =>
+        applyTextCase(tokens[i]!.text, i === 0 ? "title" : "lower");
+      const beforeText = layout.before.map(wordAt).join(" ");
+      const heroText = layout.hero.map(wordAt).join(" ");
+      const afterText = layout.after.map(wordAt).join(" ");
+      const baseFs0 = px(style.fontSizePct);
+      const maxW =
+        width && width > 0
+          ? width * (Math.min(style.maxWidthPct || 88, 90) / 100)
+          : baseFs0 * 12;
+      const fit = pinterest3FitScale({
+        before: beforeText,
+        hero: heroText,
+        after: afterText,
+        baseFontPx: baseFs0,
+        maxWidthPx: maxW,
+      });
+      const baseFs = baseFs0 * fit;
+      const fn = fontStack(PINTEREST3_FONT);
+
+      if (layout.ghost && heroText) {
+        content = (
+          <span
+            className="cap-pinterest3"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              position: "relative",
+              maxWidth: "100%",
+              pointerEvents: "none",
+            }}
+          >
+            <span
+              style={{
+                fontFamily: fn,
+                fontSize: baseFs,
+                fontWeight: 800,
+                color: style.color,
+                opacity: 0.28,
+                letterSpacing: "-0.06em",
+                lineHeight: 0.8,
+                whiteSpace: "nowrap",
+                textTransform: "lowercase",
+              }}
+            >
+              {heroText}
+            </span>
+            <span
+              style={{
+                position: "absolute",
+                fontFamily: fn,
+                fontSize: baseFs * 0.42,
+                fontWeight: 700,
+                color: style.color,
+                letterSpacing: "-0.03em",
+                lineHeight: 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {beforeText}
+            </span>
+          </span>
+        );
+      } else {
+        content = (
+          <span
+            className="cap-pinterest3"
+            style={{
+              display: "inline-flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              maxWidth: "100%",
+              pointerEvents: "none",
+              textAlign: "center",
+            }}
+          >
+            <span
+              style={{
+                display: "inline-flex",
+                flexDirection: "column",
+                width: "max-content",
+                maxWidth: "100%",
+                gap: 0,
+              }}
+            >
+              {beforeText ? (
+                <span
+                  style={{
+                    alignSelf: "flex-start",
+                    fontFamily: fn,
+                    fontSize: baseFs * PINTEREST3_SUPPORT_SCALE,
+                    fontWeight: 600,
+                    color: style.color,
+                    letterSpacing: "-0.02em",
+                    lineHeight: 0.95,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {beforeText}
+                </span>
+              ) : null}
+              {heroText ? (
+                <span
+                  style={{
+                    fontFamily: fn,
+                    fontSize: baseFs,
+                    fontWeight: 800,
+                    color: style.color,
+                    letterSpacing: `${style.letterSpacingEm}em`,
+                    lineHeight: 0.82,
+                    whiteSpace: "nowrap",
+                    marginTop: beforeText ? -baseFs * 0.04 : 0,
+                  }}
+                >
+                  {heroText}
+                </span>
+              ) : null}
+              {afterText ? (
+                <span
+                  style={{
+                    alignSelf: "flex-end",
+                    fontFamily: fn,
+                    fontSize: baseFs * PINTEREST3_AFTER_SCALE,
+                    fontWeight: 600,
+                    color: style.color,
+                    opacity: 0.88,
+                    letterSpacing: "-0.02em",
+                    lineHeight: 0.95,
+                    whiteSpace: "nowrap",
+                    marginTop: -baseFs * 0.02,
+                  }}
+                >
+                  {afterText}
+                </span>
+              ) : null}
+            </span>
+          </span>
+        );
+      }
+    }
+  } else if (usePinterest4) {
+    const tokens = tokenizeSegment(segment!);
+    if (tokens.length) {
+      const layout = pinterest4Lockup(tokens.map((t) => t.text));
+      const wordAt = (i: number) =>
+        applyTextCase(
+          tokens[i]!.text,
+          caseMode === "sentence" && i > 0 ? "lower" : caseMode,
+        );
+      const shown = Math.max(1, Math.min(Math.max(filled, 0), tokens.length));
+      const visible = (idxs: number[]) => idxs.filter((i) => i < shown);
+      const join = (idxs: number[]) => idxs.map(wordAt).join(" ");
+      const beforeText = join(visible(layout.before));
+      const heroText = join(visible(layout.hero));
+      const afterText = join(visible(layout.after));
+      const compact = layout.before.length === 0 && layout.after.length === 0;
+      const baseFs0 = px(style.fontSizePct);
+      const maxW =
+        width && width > 0
+          ? width * (Math.min(style.maxWidthPct || 86, 88) / 100)
+          : baseFs0 * 12;
+      const fit = pinterest4FitScale({
+        before: join(layout.before),
+        hero: join(layout.hero),
+        after: join(layout.after),
+        baseFontPx: baseFs0,
+        maxWidthPx: maxW,
+      });
+      const heroMul = compact ? 1 : PINTEREST4_HERO_SCALE;
+      const heroFs = Math.round(baseFs0 * heroMul * fit);
+      const beforeFs = Math.round(baseFs0 * PINTEREST4_SUPPORT_SCALE * fit);
+      const afterFs = Math.round(baseFs0 * PINTEREST4_AFTER_SCALE * fit);
+      const glow = `0 0 ${Math.max(6, Math.round(heroFs * 0.1))}px rgba(255,255,255,0.95), 0 0 ${Math.max(16, Math.round(heroFs * 0.28))}px rgba(255,255,255,0.5), 0 0 ${Math.max(28, Math.round(heroFs * 0.45))}px rgba(255,255,255,0.22)`;
+      const sans = fontStack(PINTEREST4_SANS);
+      const serif = fontStack(PINTEREST4_SERIF);
+      const afterItalic = layout.serifHero;
+
+      content = (
+        <span
+          className="cap-pinterest4"
+          style={{
+            display: "inline-flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 0,
+            maxWidth: "100%",
+            width: "100%",
+            pointerEvents: "none",
+            textAlign: "center",
+            lineHeight: 0.88,
+          }}
+        >
+          {beforeText ? (
+            <span
+              className="cap-kinetic-word"
+              style={{
+                fontFamily: sans,
+                fontWeight: 800,
+                fontSize: beforeFs,
+                fontStyle: "normal",
+                letterSpacing: "-0.04em",
+                textTransform: "none",
+                color: "#FFFFFF",
+                textShadow: glow,
+                whiteSpace: "nowrap",
+                lineHeight: 0.95,
+              }}
+            >
+              {beforeText}
+            </span>
+          ) : null}
+          {heroText ? (
+            <span
+              className="cap-kinetic-word"
+              style={{
+                fontFamily: layout.serifHero ? serif : sans,
+                fontStyle: layout.serifHero ? "italic" : "normal",
+                fontWeight: layout.serifHero ? 400 : 800,
+                fontSize: heroFs,
+                letterSpacing: layout.serifHero ? "-0.03em" : "-0.05em",
+                textTransform: "none",
+                color: "#FFFFFF",
+                textShadow: glow,
+                lineHeight: 0.86,
+                whiteSpace: "nowrap",
+                marginTop: beforeText ? -heroFs * 0.06 : 0,
+              }}
+            >
+              {heroText}
+            </span>
+          ) : null}
+          {afterText ? (
+            <span
+              className="cap-kinetic-word"
+              style={{
+                fontFamily: sans,
+                fontWeight: 700,
+                fontStyle: afterItalic ? "italic" : "normal",
+                fontSize: afterFs,
+                letterSpacing: "-0.04em",
+                textTransform: "none",
+                color: "#FFFFFF",
+                textShadow: glow,
+                whiteSpace: "nowrap",
+                lineHeight: 0.95,
+                marginTop: -heroFs * 0.04,
+              }}
+            >
+              {afterText}
+            </span>
+          ) : null}
         </span>
       );
     }
@@ -1173,11 +1736,21 @@ export function SubtitleOverlay({
   }
 
   const anim =
-    hasText && !dragging.current && !useKinetic && !useScatter && !useHook && !useAtelier
+    hasText &&
+    !dragging.current &&
+    !useKinetic &&
+    !useScatter &&
+    !useHook &&
+    !useAtelier &&
+    !useShamani &&
+    !useRomance &&
+    !usePinterest &&
+    !usePinterest3 &&
+    !usePinterest4
       ? animationClass(style)
       : "";
   const animKey = hasText
-    ? `${segment!.start}-${style.animation}-${style.textEffect ?? "none"}-${useKinetic || useScatter || useHook || useEditorial || useAtelier ? filled : 0}`
+    ? `${segment!.start}-${style.animation}-${style.textEffect ?? "none"}-${useKinetic || useScatter || useHook || useEditorial || useAtelier || usePinterest ? filled : 0}`
     : "ghost";
 
   const barHeight = px(
@@ -1219,7 +1792,7 @@ export function SubtitleOverlay({
           right: 0,
           top: `${style.positionYPct}%`,
           transform: "translateY(-50%)",
-          padding: `0 ${(100 - style.maxWidthPct) / 2}%`,
+          padding: `0 ${(100 - focusWidthPct) / 2}%`,
           textAlign: style.align,
           pointerEvents: onPositionChange ? "auto" : "none",
         }}
@@ -1243,6 +1816,20 @@ export function SubtitleOverlay({
         }}
         title={onPositionChange ? "Drag up/down to place captions" : undefined}
       >
+        <div
+          ref={fitRef}
+          style={{
+            display: "block",
+            width: "100%",
+            transform: fitScale < 0.999 ? `scale(${fitScale})` : undefined,
+            transformOrigin:
+              style.align === "left"
+                ? "left center"
+                : style.align === "right"
+                  ? "right center"
+                  : "center center",
+          }}
+        >
         {prism && !isGhost ? (
           <span className="cap-prism" style={spanStyle}>
             {content}
@@ -1255,7 +1842,7 @@ export function SubtitleOverlay({
           <span className="cap-negative" style={spanStyle}>
             {content}
           </span>
-        ) : useKinetic || useScatter || useHook ? (
+        ) : useKinetic || useScatter || useHook || useRomance || useShamani || usePinterest || usePinterest3 || usePinterest4 || useAtelier || useEditorial ? (
           content
         ) : style.animation === "typewriter" && !isGhost ? (
           <span className="cap-typewriter-wrap" style={spanStyle}>
@@ -1264,18 +1851,19 @@ export function SubtitleOverlay({
         ) : (
           <span style={spanStyle}>{content}</span>
         )}
+        </div>
       </div>
       <style>{`
         @keyframes capFadeIn {
-          from { opacity: 0; }
+          from { opacity: 0.45; }
           to { opacity: 1; }
         }
         @keyframes capPopIn {
-          from { opacity: 0; transform: translateY(-50%) scale(0.85); }
+          from { opacity: 0.55; transform: translateY(-50%) scale(0.92); }
           to { opacity: 1; transform: translateY(-50%) scale(1); }
         }
         @keyframes capKineticIn {
-          from { opacity: 0; }
+          from { opacity: 0.45; }
           to { opacity: 1; }
         }
         @keyframes capPrismShimmer {
@@ -1293,16 +1881,16 @@ export function SubtitleOverlay({
           100% { background-position: 0% 50%; }
         }
         .cap-anim-fade {
-          animation: capFadeIn 0.28s ease-out both;
+          animation: capFadeIn 0.1s ease-out both;
         }
         .cap-anim-pop {
-          animation: capPopIn 0.32s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+          animation: capPopIn 0.14s cubic-bezier(0.22, 1.2, 0.36, 1) both;
         }
         .cap-anim-typewriter {
-          animation: capFadeIn 0.2s ease-out both;
+          animation: capFadeIn 0.1s ease-out both;
         }
         .cap-kinetic-word {
-          animation: capKineticIn 0.28s cubic-bezier(0.22, 1.15, 0.36, 1) both;
+          animation: capKineticIn 0.1s cubic-bezier(0.22, 1.15, 0.36, 1) both;
         }
         @keyframes capAtelierDraw {
           from { transform: scaleX(0); opacity: 0.4; }

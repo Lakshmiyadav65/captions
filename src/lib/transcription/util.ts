@@ -83,7 +83,8 @@ export function splitTranscriptIntoSegments(
 
 /** Allowed range for user-customizable words-per-frame density. */
 export const WORDS_PER_FRAME_MIN = 1;
-export const WORDS_PER_FRAME_MAX = 6;
+/** Higher max so phrase styles (e.g. Raj Shamani) can keep a full line on screen. */
+export const WORDS_PER_FRAME_MAX = 12;
 export const WORDS_PER_FRAME_DEFAULT = 2;
 
 export function clampWordsPerFrame(n: number): number {
@@ -155,7 +156,7 @@ export function splitSegmentsToMaxWords(
       t = end;
     });
   }
-  return out;
+  return extendCaptionHolds(out);
 }
 
 /**
@@ -206,6 +207,65 @@ function flattenSegmentWords(segments: Segment[]): Word[] {
     });
   }
   return out;
+}
+
+/** Floor so a 1–2 word flash still has time to register. */
+export const CAPTION_MIN_HOLD_SEC = 0.9;
+/** Extra reading time per word (~200 wpm). */
+export const CAPTION_HOLD_PER_WORD_SEC = 0.28;
+export const CAPTION_MAX_HOLD_SEC = 3.2;
+/** Tiny gap so consecutive frames don't overlap. */
+export const CAPTION_HOLD_GAP_SEC = 0.04;
+
+function captionWordCount(seg: Segment): number {
+  if (seg.words?.length) return seg.words.length;
+  return seg.text.split(/\s+/).filter(Boolean).length || 1;
+}
+
+function minHoldSec(seg: Segment): number {
+  const n = captionWordCount(seg);
+  return Math.min(
+    CAPTION_MAX_HOLD_SEC,
+    Math.max(CAPTION_MIN_HOLD_SEC, n * CAPTION_HOLD_PER_WORD_SEC),
+  );
+}
+
+/**
+ * Keep start times locked to speech, but hold each line long enough to read.
+ * Extends `end` into pauses / up to the next caption — never delays the start,
+ * and never overlaps the following line.
+ */
+export function extendCaptionHolds(segments: Segment[]): Segment[] {
+  if (segments.length <= 1) {
+    return segments.map((s) => {
+      const end = Math.max(s.end, s.start + minHoldSec(s));
+      return end === s.end ? s : { ...s, end };
+    });
+  }
+
+  const order = segments
+    .map((s, i) => i)
+    .sort((a, b) => {
+      const da = segments[a]!.start - segments[b]!.start;
+      return da !== 0 ? da : a - b;
+    });
+
+  const ends = segments.map((s) => s.end);
+  for (let k = 0; k < order.length; k++) {
+    const i = order[k]!;
+    const s = segments[i]!;
+    const nextIdx = order[k + 1];
+    const desired = Math.max(s.end, s.start + minHoldSec(s));
+    if (nextIdx === undefined) {
+      ends[i] = desired;
+      continue;
+    }
+    const limit = segments[nextIdx]!.start - CAPTION_HOLD_GAP_SEC;
+    // Never overlap the next line — if speech is faster than reading, cut the hold.
+    ends[i] = Math.max(s.start + 0.04, Math.min(desired, limit));
+  }
+
+  return segments.map((s, i) => (ends[i] === s.end ? s : { ...s, end: ends[i]! }));
 }
 
 // Split an array into groups of `size`. When size > 1, merge a lone trailing item into the

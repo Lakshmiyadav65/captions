@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { Segment } from "@/lib/transcription/types";
 import type { SubtitleStyle } from "@/lib/subtitles/style";
 import { tokenizeSegment, filledCount } from "@/lib/subtitles/karaoke";
+import { shamaniFilledAt } from "@/lib/subtitles/kinetic";
 import {
   estimateCaptionRectPct,
   evaluateCaptionVisibility,
@@ -177,8 +178,12 @@ export function PreviewStage({
             style.animation === "hook" ||
             style.animation === "editorial" ||
             style.animation === "atelier" ||
-            style.animation === "romance")
-            ? filledCount(tokenizeSegment(seg), t)
+            style.animation === "shamani" ||
+            style.animation === "pinterest" ||
+            style.animation === "pinterest4")
+            ? style.animation === "shamani"
+              ? shamaniFilledAt(tokenizeSegment(seg), t, seg.end)
+              : filledCount(tokenizeSegment(seg), t)
             : 0;
         // Only re-render when the active line or the filled-word count actually changes.
         setActive((prev) =>
@@ -276,6 +281,7 @@ export function PreviewStage({
               segment={active.seg}
               style={style}
               height={box.h}
+              width={box.w}
               filled={active.filled}
               onPositionChange={onPositionChange}
             />

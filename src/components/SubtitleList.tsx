@@ -274,9 +274,6 @@ export function SubtitleList({
               )}
             </div>
           </div>
-          <p className="text-[10px] text-neutral-600">
-            Keys: J/K next·prev · S split · M merge · F strip fillers
-          </p>
         </>
       )}
 
