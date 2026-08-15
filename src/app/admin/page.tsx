@@ -3,7 +3,7 @@ import {
   adminConfigured,
   isAdminAuthed,
 } from "@/lib/admin-auth";
-import { adminLoginAction, adminLogoutAction } from "./actions";
+import { adminLoginAction, adminLogoutAction, adminAdjustCreditsAction } from "./actions";
 
 export const metadata = {
   title: "Admin — Caplio",
@@ -73,6 +73,7 @@ export default async function AdminPage({
         plan: true,
         createdAt: true,
         _count: { select: { jobs: true } },
+        creditBalance: { select: { availableMinutes: true } },
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -97,12 +98,45 @@ export default async function AdminPage({
         </form>
       </div>
 
+      <form
+        className="mb-6 grid gap-3 rounded-2xl border border-white/10 p-4 sm:grid-cols-[1fr_120px_1fr_auto]"
+        action={adminAdjustCreditsAction}
+      >
+        <input
+          name="email"
+          type="email"
+          required
+          placeholder="user@email"
+          className="rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm outline-none"
+        />
+        <input
+          name="minutes"
+          type="number"
+          step="0.1"
+          required
+          placeholder="+/- min"
+          className="rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm outline-none"
+        />
+        <input
+          name="description"
+          placeholder="Adjustment note"
+          className="rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm outline-none"
+        />
+        <button
+          type="submit"
+          className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950"
+        >
+          Adjust minutes
+        </button>
+      </form>
+
       <div className="overflow-x-auto rounded-2xl border border-white/10">
         <table className="w-full min-w-[520px] text-left text-sm">
           <thead className="border-b border-white/10 bg-white/[0.03] text-xs uppercase tracking-wide text-neutral-500">
             <tr>
               <th className="px-4 py-3 font-medium">Email</th>
               <th className="px-4 py-3 font-medium">Name</th>
+              <th className="px-4 py-3 font-medium">Minutes</th>
               <th className="px-4 py-3 font-medium">Videos</th>
               <th className="px-4 py-3 font-medium">Signed up</th>
             </tr>
@@ -115,6 +149,9 @@ export default async function AdminPage({
                 </td>
                 <td className="px-4 py-3 text-neutral-300">{u.name ?? "—"}</td>
                 <td className="px-4 py-3 tabular-nums text-neutral-200">
+                  {Math.round((u.creditBalance?.availableMinutes ?? 0) * 10) / 10}
+                </td>
+                <td className="px-4 py-3 tabular-nums text-neutral-200">
                   {u._count.jobs}
                 </td>
                 <td className="px-4 py-3 text-neutral-400">
@@ -124,7 +161,7 @@ export default async function AdminPage({
             ))}
             {users.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-neutral-500">
+                <td colSpan={5} className="px-4 py-8 text-center text-neutral-500">
                   No users yet.
                 </td>
               </tr>

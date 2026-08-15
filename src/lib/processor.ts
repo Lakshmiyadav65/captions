@@ -17,6 +17,13 @@ import { applySpelling, BUILTIN_SPELLING } from "./spelling";
 import { getUserSpellingRules } from "./spelling-server";
 import { log } from "./log";
 import { reportError } from "./sentry";
+import {
+  InsufficientCreditsError,
+  minutesFromDurationSec,
+  releaseJobCredits,
+  reserveJobCredits,
+} from "./credits";
+import { getUserLimits, monthlyUsedMinutes } from "./quota";
 
 // Queue-agnostic transcription pipeline. Called directly by the inline queue or by the
 // standalone BullMQ worker. Pulls the video from storage to a local temp file, extracts
@@ -185,6 +192,25 @@ export async function processJob(jobId: string): Promise<void> {
         durationSec: duration,
         ...(size ? { width: size.width, height: size.height } : {}),
       });
+
+      if (job.userId) {
+        const limits = await getUserLimits(job.userId);
+        const usedMinutes = await monthlyUsedMinutes(job.userId, jobId);
+        try {
+          await reserveJobCredits({
+            userId: job.userId,
+            jobId,
+            videoMinutes: minutesFromDurationSec(duration),
+            monthlyMinutes: limits.monthlyMinutes,
+            usedMinutes,
+          });
+        } catch (err) {
+          if (err instanceof InsufficientCreditsError) {
+            throw err;
+          }
+          throw err;
+        }
+      }
 
       const maxChunkSec = provider.maxChunkSeconds ?? 0;
       // Prefer larger chunks on Vercel (fewer sequential API round-trips within maxDuration).
@@ -369,6 +395,7 @@ export async function processJob(jobId: string): Promise<void> {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown processing error";
+    await releaseJobCredits(jobId).catch(() => {});
     await update(jobId, { status: "failed", error: message.slice(0, 1000) });
     await reportError("job.failed", err, {
       jobId,

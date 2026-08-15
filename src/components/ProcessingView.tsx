@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 
 const STEPS = [
   { id: "queued", label: "Queued" },
@@ -194,14 +195,20 @@ export function ProcessingFailed({
         <h2 className="ed-process-title">Processing failed</h2>
         <p className="ed-process-copy">{error}</p>
         <div className="ed-process-fail-actions">
-          <button
-            type="button"
-            onClick={onRetry}
-            disabled={retrying}
-            className="tc-btn tc-btn--primary"
-          >
-            {retrying ? "Retrying…" : "Try again"}
-          </button>
+          {error && /caption minutes|Buy more minutes/i.test(error) ? (
+            <Link href="/billing#prepaid" className="tc-btn tc-btn--primary">
+              Buy More Minutes
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={onRetry}
+              disabled={retrying}
+              className="tc-btn tc-btn--primary"
+            >
+              {retrying ? "Retrying…" : "Try again"}
+            </button>
+          )}
           <a href="/#upload" className="ed-process-link">
             Upload a different video
           </a>

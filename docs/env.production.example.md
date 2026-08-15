@@ -58,8 +58,23 @@ SENTRY_DSN=
 SENTRY_ENVIRONMENT=production
 SENTRY_RELEASE=
 
-# --- Optional ---
-ANTHROPIC_API_KEY=
+# --- Billing (Stripe) ---
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_CREATOR=
+STRIPE_PRICE_PRO=
+# One-time Prices (not recurring) for prepaid caption minutes
+STRIPE_PRICE_MINUTES_5=
+STRIPE_PRICE_MINUTES_10=
+
+# Webhook URL: https://YOUR_DOMAIN/api/billing/webhook
+# (alias: /api/payments/webhook)
+# Enable events: checkout.session.completed, checkout.session.expired,
+# checkout.session.async_payment_failed, checkout.session.async_payment_succeeded,
+# payment_intent.succeeded, charge.refunded, customer.subscription.updated,
+# customer.subscription.deleted
+
+
 ```
 
 ## Processes

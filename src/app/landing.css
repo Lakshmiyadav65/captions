@@ -1362,6 +1362,31 @@ html[data-landing-theme="dark"] .landing-page .lp-pricing {
   color: #8e8e8e;
 }
 
+.lp-prepaid {
+  margin-top: clamp(48px, 7vh, 80px);
+}
+
+.lp-prepaid-grid {
+  margin-top: clamp(28px, 4vh, 40px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(16px, 2vw, 24px);
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.lp-prepaid-copy {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.lp-prepaid-copy-light {
+  color: rgba(255, 255, 255, 0.72);
+}
+
 .lp-price-features {
   list-style: none;
   margin: 0;
@@ -1638,6 +1663,7 @@ html[data-landing-theme="dark"] .landing-page .lp-footer-col a {
   padding-top: 22px;
   border-top: 1px solid #efefef;
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
@@ -1645,6 +1671,44 @@ html[data-landing-theme="dark"] .landing-page .lp-footer-col a {
   font-size: 0.7rem;
   letter-spacing: 0.08em;
   color: #adadad;
+}
+
+.lp-footer-mark {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--accent-wash, #f8ece8);
+  border: 1px solid var(--accent-line, #f0d4cc);
+  color: var(--accent, #d95438);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+.lp-footer-mark small {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--accent-deep, #c2472e);
+  opacity: 0.9;
+}
+
+.landing-page[data-theme="dark"] .lp-footer-mark,
+html[data-landing-theme="dark"] .landing-page .lp-footer-mark {
+  background: rgba(217, 84, 56, 0.16);
+  border-color: rgba(217, 84, 56, 0.35);
+  color: #f0a090;
+}
+
+.landing-page[data-theme="dark"] .lp-footer-mark small,
+html[data-landing-theme="dark"] .landing-page .lp-footer-mark small {
+  color: #f4c4b8;
 }
 
 .sr-only {
@@ -1692,6 +1756,10 @@ html[data-landing-theme="dark"] .landing-page .lp-footer-col a {
 
   .lp-price-featured {
     transform: none;
+  }
+
+  .lp-prepaid-grid {
+    grid-template-columns: 1fr;
   }
 
   .lp-faq-intro {

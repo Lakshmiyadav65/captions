@@ -31,7 +31,12 @@ export function friendlyJobError(raw: string | null | undefined): string {
   if (m.includes("too long") || (m.includes("max") && m.includes("minute"))) {
     return "This video is longer than your plan allows. Trim it or raise MAX_VIDEO_MINUTES.";
   }
-  if (m.includes("quota") || m.includes("monthly limit")) {
+  if (
+    m.includes("caption minutes") ||
+    m.includes("buy more minutes") ||
+    m.includes("quota") ||
+    m.includes("monthly limit")
+  ) {
     return raw;
   }
   if (m.includes("enospc") || m.includes("no space")) {

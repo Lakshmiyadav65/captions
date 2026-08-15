@@ -88,6 +88,8 @@ const schema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRICE_CREATOR: z.string().optional(),
   STRIPE_PRICE_PRO: z.string().optional(),
+  STRIPE_PRICE_MINUTES_5: z.string().optional(),
+  STRIPE_PRICE_MINUTES_10: z.string().optional(),
   APP_URL: z.string().optional(),
 
   // Simple password for /admin (users + video counts). Leave unset to disable the page.
@@ -145,6 +147,8 @@ export const config = {
     webhookSecret: env.STRIPE_WEBHOOK_SECRET ?? "",
     priceCreator: env.STRIPE_PRICE_CREATOR ?? "",
     pricePro: env.STRIPE_PRICE_PRO ?? "",
+    priceMinutes5: env.STRIPE_PRICE_MINUTES_5 ?? "",
+    priceMinutes10: env.STRIPE_PRICE_MINUTES_10 ?? "",
     appUrl: env.APP_URL ?? "",
   },
   limits: {
@@ -175,6 +179,9 @@ export function publicConfig() {
     maxImageMB: config.limits.maxImageMB,
     monthlyAnalyses: config.limits.monthlyAnalyses,
     stripeEnabled: config.stripeEnabled,
+    prepaidEnabled: Boolean(
+      env.STRIPE_SECRET_KEY && (env.STRIPE_PRICE_MINUTES_5 || env.STRIPE_PRICE_MINUTES_10),
+    ),
   };
 }
 

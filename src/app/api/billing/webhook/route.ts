@@ -4,9 +4,24 @@ import { config } from "@/lib/config";
 import { prisma } from "@/lib/db";
 import { planFromPriceId } from "@/lib/plans";
 import { getStripe } from "@/lib/stripe";
+import { applyPaidPurchase, markPurchaseFailed, refundPurchase } from "@/lib/credits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+async function creditFromSession(session: Stripe.Checkout.Session) {
+  if (session.mode !== "payment") return;
+  if (session.metadata?.kind !== "credits") return;
+  const purchaseId = session.metadata?.purchaseId;
+  if (!purchaseId) return;
+  const paymentId =
+    typeof session.payment_intent === "string"
+      ? session.payment_intent
+      : session.payment_intent?.id ?? session.id;
+  if (session.payment_status === "paid" || session.status === "complete") {
+    await applyPaidPurchase({ purchaseId, paymentId });
+  }
+}
 
 export async function POST(req: Request) {
   const stripe = getStripe();
@@ -37,6 +52,10 @@ export async function POST(req: Request) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
+        if (session.mode === "payment") {
+          await creditFromSession(session);
+          break;
+        }
         const userId = session.metadata?.userId;
         if (!userId || session.mode !== "subscription") break;
         const subId =
@@ -59,6 +78,41 @@ export async function POST(req: Request) {
             stripePriceId: priceId,
           },
         });
+        break;
+      }
+      case "checkout.session.async_payment_succeeded": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await creditFromSession(session);
+        break;
+      }
+      case "checkout.session.async_payment_failed":
+      case "checkout.session.expired": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const purchaseId = session.metadata?.purchaseId;
+        if (session.metadata?.kind === "credits" && purchaseId) {
+          await markPurchaseFailed(purchaseId);
+        }
+        break;
+      }
+      case "payment_intent.succeeded": {
+        const pi = event.data.object as Stripe.PaymentIntent;
+        const purchaseId = pi.metadata?.purchaseId;
+        if (pi.metadata?.kind === "credits" && purchaseId) {
+          await applyPaidPurchase({ purchaseId, paymentId: pi.id });
+        }
+        break;
+      }
+      case "charge.refunded": {
+        const charge = event.data.object as Stripe.Charge;
+        const paymentIntent =
+          typeof charge.payment_intent === "string"
+            ? charge.payment_intent
+            : charge.payment_intent?.id;
+        if (!paymentIntent) break;
+        const purchase = await prisma.creditPurchase.findFirst({
+          where: { paymentId: paymentIntent, status: "PAID" },
+        });
+        if (purchase) await refundPurchase(purchase.id);
         break;
       }
       case "customer.subscription.updated":

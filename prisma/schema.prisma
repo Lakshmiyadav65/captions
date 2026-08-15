@@ -29,6 +29,9 @@ model Job {
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  /// Prepaid minutes reserved/deducted for this job (0 if monthly quota covered it).
+  creditReservedMin Float @default(0)
+
   transcript Transcript?
 
   @@index([userId])
@@ -82,14 +85,65 @@ model User {
   stripeSubscriptionId String?
   stripePriceId        String?
 
-  accounts       Account[]
-  sessions       Session[]
-  jobs           Job[]
-  spellingRules  SpellingRule[]
-  styleAnalyses  StyleAnalysis[]
-  savedStyles    SavedStyle[]
-  generationLogs GenerationLog[]
-  styleRequests  StyleRequest[]
+  accounts            Account[]
+  sessions            Session[]
+  jobs                Job[]
+  spellingRules       SpellingRule[]
+  styleAnalyses       StyleAnalysis[]
+  savedStyles         SavedStyle[]
+  generationLogs      GenerationLog[]
+  styleRequests       StyleRequest[]
+  creditBalance       CreditBalance?
+  creditTransactions  CreditTransaction[]
+  creditPurchases     CreditPurchase[]
+}
+
+/// Prepaid caption-minute wallet. Never expires; accumulates across purchases.
+model CreditBalance {
+  userId           String   @id
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availableMinutes Float    @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+/// Ledger for prepaid minutes (purchase, usage, refund, admin adjustment).
+model CreditTransaction {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String // PURCHASE | USAGE | REFUND | ADJUSTMENT
+  minutes       Float
+  balanceBefore Float
+  balanceAfter  Float
+  paymentId     String?
+  orderId       String?
+  videoId       String?
+  description   String?
+  status        String   @default("COMPLETED") // COMPLETED | RESERVED | RELEASED
+  createdAt     DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([videoId])
+}
+
+/// One Stripe Checkout (one-time) attempt to buy a prepaid pack.
+model CreditPurchase {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packId          String
+  minutes         Float
+  amount          Int      @default(0)
+  currency        String   @default("inr")
+  paymentProvider String   @default("stripe")
+  paymentId       String?  @unique
+  orderId         String?  @unique
+  status          String   @default("PENDING") // PENDING | PAID | FAILED | REFUNDED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId, createdAt])
 }
 
 // --- Caption Style Analyzer ---

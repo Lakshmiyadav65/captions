@@ -7,6 +7,7 @@ type Usage = {
   planLabel: string;
   usedMinutes: number;
   monthlyMinutes: number;
+  prepaidMinutes?: number;
   stripeEnabled: boolean;
 };
 
@@ -25,12 +26,22 @@ export function QuotaBadge() {
       .catch(() => {});
   }, []);
 
-  if (!usage) return null;
+  if (!usage) {
+    return (
+      <span
+        className="inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px]"
+        style={{
+          border: "1px solid var(--line)",
+          background: "var(--surface)",
+          color: "var(--ink-4)",
+        }}
+      >
+        Loading minutes…
+      </span>
+    );
+  }
 
-  const pct = Math.min(
-    100,
-    Math.round((usage.usedMinutes / Math.max(1, usage.monthlyMinutes)) * 100),
-  );
+  const prepaid = usage.prepaidMinutes ?? 0;
 
   return (
     <span
@@ -40,25 +51,10 @@ export function QuotaBadge() {
         background: "var(--surface)",
         color: "var(--ink-2)",
       }}
-      title="Minutes used this month"
+      title="Prepaid caption minutes — never expire"
     >
       <span className="font-medium" style={{ color: "var(--ink)" }}>
-        {usage.planLabel}
-      </span>
-      <span className="tabular-nums" style={{ color: "var(--ink-3)" }}>
-        {usage.usedMinutes}/{usage.monthlyMinutes} min
-      </span>
-      <span
-        className="h-1.5 w-12 overflow-hidden rounded-full"
-        style={{ background: "var(--bg)" }}
-      >
-        <span
-          className="block h-full rounded-full"
-          style={{
-            width: `${pct}%`,
-            background: pct >= 90 ? "var(--warn)" : "var(--accent)",
-          }}
-        />
+        {prepaid} min available
       </span>
     </span>
   );

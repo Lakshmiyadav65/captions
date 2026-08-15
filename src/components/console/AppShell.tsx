@@ -15,6 +15,7 @@ type Usage = {
   planLabel: string;
   usedMinutes: number;
   monthlyMinutes: number;
+  prepaidMinutes?: number;
 };
 
 function initials(user: ConsoleUser | null): string {
@@ -236,6 +237,16 @@ function AppShellInner({
           {usage ? (
             <div className="tc-side-meter">
               <div className="tc-side-meter-row">
+                <b>Caption Minutes</b>
+                <span className="mono">
+                  {usage.prepaidMinutes ?? 0}
+                  <em> min</em>
+                </span>
+              </div>
+              <div className="tc-side-meter-row tc-side-meter-row--muted">
+                Never expires
+              </div>
+              <div className="tc-side-meter-row" style={{ marginTop: 8 }}>
                 <b>{usage.planLabel}</b>
                 <span className="mono">
                   {usage.usedMinutes}
@@ -253,10 +264,10 @@ function AppShellInner({
                 <i style={{ width: `${minutesPct}%` }} />
               </div>
               <Link
-                href="/billing"
+                href="/billing#prepaid"
                 className="tc-btn tc-btn--outline tc-btn--sm tc-side-upgrade"
               >
-                Upgrade
+                {(usage.prepaidMinutes ?? 0) > 0 ? "Buy More Minutes" : "Buy Minutes"}
               </Link>
             </div>
           ) : (

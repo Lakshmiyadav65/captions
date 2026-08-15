@@ -2,6 +2,7 @@ import { config } from "./config";
 import { prisma } from "./db";
 import { isPlanId, PLANS, type PlanId } from "./plans";
 import { log } from "./log";
+import { getAvailableMinutes } from "./credits";
 
 // Per-user guardrails for a hosted, multi-tenant deployment: cap concurrent jobs and
 // monthly transcription minutes. Paid Razorpay plans will raise limits via User.plan.
@@ -10,6 +11,7 @@ export interface QuotaResult {
   ok: boolean;
   reason?: string;
   code?: "quota_active_jobs" | "quota_minutes" | "quota_analyses" | "quota_generations";
+  buyHref?: string;
 }
 
 /** Vercel Hobby caps inline ASR at ~300s — anything still "active" past this is stuck. */
@@ -89,11 +91,14 @@ export async function assertWithinQuota(userId: string): Promise<QuotaResult> {
     where: { userId, createdAt: { gte: startOfMonth() } },
   });
   const usedMinutes = (agg._sum.durationSec ?? 0) / 60;
-  if (usedMinutes >= limits.monthlyMinutes) {
+  const prepaid = await getAvailableMinutes(userId);
+  if (usedMinutes >= limits.monthlyMinutes && prepaid <= 0) {
     return {
       ok: false,
       code: "quota_minutes",
-      reason: `You've used your monthly ${limits.monthlyMinutes} demo minutes. Try again next month.`,
+      buyHref: "/billing#prepaid",
+      reason:
+        "You don't have enough caption minutes for this video. Buy more minutes to continue.",
     };
   }
 
@@ -134,12 +139,31 @@ export async function usageSummary(userId: string) {
     _sum: { durationSec: true },
     where: { userId, createdAt: { gte: startOfMonth() } },
   });
+  const prepaidMinutes = await getAvailableMinutes(userId);
   return {
     plan: limits.planId,
     planLabel: limits.label,
     usedMinutes: Math.round(((agg._sum.durationSec ?? 0) / 60) * 10) / 10,
     monthlyMinutes: limits.monthlyMinutes,
+    prepaidMinutes,
     maxActiveJobs: limits.maxActiveJobs,
     stripeEnabled: config.stripeEnabled,
+    prepaidEnabled: Boolean(
+      config.stripeEnabled &&
+        (config.stripe.priceMinutes5 || config.stripe.priceMinutes10),
+    ),
   };
+}
+
+/** Monthly minutes already recorded, optionally excluding the job currently being processed. */
+export async function monthlyUsedMinutes(userId: string, excludeJobId?: string): Promise<number> {
+  const agg = await prisma.job.aggregate({
+    _sum: { durationSec: true },
+    where: {
+      userId,
+      createdAt: { gte: startOfMonth() },
+      ...(excludeJobId ? { id: { not: excludeJobId } } : {}),
+    },
+  });
+  return (agg._sum.durationSec ?? 0) / 60;
 }

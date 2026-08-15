@@ -13,7 +13,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:postgres": "node scripts/use-postgres.mjs",
-    "blob:cleanup": "node scripts/cleanup-vercel-blob.mjs"
+    "blob:cleanup": "node scripts/cleanup-vercel-blob.mjs",
+    "test": "tsx --test src/lib/credits.unit.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
