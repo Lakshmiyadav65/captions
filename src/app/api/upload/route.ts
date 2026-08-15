@@ -3,7 +3,7 @@ import { extname } from "node:path";
 import { Readable } from "node:stream";
 import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
 import { config } from "@/lib/config";
-import { prisma } from "@/lib/db";
+import { prisma, friendlyDbError } from "@/lib/db";
 import { enqueueJob } from "@/lib/queue";
 import { getStorage } from "@/lib/storage";
 import { requireUserId } from "@/lib/auth-helpers";
@@ -25,27 +25,7 @@ function safeExt(name: string): string {
 }
 
 function dbMisconfiguredMessage(err: unknown): string | null {
-  const message = err instanceof Error ? err.message : String(err);
-  const lower = message.toLowerCase();
-  if (
-    lower.includes("database") ||
-    lower.includes("prisma") ||
-    lower.includes("sqlite") ||
-    lower.includes("postgres") ||
-    lower.includes("p1001") ||
-    lower.includes("p1003") ||
-    lower.includes("p1010") ||
-    lower.includes("does not exist") ||
-    lower.includes("can't reach") ||
-    lower.includes("econnrefused")
-  ) {
-    return (
-      "Database is not configured for this deploy. On Vercel set DATABASE_URL to a " +
-      "Postgres URL (Neon / Vercel Postgres), enable it for Production and Build, " +
-      "then run: npx prisma db push"
-    );
-  }
-  return null;
+  return friendlyDbError(err);
 }
 
 export async function POST(req: NextRequest) {

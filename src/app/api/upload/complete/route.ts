@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, friendlyDbError } from "@/lib/db";
 import { enqueueJob } from "@/lib/queue";
 import { requireUserId } from "@/lib/auth-helpers";
 import { assertWithinQuota } from "@/lib/quota";
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ id: job.id });
   } catch (err) {
     await reportError("upload.blob_complete_failed", err, { userId });
-    const message = err instanceof Error ? err.message : "Upload failed";
+    const message = friendlyDbError(err) ?? (err instanceof Error ? err.message : "Upload failed");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
