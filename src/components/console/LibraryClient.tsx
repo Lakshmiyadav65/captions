@@ -149,11 +149,6 @@ export function LibraryClient({
     return list;
   }, [jobs, urlFilter, tab, showHome, query]);
 
-  const styleChip = (id: string) => {
-    const i = Math.abs([...id].reduce((a, c) => a + c.charCodeAt(0), 0));
-    return PRESETS[i % PRESETS.length]?.name ?? "Classic";
-  };
-
   const search = (
     <label className="tc-search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -368,13 +363,11 @@ export function LibraryClient({
                       {statusLabel(job.status)}
                       {kind === "work" ? ` ${job.progress}%` : ""}
                     </span>
-                    <span className="tc-project-frame">9:16 frame</span>
                     <span className="tc-project-dur mono">{formatLength(job.durationSec)}</span>
                   </div>
                   <div className="tc-project-body">
                     <b className="tc-project-title">{job.originalName}</b>
                     <span className="tc-project-meta">
-                      <span className="tc-project-style">{styleChip(job.id)}</span>
                       <span className="tc-project-time">{relativeTime(job.updatedAt)}</span>
                     </span>
                   </div>

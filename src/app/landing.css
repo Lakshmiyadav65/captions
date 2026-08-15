@@ -555,7 +555,7 @@ html[data-landing-theme="dark"] .landing-page .lp-hero {
 }
 
 .lp-upload-card {
-  margin: clamp(40px, 6vh, 64px) auto 0;
+  margin: clamp(28px, 4vh, 44px) auto 0;
   max-width: 900px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -695,57 +695,29 @@ html[data-landing-theme="dark"] .landing-page .lp-hero {
   font-weight: 600;
 }
 
-/* —— Style strip (video demos) —— */
+/* —— Style strip (three demos) —— */
 .lp-strip {
-  margin-top: clamp(36px, 5vh, 56px);
-  display: flex;
-  align-items: center;
+  margin: clamp(18px, 2.5vh, 28px) auto 0;
+  max-width: 900px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(10px, 1.4vw, 16px);
+  padding: 4px 2px 0;
 }
 
 .lp-strip-nav {
-  flex: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid #e4e4e4;
-  background: var(--surface);
-  color: var(--text-dark);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.lp-strip-nav:hover {
-  background: #f7f7f7;
-  border-color: #d4d4d4;
-}
-
-.lp-strip-track {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  gap: clamp(12px, 1.6vw, 20px);
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scroll-behavior: smooth;
-  /* Room for the selected ring so it isn’t clipped */
-  padding: 6px 4px 12px;
-  scrollbar-width: none;
-}
-
-.lp-strip-track::-webkit-scrollbar {
   display: none;
 }
 
+.lp-strip-track {
+  display: contents;
+}
+
 .lp-strip-card {
-  flex: 0 0 auto;
-  width: clamp(118px, 14vw, 168px);
+  width: 100%;
+  min-width: 0;
   padding: 0;
   margin: 0;
-  scroll-snap-align: start;
   border-radius: 18px;
   overflow: hidden;
   border: 2px solid transparent;
@@ -1790,21 +1762,11 @@ html[data-landing-theme="dark"] .landing-page .lp-footer-col a {
 
   .lp-strip {
     gap: 8px;
-  }
-
-  .lp-strip-nav {
-    width: 34px;
-    height: 34px;
-  }
-
-  .lp-strip-track {
-    gap: 10px;
-    padding: 4px 2px 10px;
+    margin-top: 14px;
   }
 
   .lp-strip-card {
-    width: clamp(108px, 34vw, 136px);
-    border-radius: 16px;
+    border-radius: 14px;
   }
 
   .lp-styles-grid,
@@ -1862,8 +1824,12 @@ html[data-landing-theme="dark"] .landing-page .lp-footer-col a {
     gap: 8px;
   }
 
+  .lp-strip {
+    gap: 6px;
+  }
+
   .lp-strip-card {
-    width: clamp(104px, 42vw, 132px);
+    border-radius: 12px;
   }
 
   .lp-styles-grid,
@@ -1959,18 +1925,12 @@ html[data-landing-theme="dark"] .landing-page .lp-footer-col a {
     font-size: 0.86rem;
   }
 
-  .lp-strip-nav {
-    width: 30px;
-    height: 30px;
-  }
-
-  .lp-strip-track {
-    gap: 8px;
+  .lp-strip {
+    gap: 6px;
   }
 
   .lp-strip-card {
-    width: 104px;
-    border-radius: 14px;
+    border-radius: 12px;
   }
 }
 

@@ -235,7 +235,6 @@ function BrandMark() {
 }
 
 function Hero({ canStart }: { canStart: boolean }) {
-  const stripRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string>(STRIP_STYLES[0].id);
   const selected = STRIP_STYLES.find((s) => s.id === selectedId) ?? STRIP_STYLES[0];
 
@@ -255,15 +254,6 @@ function Hero({ canStart }: { canStart: boolean }) {
 
   const selectStyle = (id: string) => {
     setSelectedId(id);
-  };
-
-  const scrollStrip = (dir: number) => {
-    const el = stripRef.current;
-    if (!el) return;
-    el.scrollBy({
-      left: dir * Math.max(220, el.clientWidth * 0.7),
-      behavior: "smooth",
-    });
   };
 
   return (
@@ -318,55 +308,33 @@ function Hero({ canStart }: { canStart: boolean }) {
           </div>
         </div>
 
-        <div className="lp-strip">
-          <button
-            type="button"
-            className="lp-strip-nav"
-            aria-label="Previous styles"
-            onClick={() => scrollStrip(-1)}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 6l-6 6 6 6" />
-            </svg>
-          </button>
-          <div className="lp-strip-track" ref={stripRef} role="listbox" aria-label="Caption styles">
-            {STRIP_STYLES.map((item) => {
-              const isSelected = item.id === selectedId;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="option"
-                  aria-selected={isSelected}
-                  className={`lp-strip-card${isSelected ? " is-selected" : ""}`}
-                  onClick={() => selectStyle(item.id)}
-                >
-                  <div className="lp-strip-preview lp-strip-preview--video">
-                    <video
-                      src={item.src}
-                      muted
-                      loop
-                      playsInline
-                      autoPlay
-                      preload="metadata"
-                      aria-hidden
-                    />
-                    <span className="lp-strip-label">{item.name}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            className="lp-strip-nav"
-            aria-label="Next styles"
-            onClick={() => scrollStrip(1)}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10 6l6 6-6 6" />
-            </svg>
-          </button>
+        <div className="lp-strip" role="listbox" aria-label="Caption styles">
+          {STRIP_STYLES.map((item) => {
+            const isSelected = item.id === selectedId;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                className={`lp-strip-card${isSelected ? " is-selected" : ""}`}
+                onClick={() => selectStyle(item.id)}
+              >
+                <div className="lp-strip-preview lp-strip-preview--video">
+                  <video
+                    src={item.src}
+                    muted
+                    loop
+                    playsInline
+                    autoPlay
+                    preload="metadata"
+                    aria-hidden
+                  />
+                  <span className="lp-strip-label">{item.name}</span>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
     </section>
