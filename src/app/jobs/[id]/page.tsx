@@ -26,7 +26,8 @@ export default async function JobPage({
   }
 
   const videoUrl = await resolveVideoUrl(job.videoKey);
-  const user = await currentUser();
+  const rawUser = await currentUser();
+  const user = config.authEnabled ? rawUser : null;
 
   return (
     <Editor

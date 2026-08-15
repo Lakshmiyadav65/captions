@@ -25,7 +25,9 @@ export default async function LibraryPage({
   }
 
   const { filter } = await searchParams;
-  const user = await currentUser();
+  const rawUser = await currentUser();
+  // Never surface the synthetic local@dev identity in the UI.
+  const user = config.authEnabled ? rawUser : null;
 
   const rows = userId
     ? await prisma.job.findMany({
