@@ -9,6 +9,8 @@ import { ThemeToggle } from "@/components/landing/ThemeToggle";
 export type { LandingUser };
 
 const SIGN_IN_HREF = `/signin?next=${encodeURIComponent("/?start=1")}`;
+const DASHBOARD_HREF = "/library";
+const DASHBOARD_SIGN_IN_HREF = `/signin?next=${encodeURIComponent(DASHBOARD_HREF)}`;
 
 function initials(user: LandingUser): string {
   const name = (user.name ?? "").trim();
@@ -125,6 +127,12 @@ export function LandingNavbar({
         </nav>
 
         <div className="nav-actions">
+          <Link
+            href={user || canStart ? DASHBOARD_HREF : DASHBOARD_SIGN_IN_HREF}
+            className="nav-dashboard-cta"
+          >
+            Open Dashboard
+          </Link>
           <ThemeToggle />
           {user ? (
             <ProfileMenu user={user} />
