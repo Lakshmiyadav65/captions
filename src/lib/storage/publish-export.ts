@@ -1,6 +1,7 @@
 import { createReadStream } from "node:fs";
 import { getStorage } from "@/lib/storage";
 import { config } from "@/lib/config";
+import { contentDispositionAttachment } from "@/lib/export-filename";
 
 /**
  * Persist a burned MP4 and return a browser-downloadable URL.
@@ -12,11 +13,15 @@ import { config } from "@/lib/config";
 export async function publishExportMp4(
   key: string,
   filePath: string,
+  opts?: { filename?: string },
 ): Promise<{ url: string; key: string }> {
+  const filename = opts?.filename ? contentDispositionAttachment(opts.filename) : undefined;
+
   if (config.usesS3) {
     const storage = getStorage();
     await storage.put(key, createReadStream(filePath), {
       contentType: "video/mp4",
+      contentDisposition: filename,
     });
     return { url: await storage.getUrl(key), key };
   }
@@ -29,6 +34,7 @@ export async function publishExportMp4(
       addRandomSuffix: true,
       multipart: true,
       token: process.env.BLOB_READ_WRITE_TOKEN,
+      ...(filename ? { contentDisposition: filename } : {}),
     });
     // Use the plain CDN URL (not ?download=1). The client fetches bytes and
     // triggers a same-origin blob: download — more reliable in Chrome.
@@ -44,6 +50,7 @@ export async function publishExportMp4(
   const storage = getStorage();
   await storage.put(key, createReadStream(filePath), {
     contentType: "video/mp4",
+    contentDisposition: filename,
   });
   return { url: await storage.getUrl(key), key };
 }

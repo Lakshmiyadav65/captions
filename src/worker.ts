@@ -1,7 +1,8 @@
 import { Worker } from "bullmq";
 import { config, env } from "./lib/config";
 import { processJob } from "./lib/processor";
-import { burnCaptionedMp4, type ExportBurnInput } from "./lib/export-burn";
+import { prisma } from "./lib/db";
+import { burnCaptionedMp4, type ExportBurnInput, type ExportBurnProgress } from "./lib/export-burn";
 import {
   EXPORT_QUEUE_NAME,
   QUEUE_NAME,
@@ -39,7 +40,20 @@ const exportWorker = new Worker(
   async (job) => {
     const input = job.data as ExportBurnInput;
     log.info("export.started", { jobId: input.jobId, queueJobId: job.id });
-    return burnCaptionedMp4(input);
+    return burnCaptionedMp4(input, {
+      onProgress: async (update: ExportBurnProgress) => {
+        await job.updateProgress(update);
+        await prisma.job
+          .update({
+            where: { id: input.jobId },
+            data: {
+              exportStatus: update.status,
+              exportProgress: update.percent,
+            },
+          })
+          .catch(() => undefined);
+      },
+    });
   },
   { connection, concurrency: exportConcurrency },
 );
@@ -61,10 +75,22 @@ exportWorker.on("completed", (job) =>
   }),
 );
 exportWorker.on("failed", (job, err) => {
+  const jobId = (job?.data as ExportBurnInput | undefined)?.jobId;
   void reportError("export.failed", err, {
     queueJobId: job?.id,
-    jobId: (job?.data as ExportBurnInput | undefined)?.jobId,
+    jobId,
   });
+  if (jobId) {
+    void prisma.job
+      .update({
+        where: { id: jobId },
+        data: {
+          exportStatus: "failed",
+          exportError: err instanceof Error ? err.message.slice(0, 500) : "Export failed",
+        },
+      })
+      .catch(() => undefined);
+  }
 });
 
 log.info("worker.listening", {

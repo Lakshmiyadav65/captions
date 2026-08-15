@@ -1,6 +1,8 @@
 import { Readable } from "node:stream";
 import { config } from "@/lib/config";
+import { prisma } from "@/lib/db";
 import { getStorage } from "@/lib/storage";
+import { contentDispositionAttachment } from "@/lib/export-filename";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,11 +11,19 @@ export const dynamic = "force-dynamic";
 // bandwidth); for local disk it streams from ./storage with HTTP range support so the
 // <video> element can seek. Replaces serving user uploads out of /public.
 
-function contentDisposition(key: string): Record<string, string> {
+async function exportDisposition(key: string): Promise<Record<string, string>> {
   if (!key.startsWith("exports/")) return {};
-  const filename = key.split("/").pop() ?? "captioned.mp4";
+  const jobId = key.split("/")[1];
+  let filename = key.split("/").pop() ?? "captioned.mp4";
+  if (jobId) {
+    const job = await prisma.job.findUnique({
+      where: { id: jobId },
+      select: { exportFilename: true },
+    });
+    if (job?.exportFilename) filename = job.exportFilename;
+  }
   return {
-    "Content-Disposition": `attachment; filename="${filename}"`,
+    "Content-Disposition": contentDispositionAttachment(filename),
   };
 }
 
@@ -33,7 +43,7 @@ export async function GET(
   const stat = await storage.stat(key);
   if (!stat) return new Response("Not found", { status: 404 });
 
-  const disposition = contentDisposition(key);
+  const disposition = await exportDisposition(key);
   const range = req.headers.get("range");
   if (range) {
     const m = /bytes=(\d+)-(\d*)/.exec(range);

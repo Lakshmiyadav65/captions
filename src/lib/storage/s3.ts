@@ -55,6 +55,9 @@ export class S3Storage implements Storage {
         Key: key,
         Body: body,
         ContentType: opts?.contentType ?? contentTypeFor(key),
+        ...(opts?.contentDisposition
+          ? { ContentDisposition: opts.contentDisposition }
+          : {}),
       },
     });
     await upload.done();

@@ -79,7 +79,18 @@ export async function enqueueExportAndWait(
   const events = getExportEvents();
   await events.waitUntilReady();
 
+  const bullId = `export-${input.jobId}`;
+  const existing = await queue.getJob(bullId);
+  if (existing) {
+    const state = await existing.getState();
+    if (state === "active" || state === "waiting" || state === "delayed") {
+      throw new Error("Export already in progress.");
+    }
+    await existing.remove().catch(() => undefined);
+  }
+
   const bullJob = await queue.add("burn", input, {
+    jobId: bullId,
     removeOnComplete: true,
     removeOnFail: 50,
     attempts: 2,

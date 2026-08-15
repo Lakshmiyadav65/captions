@@ -36,6 +36,7 @@ import Link from "next/link";
 import { friendlyJobError } from "@/lib/errors";
 import { withCaptionSyncDelay } from "@/lib/transcription/sync-delay";
 import type { CaptionVisibility } from "@/lib/instagram/safe-zone";
+import { ExportModal } from "@/components/export/ExportModal";
 
 const LEFT_W_KEY = "caplio.ed.leftW";
 const RIGHT_W_KEY = "caplio.ed.rightW";
@@ -85,63 +86,6 @@ function download(name: string, text: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
-/** Fetch the export and save via a blob: URL so Chrome doesn't fail on cross-origin CDN links. */
-async function downloadFromUrl(url: string, filename: string) {
-  const raw = url.startsWith("http")
-    ? url
-    : new URL(url, window.location.origin).toString();
-
-  // Prefer the plain file URL — Chrome often fails ?download=1 cross-origin with
-  // "File wasn't available on site".
-  let abs = raw;
-  try {
-    const parsed = new URL(raw);
-    parsed.searchParams.delete("download");
-    abs = parsed.toString();
-  } catch {
-    /* keep raw */
-  }
-
-  const safeName = filename.endsWith(".mp4") ? filename : `${filename}.mp4`;
-
-  // Fetch → blob download (best filename control). Fall back to opening the CDN URL
-  // when CORS / network blocks the fetch — public Blob URLs still download fine that way.
-  try {
-    const res = await fetch(abs);
-    if (res.ok) {
-      const blob = await res.blob();
-      if (blob.size) {
-        const objectUrl = URL.createObjectURL(blob);
-        try {
-          const a = document.createElement("a");
-          a.href = objectUrl;
-          a.download = safeName;
-          a.style.display = "none";
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          await new Promise((r) => setTimeout(r, 1500));
-        } finally {
-          URL.revokeObjectURL(objectUrl);
-        }
-        return;
-      }
-    }
-  } catch {
-    /* fall through to direct link */
-  }
-
-  const a = document.createElement("a");
-  a.href = abs;
-  a.download = safeName;
-  a.target = "_blank";
-  a.rel = "noopener";
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
 export function Editor({
   jobId,
   videoUrl,
@@ -188,7 +132,7 @@ export function Editor({
   const [currentTime, setCurrentTime] = useState(0);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [exportState, setExportState] = useState<"idle" | "exporting" | "error">("idle");
-  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   /** Word fixes auto-learned when the user edits a caption line. */
   const [learned, setLearned] = useState<SpellRule[] | null>(null);
   const [retrying, setRetrying] = useState(false);
@@ -536,33 +480,12 @@ export function Editor({
     download(`${baseName}.${fmt}`, renderSubtitles(fmt, displaySegments, style), mime);
   };
 
-  const exportMp4 = async () => {
-    if (!segments || exportState === "exporting") return;
-    setExportState("exporting");
-    setExportError(null);
-    try {
-      const res = await fetch(`/api/export/${jobId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ style, segments: displaySegments }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        url?: string;
-        filename?: string;
-        error?: string;
-      };
-      if (!res.ok || !data.url) {
-        throw new Error(data.error ?? `Export failed (${res.status})`);
-      }
-      await downloadFromUrl(
-        data.url,
-        data.filename ?? `${baseName}-captioned.mp4`,
-      );
-      setExportState("idle");
-    } catch (err) {
-      setExportError(err instanceof Error ? err.message : "Export failed");
-      setExportState("error");
+  const openExportDialog = () => {
+    if (!segments || exportState === "exporting") {
+      if (exportState === "exporting") setExportOpen(true);
+      return;
     }
+    setExportOpen(true);
   };
 
   const isProcessing =
@@ -675,16 +598,6 @@ export function Editor({
             </div>
           </div>
           <div className="ed-header-actions">
-            {exportState === "exporting" && (
-              <span className="text-xs" style={{ color: "var(--ed-soft)" }}>
-                Burning captions…
-              </span>
-            )}
-            {exportState === "error" && exportError && (
-              <span className="text-xs" style={{ color: "var(--danger)" }}>
-                {exportError}
-              </span>
-            )}
             <QuotaBadge />
             <details className="ed-export-menu">
               <summary>
@@ -707,11 +620,11 @@ export function Editor({
             </details>
             <button
               type="button"
-              onClick={exportMp4}
+              onClick={openExportDialog}
               disabled={exportState === "exporting"}
               className="tc-btn tc-btn--primary tc-btn--sm"
             >
-              {exportState === "exporting" ? "Rendering…" : "Export MP4"}
+              {exportState === "exporting" ? "Exporting…" : "Export MP4"}
             </button>
           </div>
         </header>
@@ -1018,6 +931,17 @@ export function Editor({
           </div>
         </div>
       </div>
+      <ExportModal
+        open={exportOpen}
+        onClose={() => {
+          if (exportState !== "exporting") setExportOpen(false);
+        }}
+        jobId={jobId}
+        originalName={originalName}
+        style={style}
+        segments={displaySegments}
+        onBusyChange={(busy) => setExportState(busy ? "exporting" : "idle")}
+      />
     </AppShell>
   );
 }

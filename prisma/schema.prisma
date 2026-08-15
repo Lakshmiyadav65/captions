@@ -32,6 +32,14 @@ model Job {
   /// Prepaid minutes reserved/deducted for this job (0 if monthly quota covered it).
   creditReservedMin Float @default(0)
 
+  /// MP4 export run (separate from transcription status/progress).
+  exportStatus    String  @default("idle") // idle | queued | processing | finalizing | completed | failed
+  exportProgress  Int     @default(0) // 0..100
+  exportFilename  String? // sanitized download name, e.g. Telugu_Reel_August.mp4
+  exportError     String?
+  exportUrl       String? // last published download URL (may be a CDN/presigned link)
+  exportKey       String? // storage key for the burned MP4
+
   transcript Transcript?
 
   @@index([userId])

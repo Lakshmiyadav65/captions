@@ -6,6 +6,7 @@ import type { Readable } from "node:stream";
 export interface PutOptions {
   contentType?: string;
   contentLength?: number;
+  contentDisposition?: string;
 }
 
 export interface RangeSpec {
