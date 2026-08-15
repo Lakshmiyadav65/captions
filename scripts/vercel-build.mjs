@@ -41,4 +41,8 @@ if (usePostgres) {
 }
 
 run("npx", ["prisma", "generate"]);
+if (isPostgresUrl) {
+  // Keep production tables in sync (CreditBalance, Job export columns, etc.).
+  run("npx", ["prisma", "db", "push", "--skip-generate"]);
+}
 run("npx", ["next", "build"]);

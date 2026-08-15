@@ -1,4 +1,4 @@
-/** Fetch a remote file and save it under `filename` (Chrome-safe for CDN URLs). */
+/** Fetch a file and save it under `filename`. Never navigates the tab. */
 export async function downloadFromUrl(url: string, filename: string) {
   const raw = url.startsWith("http")
     ? url
@@ -15,38 +15,27 @@ export async function downloadFromUrl(url: string, filename: string) {
 
   const safeName = filename.toLowerCase().endsWith(".mp4") ? filename : `${filename}.mp4`;
 
-  try {
-    const res = await fetch(abs);
-    if (res.ok) {
-      const blob = await res.blob();
-      if (blob.size) {
-        const objectUrl = URL.createObjectURL(blob);
-        try {
-          const a = document.createElement("a");
-          a.href = objectUrl;
-          a.download = safeName;
-          a.style.display = "none";
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          await new Promise((r) => setTimeout(r, 1500));
-        } finally {
-          URL.revokeObjectURL(objectUrl);
-        }
-        return;
-      }
-    }
-  } catch {
-    /* fall through to direct link */
+  const res = await fetch(abs, { credentials: "same-origin" });
+  if (!res.ok) {
+    throw new Error("Could not download the video. Please try again.");
+  }
+  const blob = await res.blob();
+  if (!blob.size) {
+    throw new Error("Could not download the video. Please try again.");
   }
 
-  const a = document.createElement("a");
-  a.href = abs;
-  a.download = safeName;
-  a.target = "_blank";
-  a.rel = "noopener";
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = safeName;
+    a.rel = "noopener";
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    await new Promise((r) => setTimeout(r, 400));
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 }

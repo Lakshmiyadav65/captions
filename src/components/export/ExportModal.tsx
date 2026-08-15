@@ -55,6 +55,7 @@ export function ExportModal({
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState("We couldn't export your video. Please try again.");
   const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const resetToFilename = useCallback(() => {
     setPhase("filename");
@@ -241,10 +242,15 @@ export function ExportModal({
   };
 
   const handleDownload = async () => {
-    if (!url || downloading) return;
+    if (downloading) return;
     setDownloading(true);
+    setDownloadError(null);
     try {
-      await downloadFromUrl(url, filename);
+      await downloadFromUrl(`/api/export/${jobId}/file`, filename);
+    } catch (err) {
+      setDownloadError(
+        err instanceof Error ? err.message : "Could not download the video. Please try again.",
+      );
     } finally {
       setDownloading(false);
     }
@@ -304,6 +310,7 @@ export function ExportModal({
           <ExportComplete
             filename={filename}
             downloading={downloading}
+            error={downloadError}
             onDownload={() => void handleDownload()}
             onClose={handleClose}
           />

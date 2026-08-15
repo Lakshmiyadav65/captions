@@ -58,11 +58,13 @@ export function ExportProgress({
 export function ExportComplete({
   filename,
   downloading,
+  error,
   onDownload,
   onClose,
 }: {
   filename: string;
   downloading?: boolean;
+  error?: string | null;
   onDownload: () => void;
   onClose: () => void;
 }) {
@@ -84,6 +86,11 @@ export function ExportComplete({
       </p>
       <p className="ed-export-secondary">Your video is ready to download.</p>
       <p className="ed-export-filename">{filename}</p>
+      {error ? (
+        <p className="ed-export-error" role="alert">
+          {error}
+        </p>
+      ) : null}
       <div className="ed-export-actions">
         <button type="button" className="tc-btn tc-btn--ghost" onClick={onClose}>
           Close
