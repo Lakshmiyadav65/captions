@@ -1236,26 +1236,9 @@ html[data-landing-theme="dark"] .landing-page .lp-hero {
   backdrop-filter: blur(6px);
 }
 
-.lp-reel-play {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 1;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.92);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #17171a;
-  pointer-events: none;
-  transition: background 0.15s ease, transform 0.15s ease;
-}
-
+.lp-reel-play,
 .lp-reel-play.is-playing {
-  background: rgba(23, 23, 26, 0.82);
-  color: #fff;
+  display: none;
 }
 
 .lp-reel-caption {

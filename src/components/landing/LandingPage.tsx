@@ -405,24 +405,62 @@ function StylesSection() {
 
 function ReelsSection() {
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
-  const [playing, setPlaying] = useState<number | null>(null);
+  const CLIP_SEC = 5;
 
-  const togglePlay = (index: number) => {
-    const video = videoRefs.current[index];
-    if (!video) return;
+  useEffect(() => {
+    const cleanups: Array<() => void> = [];
 
-    if (playing === index && !video.paused) {
-      video.pause();
-      setPlaying(null);
-      return;
+    const bind = (video: HTMLVideoElement) => {
+      video.muted = true;
+      video.defaultMuted = true;
+      video.playsInline = true;
+      video.loop = false;
+
+      const restartClip = () => {
+        try {
+          video.currentTime = 0;
+        } catch {
+          /* ignore seek errors while loading */
+        }
+        void video.play().catch(() => {});
+      };
+
+      const onTimeUpdate = () => {
+        if (video.currentTime >= CLIP_SEC) restartClip();
+      };
+
+      const onEnded = () => restartClip();
+
+      video.addEventListener("timeupdate", onTimeUpdate);
+      video.addEventListener("ended", onEnded);
+      restartClip();
+
+      return () => {
+        video.removeEventListener("timeupdate", onTimeUpdate);
+        video.removeEventListener("ended", onEnded);
+        video.pause();
+      };
+    };
+
+    // Bind after refs are attached; retry once next frame if needed.
+    const attach = () => {
+      const videos = videoRefs.current.filter(Boolean) as HTMLVideoElement[];
+      if (videos.length === 0) return false;
+      for (const video of videos) cleanups.push(bind(video));
+      return true;
+    };
+
+    if (!attach()) {
+      const id = requestAnimationFrame(() => {
+        attach();
+      });
+      cleanups.push(() => cancelAnimationFrame(id));
     }
 
-    videoRefs.current.forEach((v, i) => {
-      if (v && i !== index) v.pause();
-    });
-    void video.play();
-    setPlaying(index);
-  };
+    return () => {
+      cleanups.forEach((fn) => fn());
+    };
+  }, []);
 
   const useReelStyle = (presetId: string) => {
     applyPendingStyle(presetId);
@@ -447,65 +485,36 @@ function ReelsSection() {
         </div>
 
         <div className="lp-reels-grid">
-          {REELS.map((reel, index) => {
-            const isPlaying = playing === index;
-            return (
-              <div key={`${reel.n}-${reel.style}`} className="lp-reel-card">
-                <div
-                  className="lp-reel-preview lp-reel-preview--video"
-                  onClick={() => togglePlay(index)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      togglePlay(index);
-                    }
+          {REELS.map((reel, index) => (
+            <div key={`${reel.n}-${reel.style}`} className="lp-reel-card">
+              <div className="lp-reel-preview lp-reel-preview--video">
+                <video
+                  ref={(el) => {
+                    videoRefs.current[index] = el;
                   }}
-                  aria-label={`${isPlaying ? "Pause" : "Play"} ${reel.style} reel`}
-                >
-                  <video
-                    ref={(el) => {
-                      videoRefs.current[index] = el;
-                    }}
-                    src={reel.src}
-                    muted
-                    loop
-                    playsInline
-                    preload="metadata"
-                    onEnded={() => setPlaying(null)}
-                    onPause={() => {
-                      if (playing === index) setPlaying(null);
-                    }}
-                  />
-                  <span className="lp-reel-badge">
-                    reel {reel.n} · {reel.style}
-                  </span>
-                  <span className={`lp-reel-play${isPlaying ? " is-playing" : ""}`} aria-hidden>
-                    {isPlaying ? (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
-                      </svg>
-                    ) : (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    )}
-                  </span>
-                </div>
-                <div className="lp-reel-meta">
-                  <span>{reel.creator}</span>
-                  <button
-                    type="button"
-                    className="lp-mono-tag lp-reel-style-btn"
-                    onClick={() => useReelStyle(reel.presetId)}
-                  >
-                    {reel.style}
-                  </button>
-                </div>
+                  src={reel.src}
+                  muted
+                  playsInline
+                  autoPlay
+                  preload="auto"
+                  aria-label={`${reel.style} reel preview`}
+                />
+                <span className="lp-reel-badge">
+                  reel {reel.n} · {reel.style}
+                </span>
               </div>
-            );
-          })}
+              <div className="lp-reel-meta">
+                <span>{reel.creator}</span>
+                <button
+                  type="button"
+                  className="lp-mono-tag lp-reel-style-btn"
+                  onClick={() => useReelStyle(reel.presetId)}
+                >
+                  {reel.style}
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
