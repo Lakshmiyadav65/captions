@@ -58,6 +58,8 @@ const schema = z.object({
   MAX_VIDEO_MINUTES: z.coerce.number().default(30),
   QUOTA_MONTHLY_MINUTES: z.coerce.number().default(120),
   QUOTA_MAX_ACTIVE_JOBS: z.coerce.number().default(3),
+  // One-time free caption-minute wallet (prepaid packs are currently free).
+  FREE_CAPTION_MINUTES: z.coerce.number().default(10),
   // Abuse protection on /api/upload (Redis when REDIS_URL set, else in-memory)
   RATE_LIMIT_UPLOAD_PER_MINUTE: z.coerce.number().default(5),
   RATE_LIMIT_UPLOAD_PER_HOUR: z.coerce.number().default(30),
@@ -157,6 +159,7 @@ export const config = {
     maxVideoSeconds: env.MAX_VIDEO_MINUTES * 60,
     maxVideoMinutes: env.MAX_VIDEO_MINUTES,
     monthlyMinutes: env.QUOTA_MONTHLY_MINUTES,
+    freeCaptionMinutes: env.FREE_CAPTION_MINUTES,
     maxActiveJobs: env.QUOTA_MAX_ACTIVE_JOBS,
     maxImageBytes: env.MAX_IMAGE_MB * 1024 * 1024,
     maxImageMB: env.MAX_IMAGE_MB,

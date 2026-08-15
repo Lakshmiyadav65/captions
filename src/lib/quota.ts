@@ -92,13 +92,23 @@ export async function assertWithinQuota(userId: string): Promise<QuotaResult> {
   });
   const usedMinutes = (agg._sum.durationSec ?? 0) / 60;
   const prepaid = await getAvailableMinutes(userId);
+  if (limits.planId === "free") {
+    if (prepaid <= 0) {
+      return {
+        ok: false,
+        code: "quota_minutes",
+        buyHref: "/billing#prepaid",
+        reason: "You don't have enough caption minutes for this video.",
+      };
+    }
+    return { ok: true };
+  }
   if (usedMinutes >= limits.monthlyMinutes && prepaid <= 0) {
     return {
       ok: false,
       code: "quota_minutes",
       buyHref: "/billing#prepaid",
-      reason:
-        "You don't have enough caption minutes for this video. Buy more minutes to continue.",
+      reason: "You don't have enough caption minutes for this video.",
     };
   }
 

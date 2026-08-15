@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { config } from "./config";
 import {
   CREDIT_PACKS,
@@ -26,11 +27,83 @@ export function stripePriceIdForPack(packId: CreditPackId): string {
 }
 
 export async function getAvailableMinutes(userId: string): Promise<number> {
-  const row = await prisma.creditBalance.findUnique({
+  return grantFreeMinutesOnce(userId);
+}
+
+/**
+ * Give the configured free caption minutes exactly once per user.
+ * Concurrent callers cannot double-grant: CreditBalance.userId is the primary key.
+ */
+export async function grantFreeMinutesOnce(userId: string): Promise<number> {
+  const amount = round1(Math.max(0, config.limits.freeCaptionMinutes));
+  const existing = await prisma.creditBalance.findUnique({
     where: { userId },
     select: { availableMinutes: true },
   });
-  return round1(row?.availableMinutes ?? 0);
+
+  if (existing) {
+    const current = round1(Math.max(0, existing.availableMinutes));
+    if (current > 0) return current;
+    const ledgerCount = await prisma.creditTransaction.count({ where: { userId } });
+    if (ledgerCount > 0) return current;
+
+    const claimed = await prisma.$transaction(async (tx) => {
+      const stillEmpty = await tx.creditTransaction.count({ where: { userId } });
+      if (stillEmpty > 0) return 0;
+      const updated = await tx.creditBalance.updateMany({
+        where: { userId, availableMinutes: 0 },
+        data: { availableMinutes: amount },
+      });
+      if (updated.count !== 1) return 0;
+      await tx.creditTransaction.create({
+        data: {
+          userId,
+          type: "GRANT",
+          minutes: amount,
+          balanceBefore: 0,
+          balanceAfter: amount,
+          description: "Free caption minutes",
+          status: "COMPLETED",
+        },
+      });
+      return amount;
+    });
+    if (claimed > 0) return claimed;
+    const row = await prisma.creditBalance.findUnique({
+      where: { userId },
+      select: { availableMinutes: true },
+    });
+    return round1(Math.max(0, row?.availableMinutes ?? 0));
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.creditBalance.create({
+        data: { userId, availableMinutes: amount },
+      });
+      await tx.creditTransaction.create({
+        data: {
+          userId,
+          type: "GRANT",
+          minutes: amount,
+          balanceBefore: 0,
+          balanceAfter: amount,
+          description: "Free caption minutes",
+          status: "COMPLETED",
+        },
+      });
+    });
+    return amount;
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const row = await prisma.creditBalance.findUnique({
+        where: { userId },
+        select: { availableMinutes: true },
+      });
+      return round1(Math.max(0, row?.availableMinutes ?? 0));
+    }
+    throw err;
+  }
 }
 
 async function ensureBalance(userId: string) {
@@ -172,9 +245,9 @@ export async function useMinutes(opts: {
     throw new Error("minutes must be greater than 0");
   }
 
-  await ensureBalance(opts.userId);
+  await grantFreeMinutesOnce(opts.userId);
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const beforeRow = await tx.creditBalance.findUnique({
       where: { userId: opts.userId },
     });
@@ -185,7 +258,7 @@ export async function useMinutes(opts: {
       data: { availableMinutes: { decrement: minutes } },
     });
     if (updated.count !== 1) {
-      throw new InsufficientCreditsError();
+      return { ok: false as const, availableMinutes: before };
     }
 
     const after = round1(before - minutes);
@@ -201,8 +274,13 @@ export async function useMinutes(opts: {
         status: "COMPLETED",
       },
     });
-    return { availableMinutes: after };
+    return { ok: true as const, availableMinutes: after };
   });
+
+  if (!result.ok) {
+    throw new InsufficientCreditsError();
+  }
+  return { availableMinutes: result.availableMinutes };
 }
 
 /** Reserve prepaid overflow for a job. No-op if monthly quota covers the duration. */
@@ -222,6 +300,8 @@ export async function reserveJobCredits(opts: {
     return { reserved: 0 };
   }
 
+  await grantFreeMinutesOnce(opts.userId);
+
   return prisma.$transaction(async (tx) => {
     const claimed = await tx.job.updateMany({
       where: { id: opts.jobId, creditReservedMin: 0 },
@@ -234,12 +314,6 @@ export async function reserveJobCredits(opts: {
       });
       return { reserved: job?.creditReservedMin ?? 0 };
     }
-
-    await tx.creditBalance.upsert({
-      where: { userId: opts.userId },
-      create: { userId: opts.userId, availableMinutes: 0 },
-      update: {},
-    });
 
     const beforeRow = await tx.creditBalance.findUnique({
       where: { userId: opts.userId },

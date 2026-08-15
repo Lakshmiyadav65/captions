@@ -107,12 +107,12 @@ model CreditBalance {
   updatedAt        DateTime @updatedAt
 }
 
-/// Ledger for prepaid minutes (purchase, usage, refund, admin adjustment).
+/// Ledger for caption minutes (free grant, usage, refund, admin adjustment).
 model CreditTransaction {
   id            String   @id @default(cuid())
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type          String // PURCHASE | USAGE | REFUND | ADJUSTMENT
+  type          String // GRANT | PURCHASE | USAGE | REFUND | ADJUSTMENT
   minutes       Float
   balanceBefore Float
   balanceAfter  Float

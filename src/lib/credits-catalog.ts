@@ -1,5 +1,5 @@
 export type CreditPackId = "minutes_5" | "minutes_10";
-export type CreditTxnType = "PURCHASE" | "USAGE" | "REFUND" | "ADJUSTMENT";
+export type CreditTxnType = "GRANT" | "PURCHASE" | "USAGE" | "REFUND" | "ADJUSTMENT";
 
 export const CREDIT_PACKS: Record<
   CreditPackId,
@@ -50,7 +50,7 @@ export class InsufficientCreditsError extends Error {
   constructor(message?: string) {
     super(
       message ??
-        "You don't have enough caption minutes for this video. Buy more minutes to continue.",
+        "You don't have enough caption minutes for this video.",
     );
     this.name = "InsufficientCreditsError";
   }

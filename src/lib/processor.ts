@@ -201,7 +201,7 @@ export async function processJob(jobId: string): Promise<void> {
             userId: job.userId,
             jobId,
             videoMinutes: minutesFromDurationSec(duration),
-            monthlyMinutes: limits.monthlyMinutes,
+            monthlyMinutes: limits.planId === "free" ? 0 : limits.monthlyMinutes,
             usedMinutes,
           });
         } catch (err) {
