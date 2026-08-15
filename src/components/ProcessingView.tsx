@@ -21,8 +21,7 @@ function statusCopy(status: string, isMock: boolean): string {
   if (isMock) return "Using the built-in sample transcript (no ASR API key set).";
   if (status === "extracting")
     return "Pulling audio from your video — usually just a few seconds.";
-  if (status === "transcribing")
-    return "Listening in Telugu. Longer clips take a few minutes — audio goes in short pieces.";
+  if (status === "transcribing") return "";
   if (status === "queued") return "Your job is next in line.";
   return "Preparing your captions…";
 }
@@ -45,6 +44,7 @@ export function ProcessingView({
   height?: number | null;
 }) {
   const isMock = provider === "mock";
+  const copy = statusCopy(status, isMock);
   const active = stepIndex(status);
   const pct = Math.max(0, Math.min(100, Math.round(progress)));
   const aspect =
@@ -167,7 +167,7 @@ export function ProcessingView({
               </li>
             </ol>
 
-            <p className="ed-process-copy">{statusCopy(status, isMock)}</p>
+            {copy ? <p className="ed-process-copy">{copy}</p> : null}
           </div>
         </div>
       </div>
