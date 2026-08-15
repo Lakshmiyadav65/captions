@@ -4,6 +4,7 @@ import {
   effectiveBoxMode,
   effectiveTextCase,
   hasBackgroundBox,
+  joinWithTextCase,
   type SubtitleStyle,
 } from "./style";
 import { isEmphasisOn, isEmphasizedWord } from "./emphasis";
@@ -759,14 +760,15 @@ function shamaniDialogues(
   }
 
   const reveal0 = shamaniReveal(tokens.length, tokens.length);
+  const bodyCase = effectiveTextCase(style);
   const headerFull = tokens
     .slice(0, reveal0.headerCount)
     .map((t) => applyTextCase(t.text, "upper"))
     .join(" ");
-  const bodyFull = tokens
-    .slice(reveal0.headerCount)
-    .map((t) => applyTextCase(t.text, "lower"))
-    .join(" ");
+  const bodyFull = joinWithTextCase(
+    tokens.slice(reveal0.headerCount).map((t) => t.text),
+    bodyCase,
+  );
 
   const baseFs0 = styleAssFontSize({ ...style, fontFamily: SHAMANI_HEADER_FONT }, playH);
   const focusPct = Math.min(style.maxWidthPct || SHAMANI_FOCUS_WIDTH_PCT, SHAMANI_FOCUS_WIDTH_PCT);
@@ -795,10 +797,12 @@ function shamaniDialogues(
       );
     }
     if (reveal.bodyShown > 0) {
-      const text = tokens
-        .slice(reveal.headerCount, reveal.headerCount + reveal.bodyShown)
-        .map((t) => applyTextCase(t.text, "lower"))
-        .join(" ");
+      const text = joinWithTextCase(
+        tokens
+          .slice(reveal.headerCount, reveal.headerCount + reveal.bodyShown)
+          .map((t) => t.text),
+        bodyCase,
+      );
       parts.push(
         `{\\fn${SHAMANI_BODY_FONT}\\fs${bodyFs}\\b0\\c${whiteCol}\\bord0\\shad2}${text}`,
       );

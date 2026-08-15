@@ -7,6 +7,7 @@ import {
   effectiveBoxMode,
   effectiveTextCase,
   hasBackgroundBox,
+  joinWithTextCase,
   type SubtitleStyle,
 } from "@/lib/subtitles/style";
 import { isEmphasisOn, isEmphasizedWord } from "@/lib/subtitles/emphasis";
@@ -877,20 +878,22 @@ export function SubtitleOverlay({
       const reveal = shamaniReveal(tokens.length, filledN);
       const headerWords = tokens.slice(0, reveal.headerCount);
       const bodyWords = tokens.slice(reveal.headerCount);
+      const bodyCase = effectiveTextCase(style);
       const headerFull = headerWords
         .map((t) => applyTextCase(t.text, "upper"))
         .join(" ");
-      const bodyFull = bodyWords
-        .map((t) => applyTextCase(t.text, "lower"))
-        .join(" ");
+      const bodyFull = joinWithTextCase(
+        bodyWords.map((t) => t.text),
+        bodyCase,
+      );
       const headerText = headerWords
         .slice(0, reveal.headerShown)
         .map((t) => applyTextCase(t.text, "upper"))
         .join(" ");
-      const bodyText = bodyWords
-        .slice(0, reveal.bodyShown)
-        .map((t) => applyTextCase(t.text, "lower"))
-        .join(" ");
+      const bodyText = joinWithTextCase(
+        bodyWords.slice(0, reveal.bodyShown).map((t) => t.text),
+        bodyCase,
+      );
 
       const baseFs0 = px(style.fontSizePct);
       // P0: stay inside the 80% focus band (10% | 80% | 10%). Shrink font only if needed.
@@ -956,7 +959,7 @@ export function SubtitleOverlay({
                 letterSpacing: "0.01em",
                 lineHeight: 1.1,
                 whiteSpace: "nowrap",
-                textTransform: "lowercase",
+                textTransform: "none",
                 textShadow: bodyShadow,
                 maxWidth: "100%",
               }}

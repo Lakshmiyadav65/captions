@@ -127,6 +127,11 @@ export function applyTextCase(text: string, mode: TextCase): string {
   }
 }
 
+/** Join caption words, then apply the user's Text case setting. */
+export function joinWithTextCase(words: string[], mode: TextCase): string {
+  return applyTextCase(words.join(" "), mode);
+}
+
 /**
  * Default look — Caplio Styles 2.0 "Classic":
  * bold white kinetic captions mid-frame, neon-yellow emphasis, soft bloom
