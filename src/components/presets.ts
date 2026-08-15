@@ -218,7 +218,7 @@ export const PRESETS: StylePreset[] = [
 export const PRESETS_V3: StylePreset[] = [
   {
     id: "raj-shamani",
-    name: "Raj Shamani",
+    name: "1",
     category: "premium",
     tag: "Premium 3.0",
     sample: "MEERU EE REEL NI",
@@ -253,7 +253,7 @@ export const PRESETS_V3: StylePreset[] = [
   },
   {
     id: "pinterest-2",
-    name: "Pinterest 2",
+    name: "2",
     category: "premium",
     tag: "Premium 3.0",
     sample: "the math",
@@ -286,7 +286,7 @@ export const PRESETS_V3: StylePreset[] = [
   },
   {
     id: "pinterest-3",
-    name: "Pinterest 3",
+    name: "3",
     category: "premium",
     tag: "Premium 3.0",
     sample: "tell me",
@@ -319,7 +319,7 @@ export const PRESETS_V3: StylePreset[] = [
   },
   {
     id: "pinterest-4",
-    name: "Pinterest 4",
+    name: "4",
     category: "premium",
     tag: "Premium 3.0",
     sample: "performing",
