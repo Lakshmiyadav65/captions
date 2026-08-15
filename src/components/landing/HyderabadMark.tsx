@@ -32,10 +32,16 @@ export function HyderabadMark({
       <span className="lp-city-mark-icon" aria-hidden>
         <CharminarIcon />
       </span>
-      <span className="lp-city-mark-copy">
-        <b>Made in Hyderabad</b>
-        <small>made for Telugu creators</small>
-      </span>
+      {variant === "hero" ? (
+        <span className="lp-city-mark-copy">
+          Made in Hyderabad for Telugu creators
+        </span>
+      ) : (
+        <span className="lp-city-mark-copy">
+          <b>Made in Hyderabad</b>
+          <small>made for Telugu creators</small>
+        </span>
+      )}
     </span>
   );
 }
