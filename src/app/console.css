@@ -1464,6 +1464,7 @@ html[data-console-theme="dark"] .console {
   text-decoration: none;
   color: inherit;
   width: 100%;
+  cursor: pointer;
   background: var(--surface);
   border: 1px dashed var(--line-2);
   box-shadow: var(--e0);
@@ -1481,6 +1482,26 @@ html[data-console-theme="dark"] .console {
 .console .tc-drop:hover .tc-drop-ic {
   background: var(--surface);
   color: var(--accent);
+}
+.console .tc-drop.is-dragging {
+  border-color: var(--accent);
+  border-style: solid;
+  background: var(--accent-wash);
+}
+.console .tc-drop.is-uploading {
+  pointer-events: none;
+  opacity: 0.78;
+}
+.console .tc-drop-wrap {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.console .tc-drop-error {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--warn, #b45309);
 }
 .console .tc-drop:active {
   transform: scale(0.995);
@@ -1537,6 +1558,11 @@ html[data-console-theme="dark"] .console {
   gap: 14px;
   align-items: stretch;
 }
+.console .tc-hero-row .tc-drop-wrap {
+  margin: 0;
+  height: 100%;
+}
+.console .tc-hero-row .tc-drop-wrap .tc-drop,
 .console .tc-hero-row .tc-drop {
   margin: 0;
   height: 100%;
@@ -1858,6 +1884,7 @@ html[data-console-theme="dark"] .console {
   .console .tc-hero-row {
     grid-template-columns: 1fr 1fr;
   }
+  .console .tc-hero-row .tc-drop-wrap,
   .console .tc-hero-row .tc-drop {
     grid-column: 1 / -1;
   }

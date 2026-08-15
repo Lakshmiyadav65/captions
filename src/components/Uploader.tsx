@@ -25,18 +25,26 @@ function isAuthRequiredError(err: unknown): boolean {
   return /client token|Failed to retrieve|Sign in to upload|unauthorized|401/i.test(msg);
 }
 
-const SIGN_IN_UPLOAD = `/signin?next=${encodeURIComponent("/?start=1")}`;
-
 type UploaderProps = {
   /** Dark for the app shell; light for the marketing landing hero. */
   tone?: "dark" | "light";
   /** When false (auth on, logged out), send users to sign-in instead of uploading. */
   canUpload?: boolean;
-  /** Landing dropzone styled by landing.css (`.lp-uploader`). */
-  variant?: "default" | "landing";
+  /** Landing dropzone styled by landing.css (`.lp-uploader`). Console uses `.tc-drop`. */
+  variant?: "default" | "landing" | "console";
+  /** Larger drop target for the New project screen. */
+  size?: "default" | "lg";
+  /** After Google sign-in, return here instead of the landing upload. */
+  signInNext?: string;
 };
 
-export function Uploader({ tone = "dark", canUpload = true, variant = "default" }: UploaderProps) {
+export function Uploader({
+  tone = "dark",
+  canUpload = true,
+  variant = "default",
+  size = "default",
+  signInNext,
+}: UploaderProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -44,6 +52,7 @@ export function Uploader({ tone = "dark", canUpload = true, variant = "default" 
   const [pct, setPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const light = tone === "light";
+  const signInHref = `/signin?next=${encodeURIComponent(signInNext ?? "/?start=1")}`;
 
   const finishWithJobId = (id: string) => {
     router.push(`/jobs/${id}`);
@@ -51,7 +60,7 @@ export function Uploader({ tone = "dark", canUpload = true, variant = "default" 
 
   const requireSignIn = () => {
     setError("Sign in with Google to upload a video.");
-    router.push(SIGN_IN_UPLOAD);
+    router.push(signInHref);
   };
 
   const uploadViaBlob = async (file: File) => {
@@ -203,6 +212,85 @@ export function Uploader({ tone = "dark", canUpload = true, variant = "default" 
     const file = e.dataTransfer.files?.[0];
     if (file) void upload(file);
   };
+
+  const openPicker = () => {
+    if (uploading) return;
+    if (!canUpload) {
+      requireSignIn();
+      return;
+    }
+    inputRef.current?.click();
+  };
+
+  const fileInput = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept="video/*,.mp4,.mov,.mkv,.webm,.avi,.m4v"
+      className="hidden"
+      onChange={(e) => {
+        const file = e.target.files?.[0];
+        if (file) void upload(file);
+        e.target.value = "";
+      }}
+    />
+  );
+
+  if (variant === "console") {
+    const large = size === "lg";
+    return (
+      <div className="tc-drop-wrap">
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label={large ? "Upload a video" : "Drop a Short here"}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={onDrop}
+          onClick={openPicker}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              openPicker();
+            }
+          }}
+          className={[
+            "tc-drop",
+            large ? "tc-drop--lg" : "",
+            dragging ? "is-dragging" : "",
+            uploading ? "is-uploading" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          <span className="tc-drop-ic" aria-hidden>
+            {uploading ? "…" : "↑"}
+          </span>
+          <span className="tc-drop-body">
+            <b>
+              {uploading
+                ? `Uploading… ${pct}%`
+                : large
+                  ? "Drop your video, or click to browse"
+                  : "Drop a Short here"}
+            </b>
+            <span className="fmt">
+              {uploading
+                ? "We’ll open the editor as soon as the upload finishes."
+                : large
+                  ? "MP4 · MOV · up to 3 minutes · vertical works best"
+                  : "MP4 or MOV · up to 3 minutes · Telugu audio"}
+            </span>
+          </span>
+          {fileInput}
+        </div>
+        {error ? <p className="tc-drop-error">{error}</p> : null}
+      </div>
+    );
+  }
 
   if (variant === "landing") {
     return (

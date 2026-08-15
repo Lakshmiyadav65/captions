@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell, type ConsoleUser } from "@/components/console/AppShell";
+import { Uploader } from "@/components/Uploader";
 import { PRESETS } from "@/components/presets";
 
 export type LibraryJob = {
@@ -176,15 +177,12 @@ export function LibraryClient({
             </div>
           </section>
 
-          <Link href="/#upload" className="tc-drop tc-drop--lg">
-            <span className="tc-drop-ic" aria-hidden>
-              ↑
-            </span>
-            <span className="tc-drop-body">
-              <b>Drop your video, or click to browse</b>
-              <span className="fmt">MP4 · MOV · up to 3 minutes · vertical works best</span>
-            </span>
-          </Link>
+          <Uploader
+            variant="console"
+            size="lg"
+            canUpload
+            signInNext="/library?view=new"
+          />
 
           <div className="tc-new-grid">
             <div className="tc-card-plain tc-new-card">
@@ -279,15 +277,7 @@ export function LibraryClient({
             </section>
 
             <div className="tc-hero-row">
-              <Link href="/#upload" className="tc-drop">
-                <span className="tc-drop-ic" aria-hidden>
-                  ↑
-                </span>
-                <span className="tc-drop-body">
-                  <b>Drop a Short here</b>
-                  <span className="fmt">MP4 or MOV · up to 3 minutes · Telugu audio</span>
-                </span>
-              </Link>
+              <Uploader variant="console" canUpload signInNext="/library" />
               <div className="tc-stat">
                 <span className="tc-stat-label">Minutes left</span>
                 <span className="tc-stat-value mono">
