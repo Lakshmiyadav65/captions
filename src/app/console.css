@@ -175,15 +175,24 @@ html[data-console-theme="dark"] .console {
     background var(--dur-1) var(--ease),
     border-color var(--dur-1) var(--ease),
     color var(--dur-1) var(--ease),
-    box-shadow var(--dur-1) var(--ease);
+    box-shadow var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
 }
-.console--editor .tc-btn:hover {
+.console .tc-btn:hover {
   --bbg: var(--surface-2);
   --bbd: var(--line-2);
+}
+.console .tc-btn:active {
+  transform: scale(0.98);
+}
+.console .tc-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .console .tc-btn:disabled {
   opacity: 0.45;
   pointer-events: none;
+  cursor: not-allowed;
 }
 .console .tc-btn--primary {
   --bbg: var(--accent);
@@ -192,7 +201,7 @@ html[data-console-theme="dark"] .console {
   border-radius: var(--r-full);
   box-shadow: none;
 }
-.console--editor .tc-btn--primary:hover {
+.console .tc-btn--primary:hover {
   --bbg: var(--accent-deep);
   --bbd: transparent;
 }
@@ -202,7 +211,7 @@ html[data-console-theme="dark"] .console {
   --bbd: var(--line);
   border-radius: var(--r-full);
 }
-.console--editor .tc-btn--outline:hover {
+.console .tc-btn--outline:hover {
   --bbg: var(--raised);
 }
 .console .tc-btn--ghost {
@@ -211,7 +220,7 @@ html[data-console-theme="dark"] .console {
   --bfg: var(--ink-2);
   box-shadow: none;
 }
-.console--editor .tc-btn--ghost:hover {
+.console .tc-btn--ghost:hover {
   --bbg: var(--hover);
   --bfg: var(--ink);
 }
@@ -225,6 +234,16 @@ html[data-console-theme="dark"] .console {
   height: 34px;
   padding: 0;
   border-radius: var(--r-full);
+}
+
+.console .tc-interactive:active {
+  transform: scale(0.98);
+}
+
+.console a:focus-visible,
+.console button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .console .tc-seg {
@@ -246,13 +265,30 @@ html[data-console-theme="dark"] .console {
   font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
 }
-.console--editor .tc-seg button:hover {
+.console .tc-seg button:hover {
   color: var(--ink);
   border-color: var(--line-2);
-  background: var(--surface);
+  background: var(--raised);
+}
+.console .tc-seg button:active {
+  transform: scale(0.98);
+}
+.console .tc-seg button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .console .tc-seg button[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+}
+.console .tc-seg button[aria-pressed="true"]:hover {
   background: var(--ink);
   border-color: var(--ink);
   color: var(--surface);
@@ -362,10 +398,15 @@ html[data-console-theme="dark"] .console {
     background var(--dur-1) var(--ease),
     color var(--dur-1) var(--ease);
 }
-.console--editor .tc-tabs a:hover,
-.console--editor .tc-tabs button:hover {
+.console .tc-tabs a:hover,
+.console .tc-tabs button:hover {
   background: var(--hover);
   color: var(--ink);
+}
+.console .tc-tabs a:focus-visible,
+.console .tc-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .console .tc-tabs a[aria-current="page"],
 .console .tc-tabs button[aria-current="true"] {
@@ -412,12 +453,20 @@ html[data-console-theme="dark"] .console {
     background var(--dur-1) var(--ease),
     border-color var(--dur-1) var(--ease),
     color var(--dur-1) var(--ease),
-    opacity var(--dur-1) var(--ease);
+    opacity var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
 }
-.console--editor .tc-theme-toggle:hover {
+.console .tc-theme-toggle:hover {
   background: var(--hover);
   color: var(--ink);
   border-color: var(--ink-4);
+}
+.console .tc-theme-toggle:active {
+  transform: scale(0.96);
+}
+.console .tc-theme-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .console .tc-theme-toggle[data-ready="false"] {
   opacity: 0.55;
@@ -719,6 +768,13 @@ html[data-console-theme="dark"] .console {
   border-radius: var(--r-lg);
   overflow: hidden;
   box-shadow: var(--e0);
+  transition:
+    border-color var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease);
+}
+.console.console--dash .tc-card-plain:hover {
+  border-color: var(--line-2);
+  box-shadow: var(--e1);
 }
 .console .tc-card-plain > .tc-card-head {
   padding: 16px 18px 0;
@@ -744,9 +800,13 @@ html[data-console-theme="dark"] .console {
   gap: var(--s5);
   padding: 14px 18px;
   border-bottom: 1px solid var(--line);
+  transition: background var(--dur-1) var(--ease);
 }
 .console .tc-row:last-child {
   border-bottom: 0;
+}
+.console .tc-row:has(.tc-btn):hover {
+  background: var(--bg);
 }
 .console .tc-row b {
   display: block;
@@ -781,10 +841,14 @@ html[data-console-theme="dark"] .console {
     transform var(--dur-2) var(--ease),
     box-shadow var(--dur-2) var(--ease);
 }
-.console--editor .tc-card:hover {
+.console .tc-card:hover {
   transform: translateY(-3px);
   border-color: var(--line-2);
   box-shadow: var(--e2);
+}
+.console .tc-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .console .tc-card-foot {
   display: flex;
@@ -1033,6 +1097,24 @@ html[data-console-theme="dark"] .console {
   font-weight: 500;
   letter-spacing: -0.01em;
   position: relative;
+  transition:
+    background var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+.console .tc-side-nav a:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.console .tc-side-nav a:hover .tc-side-ico {
+  color: var(--ink-2);
+}
+.console .tc-side-nav a:active {
+  transform: scale(0.98);
+}
+.console .tc-side-nav a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .console .tc-side-nav a svg {
   flex: none;
@@ -1046,6 +1128,7 @@ html[data-console-theme="dark"] .console {
   place-items: center;
   flex: none;
   color: var(--ink-3);
+  transition: color var(--dur-1) var(--ease);
 }
 .console .tc-side-glyph {
   width: 18px;
@@ -1065,15 +1148,12 @@ html[data-console-theme="dark"] .console {
   color: var(--ink);
   font-weight: 600;
 }
+.console .tc-side-nav a[aria-current="page"]:hover {
+  background: var(--accent-wash);
+  color: var(--ink);
+}
 .console .tc-side-nav a[aria-current="page"]::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 9px;
-  bottom: 9px;
-  width: 2.5px;
-  border-radius: 0 2px 2px 0;
-  background: var(--accent);
+  display: none;
 }
 .console .tc-side-nav a[aria-current="page"] svg {
   color: var(--accent);
@@ -1177,7 +1257,23 @@ html[data-console-theme="dark"] .console {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface);
-  transition: none;
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+.console .tc-side-user:hover {
+  background: var(--bg);
+  border-color: var(--line-2);
+  box-shadow: var(--e0);
+}
+.console .tc-side-user:active {
+  transform: scale(0.98);
+}
+.console .tc-side-user:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .console .tc-side-av {
   width: 30px;
@@ -1374,7 +1470,26 @@ html[data-console-theme="dark"] .console {
   transition:
     border-color var(--dur-2) var(--ease),
     background var(--dur-2) var(--ease),
-    box-shadow var(--dur-2) var(--ease);
+    box-shadow var(--dur-2) var(--ease),
+    transform var(--dur-2) var(--ease);
+}
+.console .tc-drop:hover {
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
+  box-shadow: var(--e1);
+}
+.console .tc-drop:hover .tc-drop-ic {
+  background: var(--surface);
+  color: var(--accent);
+}
+.console .tc-drop:active {
+  transform: scale(0.995);
+  border-style: solid;
+}
+.console .tc-drop:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-color: var(--accent);
 }
 .console .tc-drop-ic {
   width: 48px;
@@ -1387,6 +1502,9 @@ html[data-console-theme="dark"] .console {
   color: var(--ink);
   font-size: 19px;
   font-weight: 600;
+  transition:
+    background var(--dur-2) var(--ease),
+    color var(--dur-2) var(--ease);
 }
 .console .tc-drop-body {
   flex: 1;
@@ -1512,12 +1630,28 @@ html[data-console-theme="dark"] .console {
   color: inherit;
   transition:
     box-shadow var(--dur-2) var(--ease),
-    border-color var(--dur-2) var(--ease);
+    border-color var(--dur-2) var(--ease),
+    transform var(--dur-2) var(--ease);
+}
+.console .tc-tile:hover {
+  border-color: var(--line-2);
+  box-shadow: var(--e2);
+  transform: translateY(-2px);
 }
 .console .tc-project-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 14px;
+}
+@keyframes tc-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .console .tc-project-card {
   border: 1px solid var(--line);
@@ -1528,7 +1662,36 @@ html[data-console-theme="dark"] .console {
   text-decoration: none;
   color: inherit;
   box-shadow: var(--e0);
-  transition: box-shadow 140ms ease, border-color 140ms ease, transform 140ms ease;
+  transition:
+    box-shadow var(--dur-2) var(--ease),
+    border-color var(--dur-2) var(--ease),
+    transform var(--dur-2) var(--ease);
+  animation: tc-rise 280ms var(--ease) both;
+}
+.console .tc-project-card:nth-child(1) { animation-delay: 0ms; }
+.console .tc-project-card:nth-child(2) { animation-delay: 30ms; }
+.console .tc-project-card:nth-child(3) { animation-delay: 60ms; }
+.console .tc-project-card:nth-child(4) { animation-delay: 90ms; }
+.console .tc-project-card:nth-child(5) { animation-delay: 120ms; }
+.console .tc-project-card:nth-child(6) { animation-delay: 150ms; }
+.console .tc-project-card:nth-child(7) { animation-delay: 180ms; }
+.console .tc-project-card:nth-child(8) { animation-delay: 210ms; }
+.console .tc-project-card:nth-child(n + 9) { animation-delay: 240ms; }
+.console .tc-project-card:hover {
+  border-color: var(--line-2);
+  box-shadow: var(--e2);
+  transform: translateY(-2px);
+}
+.console .tc-project-card:hover .tc-project-thumb {
+  filter: brightness(0.97);
+}
+.console .tc-project-card:active {
+  transform: translateY(0);
+  box-shadow: var(--e0);
+}
+.console .tc-project-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .console .tc-project-thumb {
   position: relative;
@@ -1540,6 +1703,7 @@ html[data-console-theme="dark"] .console {
   );
   display: grid;
   place-items: center;
+  transition: filter var(--dur-2) var(--ease);
 }
 .console .tc-project-status {
   position: absolute;
@@ -1626,10 +1790,28 @@ html[data-console-theme="dark"] .console {
   text-align: left;
   overflow: hidden;
   font-family: var(--ui);
+  transition:
+    border-color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+.console .tc-start-style:hover {
+  border-color: var(--line-2);
+  box-shadow: var(--e1);
+}
+.console .tc-start-style:active {
+  transform: scale(0.98);
+}
+.console .tc-start-style:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .console .tc-start-style.is-active {
-  border-color: var(--ink);
-  box-shadow: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-wash);
+}
+.console .tc-start-style.is-active:hover {
+  border-color: var(--accent);
 }
 .console .tc-start-style-sample {
   display: grid;
@@ -2280,6 +2462,37 @@ html[data-console-theme="dark"] .console.console--editor {
   .console .ed-process-wave i,
   .console .ed-process-steps li[data-state="active"] .ed-process-step-dot {
     animation: none;
+  }
+  .console .tc-project-card {
+    animation: none;
+  }
+  .console .tc-btn,
+  .console .tc-seg button,
+  .console .tc-side-nav a,
+  .console .tc-side-user,
+  .console .tc-theme-toggle,
+  .console .tc-drop,
+  .console .tc-project-card,
+  .console .tc-tile,
+  .console .tc-card,
+  .console .tc-card-plain,
+  .console .tc-start-style,
+  .console .tc-interactive {
+    transition: none !important;
+  }
+  .console .tc-btn:active,
+  .console .tc-seg button:active,
+  .console .tc-side-nav a:active,
+  .console .tc-side-user:active,
+  .console .tc-theme-toggle:active,
+  .console .tc-drop:active,
+  .console .tc-project-card:hover,
+  .console .tc-project-card:active,
+  .console .tc-tile:hover,
+  .console .tc-card:hover,
+  .console .tc-start-style:active,
+  .console .tc-interactive:active {
+    transform: none;
   }
 }
 @media (max-width: 640px) {
